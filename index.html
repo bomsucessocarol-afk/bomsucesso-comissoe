@@ -411,9 +411,9 @@ tr.rw-prox:hover td{background:#fdba74!important}
 .sel-add input:focus{border-color:var(--azul);}
 .sel-add button{background:var(--azul);color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:0.75rem;font-weight:700;cursor:pointer;}
 .sel-display{border:1.5px solid var(--borda-azul);border-radius:8px;padding:10px 12px;font-family:'DM Sans',sans-serif;font-size:0.85rem;color:var(--texto);background:#F8F7FF;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:border-color 0.2s,box-shadow 0.2s;}
-.sel-display:hover,.sel-display.aberto{border-color:var(--azul);}
-.sel-dropdown{display:none;position:absolute;top:100%;left:0;right:0;z-index:50;background:var(--card);border:1.5px solid var(--azul);border-top:none;border-radius:0 0 8px 8px;box-shadow:var(--sombra);}
-.sel-dropdown.aberto{display:block;}
+.sel-display:hover,.sel-display.aberto{border-color:var(--azul);box-shadow:0 0 0 3px rgba(56,55,114,0.1);}
+.sel-dropdown{display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;z-index:200;background:#fff;border:1.5px solid var(--azul);border-radius:8px;box-shadow:0 4px 20px rgba(56,55,114,0.15);max-height:220px;overflow-y:auto;}
+.sel-dropdown.aberto{display:block!important;}
 
 /* BOTÕES */
 .bs-wrap .btn{border:none;border-radius:8px;padding:11px 22px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:0.8rem;letter-spacing:0.5px;cursor:pointer;transition:all 0.2s;display:inline-flex;align-items:center;gap:7px;}
@@ -1001,31 +1001,30 @@ tr.rw-prox:hover td{background:#fdba74!important}
       <!-- MODALIDADE EDITÁVEL -->
       <div class="form-grupo">
         <label>Modalidade / Produto * <span style="font-weight:400;font-size:0.65rem;color:var(--azul);">(clique para editar lista)</span></label>
-        <div class="select-editavel">
-          <div class="sel-display" id="sel-modal-display" onclick="toggleSelectEditavel('modal')">
-            <span id="sel-modal-texto">Selecione...</span>
-            <span>▾</span>
-          </div>
-          <div class="sel-dropdown" id="sel-modal-dropdown">
-            <div class="select-editavel-lista" id="sel-modal-lista"></div>
+        <input type="hidden" id="f-modalidade" value="">
+        <div class="select-editavel" style="position:relative;">
+          <div class="sel-display" id="sel-modal-display" onclick="toggleSelectEditavel('modal')">Selecione... <span>▼</span></div>
+          <div class="sel-dropdown" id="sel-modal-dropdown" style="display:none;">
+            <div class="sel-items" id="sel-modal-lista"></div>
             <div class="sel-add">
-              <input type="text" id="sel-modal-novo" placeholder="Nova modalidade...">
+              <input type="text" id="sel-modal-inp" placeholder="Nova modalidade...">
               <button onclick="addItemSelect('modal')">+ Add</button>
             </div>
           </div>
         </div>
-        <input type="hidden" id="f-modalidade">
       </div>
 
       <div class="form-grupo">
         <label>Tipo de Operação * <span style="font-weight:400;font-size:0.65rem;color:var(--azul);">(clique para editar lista)</span></label>
         <input type="hidden" id="f-tipo-op" value="NOVO">
-        <div class="sel-display" onclick="toggleSelectEditavel('tipoop')" id="sel-tipoop-display">Novo <span>▼</span></div>
-        <div class="sel-dropdown" id="sel-tipoop-dropdown" style="display:none;">
-          <div class="sel-items" id="sel-tipoop-lista"></div>
-          <div class="sel-add">
-            <input type="text" id="sel-tipoop-inp" placeholder="Nova operação...">
-            <button onclick="addItemSelect('tipoop')">+ Add</button>
+        <div class="select-editavel" style="position:relative;">
+          <div class="sel-display" onclick="toggleSelectEditavel('tipoop')" id="sel-tipoop-display">Novo <span>▼</span></div>
+          <div class="sel-dropdown" id="sel-tipoop-dropdown" style="display:none;">
+            <div class="sel-items" id="sel-tipoop-lista"></div>
+            <div class="sel-add">
+              <input type="text" id="sel-tipoop-inp" placeholder="Nova operação...">
+              <button onclick="addItemSelect('tipoop')">+ Add</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1033,31 +1032,30 @@ tr.rw-prox:hover td{background:#fdba74!important}
       <!-- BANCO EDITÁVEL -->
       <div class="form-grupo">
         <label>Banco / Financeira * <span style="font-weight:400;font-size:0.65rem;color:var(--azul);">(clique para editar lista)</span></label>
-        <div class="select-editavel">
-          <div class="sel-display" id="sel-banco-display" onclick="toggleSelectEditavel('banco')">
-            <span id="sel-banco-texto">Selecione...</span>
-            <span>▾</span>
-          </div>
-          <div class="sel-dropdown" id="sel-banco-dropdown">
-            <div class="select-editavel-lista" id="sel-banco-lista"></div>
+        <input type="hidden" id="f-banco" value="">
+        <div class="select-editavel" style="position:relative;">
+          <div class="sel-display" id="sel-banco-display" onclick="toggleSelectEditavel('banco')">Selecione... <span>▼</span></div>
+          <div class="sel-dropdown" id="sel-banco-dropdown" style="display:none;">
+            <div class="sel-items" id="sel-banco-lista"></div>
             <div class="sel-add">
-              <input type="text" id="sel-banco-novo" placeholder="Novo banco...">
+              <input type="text" id="sel-banco-inp" placeholder="Novo banco...">
               <button onclick="addItemSelect('banco')">+ Add</button>
             </div>
           </div>
         </div>
-        <input type="hidden" id="f-banco">
       </div>
 
       <div class="form-grupo">
         <label>Promotora <span style="font-weight:400;font-size:0.65rem;color:var(--azul);">(clique para editar lista)</span></label>
         <input type="hidden" id="f-promotora" value="">
-        <div class="sel-display" onclick="toggleSelectEditavel('promotora')" id="sel-promotora-display">Nenhuma <span>▼</span></div>
-        <div class="sel-dropdown" id="sel-promotora-dropdown" style="display:none;">
-          <div class="sel-items" id="sel-promotora-lista"></div>
-          <div class="sel-add">
-            <input type="text" id="sel-promotora-inp" placeholder="Nova promotora...">
-            <button onclick="addItemSelect('promotora')">+ Add</button>
+        <div class="select-editavel" style="position:relative;">
+          <div class="sel-display" onclick="toggleSelectEditavel('promotora')" id="sel-promotora-display">Nenhuma <span>▼</span></div>
+          <div class="sel-dropdown" id="sel-promotora-dropdown" style="display:none;">
+            <div class="sel-items" id="sel-promotora-lista"></div>
+            <div class="sel-add">
+              <input type="text" id="sel-promotora-inp" placeholder="Nova promotora...">
+              <button onclick="addItemSelect('promotora')">+ Add</button>
+            </div>
           </div>
         </div>
       </div>
@@ -3188,6 +3186,17 @@ function initBomSucesso() {
   if(!window._bsIniciado) {
     window._bsIniciado = true;
     initSupabase();
+
+    // Inicializa displays dos selects editáveis
+    ['modal','banco','tipoop','promotora'].forEach(tipo => {
+      const disp = document.getElementById('sel-'+tipo+'-display');
+      const field = document.getElementById(_getFieldId(tipo));
+      if(disp && field) {
+        const val = field.value;
+        const label = val || (tipo==='tipoop' ? 'Novo' : tipo==='promotora' ? 'Nenhuma' : 'Selecione...');
+        disp.innerHTML = label + ' <span>▼</span>';
+      }
+    });
 
     // 1. Carrega cache local IMEDIATAMENTE
     try {
