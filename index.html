@@ -1050,13 +1050,16 @@ tr.rw-prox:hover td{background:#fdba74!important}
       </div>
 
       <div class="form-grupo">
-        <label>Promotora</label>
-        <select id="f-promotora">
-          <option value="">Nenhuma</option>
-          <option value="BEVI">BEVI</option>
-          <option value="LEV">LEV</option>
-          <option value="OUTRA">Outra</option>
-        </select>
+        <label>Promotora <span style="font-weight:400;font-size:0.65rem;color:var(--azul);">(clique para editar lista)</span></label>
+        <input type="hidden" id="f-promotora" value="">
+        <div class="sel-display" onclick="toggleSelectEditavel('promotora')" id="sel-promotora-display">Nenhuma <span>▼</span></div>
+        <div class="sel-dropdown" id="sel-promotora-dropdown" style="display:none;">
+          <div class="sel-items" id="sel-promotora-lista"></div>
+          <div class="sel-add">
+            <input type="text" id="sel-promotora-inp" placeholder="Nova promotora...">
+            <button onclick="addItemSelect('promotora')">+ Add</button>
+          </div>
+        </div>
       </div>
 
       <div class="form-grupo">
@@ -1325,6 +1328,80 @@ tr.rw-prox:hover td{background:#fdba74!important}
 
   </div>
 </section>
+
+<!-- MODAL EDITAR LANÇAMENTO BS -->
+<div class="modal-ov" id="modal-editar" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center;">
+  <div class="modal-box" style="background:#fff;border-radius:16px;padding:28px;width:90%;max-width:680px;max-height:90vh;overflow-y:auto;position:relative;">
+    <button onclick="fecharModal()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--cinza);">✕</button>
+    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:1rem;color:var(--azul);margin-bottom:18px;">✏️ Editar Lançamento</div>
+    <input type="hidden" id="e-id">
+    <div class="modal-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+      <div class="form-grupo">
+        <label>Data de Digitação</label>
+        <input type="date" id="e-data-dig">
+      </div>
+      <div class="form-grupo">
+        <label>Data Pagamento</label>
+        <input type="date" id="e-data-pg">
+      </div>
+      <div class="form-grupo">
+        <label>Dt. Comissão Recebida</label>
+        <input type="date" id="e-data-comissao-rec">
+      </div>
+      <div class="form-grupo" style="grid-column:1/-1;">
+        <label>Nome do Cliente *</label>
+        <input type="text" id="e-nome" placeholder="Ex: MARIA DA SILVA SANTOS">
+      </div>
+      <div class="form-grupo">
+        <label>Modalidade</label>
+        <input type="text" id="e-modalidade" placeholder="Ex: INSS">
+      </div>
+      <div class="form-grupo">
+        <label>Tipo de Operação</label>
+        <input type="text" id="e-tipo-op" placeholder="Ex: NOVO">
+      </div>
+      <div class="form-grupo">
+        <label>Banco / Financeira</label>
+        <input type="text" id="e-banco" placeholder="Ex: FACTA">
+      </div>
+      <div class="form-grupo">
+        <label>Promotora</label>
+        <input type="text" id="e-promotora" placeholder="Ex: BEVI">
+      </div>
+      <div class="form-grupo">
+        <label>Valor do Contrato (R$)</label>
+        <input type="number" id="e-valor" step="0.01" min="0" oninput="calcularComissaoEdit()">
+      </div>
+      <div class="form-grupo">
+        <label>% de Comissão</label>
+        <input type="number" id="e-perc" step="0.01" min="0" oninput="calcularComissaoEdit()">
+      </div>
+      <div class="form-grupo">
+        <label>Comissão (R$)</label>
+        <input type="number" id="e-comissao" step="0.01" min="0" style="background:#EEF0FF;color:var(--azul);font-weight:700;" readonly>
+      </div>
+      <div class="form-grupo">
+        <label>Pacote Fixo (R$)</label>
+        <input type="number" id="e-pact-fixo" step="0.01" min="0" oninput="calcularComissaoEdit()">
+      </div>
+      <div class="form-grupo">
+        <label>Status</label>
+        <select id="e-status">
+          <option value="PAGO">✅ PAGO</option>
+          <option value="ABERTO">⏳ ABERTO</option>
+        </select>
+      </div>
+      <div class="form-grupo">
+        <label>Mês de Referência</label>
+        <input type="text" id="e-mes-ref" placeholder="Ex: JULHO2026">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;">
+      <button class="btn btn-amarelo" onclick="salvarEdicao()">💾 Salvar Alterações</button>
+      <button class="btn btn-outline" onclick="fecharModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
 
 </div><!-- /wrap -->
 
@@ -3246,10 +3323,12 @@ const TIPOS_OP_PADRAO = [
   'CARTÃO COM SAQUE','CARTÃO - EMISSÃO','SAQUE COMPLEMENTAR - RCC','SAQUE COMPLEMENTAR - RMC',
   'SAQUE COMPLEMENTAR','PACOTE'
 ];
+const PROMOTORAS_PADRAO = ['BEVI','LEV','OUTRA'];
 
 let listaModalidades = (() => { try { return JSON.parse(_lsGet('bs_modalidades') || 'null') || MODALIDADES_PADRAO; } catch(e) { return MODALIDADES_PADRAO; } })();
 let listaBancos      = (() => { try { return JSON.parse(_lsGet('bs_bancos') || 'null') || BANCOS_PADRAO; } catch(e) { return BANCOS_PADRAO; } })();
 let listaTiposOp     = (() => { try { return JSON.parse(_lsGet('bs_tipos_op') || 'null') || TIPOS_OP_PADRAO; } catch(e) { return TIPOS_OP_PADRAO; } })();
+let listaPromotoras  = (() => { try { return JSON.parse(_lsGet('bs_promotoras') || 'null') || PROMOTORAS_PADRAO; } catch(e) { return PROMOTORAS_PADRAO; } })();
 
 // ══════ ESTADO ══════
 let todosLancamentos = [];
@@ -3332,21 +3411,24 @@ function bs_bs_trocarAba(nome,btn){
 let selectAberto = null;
 
 function _getLista(tipo) {
-  if (tipo==='modal')   return listaModalidades;
-  if (tipo==='banco')   return listaBancos;
-  if (tipo==='tipoop')  return listaTiposOp;
+  if (tipo==='modal')      return listaModalidades;
+  if (tipo==='banco')      return listaBancos;
+  if (tipo==='tipoop')     return listaTiposOp;
+  if (tipo==='promotora')  return listaPromotoras;
   return [];
 }
 function _getFieldId(tipo) {
-  if (tipo==='modal')   return 'f-modalidade';
-  if (tipo==='banco')   return 'f-banco';
-  if (tipo==='tipoop')  return 'f-tipo-op';
+  if (tipo==='modal')      return 'f-modalidade';
+  if (tipo==='banco')      return 'f-banco';
+  if (tipo==='tipoop')     return 'f-tipo-op';
+  if (tipo==='promotora')  return 'f-promotora';
   return '';
 }
 function _getLsKey(tipo) {
-  if (tipo==='modal')   return 'bs_modalidades';
-  if (tipo==='banco')   return 'bs_bancos';
-  if (tipo==='tipoop')  return 'bs_tipos_op';
+  if (tipo==='modal')      return 'bs_modalidades';
+  if (tipo==='banco')      return 'bs_bancos';
+  if (tipo==='tipoop')     return 'bs_tipos_op';
+  if (tipo==='promotora')  return 'bs_promotoras';
   return '';
 }
 
@@ -3990,6 +4072,18 @@ function salvarLancamento() {
   const btn = document.getElementById('btn-salvar');
   if(btn){ btn.disabled=false; btn.innerHTML='💾 Salvar Lançamento'; }
 
+  // Reset selects editáveis para estado inicial
+  ['modal','banco','tipoop','promotora'].forEach(tipo => {
+    const disp = document.getElementById('sel-'+tipo+'-display');
+    const field = document.getElementById(_getFieldId ? _getFieldId(tipo) : '');
+    if(disp && field) {
+      field.value = tipo==='tipoop' ? 'NOVO' : '';
+      disp.innerHTML = (tipo==='tipoop' ? 'Novo' : tipo==='promotora' ? 'Nenhuma' : 'Selecione...') + ' <span>▼</span>';
+    }
+    const dd = document.getElementById('sel-'+tipo+'-dropdown');
+    if(dd) { dd.style.display='none'; dd.classList.remove('aberto'); }
+  });
+
   // ── Toast e navega para Clientes ──
   bs_mostrarToast('✅ '+row.nome_cliente+' salvo! ('+todosLancamentos.length+' total)');
   setTimeout(function(){
@@ -3999,6 +4093,15 @@ function salvarLancamento() {
 }
 
 // ══════ MODAL EDITAR ══════
+function calcularComissaoEdit() {
+  const v=parseFloat(document.getElementById('e-valor')?.value)||0;
+  const p=parseFloat(document.getElementById('e-perc')?.value)||0;
+  const f=parseFloat(document.getElementById('e-pact-fixo')?.value)||0;
+  const c=v>0&&p>0 ? parseFloat(((v*(p/100))+f).toFixed(2)) : f;
+  const el=document.getElementById('e-comissao');
+  if(el) el.value=c;
+}
+
 function abrirModal(idx) {
   const r=dadosFiltrados[idx]; editandoIdx=idx;
   document.getElementById('e-id').value=r.id||'';
@@ -4013,9 +4116,16 @@ function abrirModal(idx) {
   document.getElementById('e-valor').value=r.valor_cliente||0;
   document.getElementById('e-perc').value=r.perc_comissao||0;
   document.getElementById('e-comissao').value=r.comissao||0;
+  document.getElementById('e-pact-fixo').value=r.pact_fixo||0;
   document.getElementById('e-status').value=r.status||r.status_comissao||'PAGO';
   document.getElementById('e-mes-ref').value=r.mes_ref||'';
-  document.getElementById('modal-editar').classList.add('aberto');
+  const m=document.getElementById('modal-editar');
+  if(m){ m.style.display='flex'; }
+}
+function fecharModal(){
+  const m=document.getElementById('modal-editar');
+  if(m){ m.style.display='none'; }
+  editandoIdx=-1;
 }
 function fecharModal(){ document.getElementById('modal-editar').classList.remove('aberto'); editandoIdx=-1; }
 async function salvarEdicao() {
