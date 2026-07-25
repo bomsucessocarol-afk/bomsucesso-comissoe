@@ -4002,100 +4002,97 @@ function limparFormulario() {
 
 function salvarLancamento() {
   // ── Lê campos ──
-  const nome  = document.getElementById('f-nome').value.trim();
-  const modal = document.getElementById('f-modalidade').value;
-  const banco = document.getElementById('f-banco').value;
-  const valor = parseFloat(document.getElementById('f-valor').value)||0;
-  const perc  = parseFloat(document.getElementById('f-perc').value)||0;
-  const pact  = parseFloat(document.getElementById('f-pact-fixo').value)||0;
+  const nome  = (document.getElementById('f-nome')?.value || '').trim();
+  const modal = document.getElementById('f-modalidade')?.value || '';
+  const banco = document.getElementById('f-banco')?.value || '';
+  const valor = parseFloat(document.getElementById('f-valor')?.value) || 0;
+  const perc  = parseFloat(document.getElementById('f-perc')?.value) || 0;
+  const pact  = parseFloat(document.getElementById('f-pact-fixo')?.value) || 0;
 
   // ── Validação ──
   if(!nome)  { bs_mostrarToast('⚠️ Informe o Nome do Cliente!','erro-toast'); return; }
   if(!modal) { bs_mostrarToast('⚠️ Selecione a Modalidade / Produto!','erro-toast'); return; }
   if(!banco) { bs_mostrarToast('⚠️ Selecione o Banco / Financeira!','erro-toast'); return; }
 
-  const comissao = valor>0 && perc>0 ? parseFloat(((valor*(perc/100))+pact).toFixed(2)) : pact;
+  const comissao = valor > 0 && perc > 0
+    ? parseFloat(((valor * (perc / 100)) + pact).toFixed(2))
+    : pact;
 
   const row = {
-    id: 'BS_'+Date.now(),
-    data_dig:            document.getElementById('f-data-dig').value,
-    data_pg:             document.getElementById('f-data-pg').value,
-    data_comissao_rec:   document.getElementById('f-data-comissao-rec').value,
-    nome_cliente:        nome.toUpperCase(),
-    status:              document.getElementById('f-status').value,
-    modalidade:          modal,
-    tipo_op:             document.getElementById('f-tipo-op').value,
-    valor_cliente:       valor,
-    perc_comissao:       perc,
-    comissao:            comissao,
-    operacao:            document.getElementById('f-tipo-op').value,
-    banco:               banco,
-    promotora:           document.getElementById('f-promotora').value,
-    pact_fixo:           pact,
-    mes_ref:             document.getElementById('f-mes-ref').value
+    id:                'BS_' + Date.now(),
+    data_dig:          document.getElementById('f-data-dig')?.value || '',
+    data_pg:           document.getElementById('f-data-pg')?.value || '',
+    data_comissao_rec: document.getElementById('f-data-comissao-rec')?.value || '',
+    nome_cliente:      nome.toUpperCase(),
+    status:            document.getElementById('f-status')?.value || 'PAGO',
+    modalidade:        modal,
+    tipo_op:           document.getElementById('f-tipo-op')?.value || 'NOVO',
+    valor_cliente:     valor,
+    perc_comissao:     perc,
+    comissao:          comissao,
+    operacao:          document.getElementById('f-tipo-op')?.value || 'NOVO',
+    banco:             banco,
+    promotora:         document.getElementById('f-promotora')?.value || '',
+    pact_fixo:         pact,
+    mes_ref:           document.getElementById('f-mes-ref')?.value || ''
   };
 
-  // ── Salva localmente e atualiza tela ──
+  // ── 1. Salva localmente IMEDIATAMENTE ──
   todosLancamentos.push({...row, status_comissao: row.status});
   dadosFiltrados = [...todosLancamentos];
-
-  // Salva SEMPRE no localStorage — corrige o bug da recursão
   try {
     localStorage.setItem('bs_cache_lancamentos', JSON.stringify(todosLancamentos));
     localStorage.setItem('bs_cache_ts', String(Date.now()));
-  } catch(e) { console.warn('localStorage indisponível:', e); }
+  } catch(e) {}
 
+  // ── 2. Atualiza tela ──
   renderResumo();
 
-  // ── Salva no Supabase (principal) + Google Sheets (backup) ──
-  supabaseSalvar(row).then(ok => {
-    if(ok) console.log('Salvo no Supabase');
-  });
-  try {
-    bsJsonpGet(APPS_URL, {action:'salvarLancamento', payload:encodeURIComponent(JSON.stringify(row)), t:Date.now()});
-  } catch(e) { console.warn('Sync Sheets falhou:', e); }
+  // ── 3. Limpa formulário e reseta selects IMEDIATAMENTE ──
+  limparFormulario();
+  const btn = document.getElementById('btn-salvar');
+  if(btn){ btn.disabled=false; btn.innerHTML='\uD83D\uDCBE Salvar Lançamento'; }
 
-  // ── A cada 5 lançamentos, baixa backup automático ──
-  const totalAtual = todosLancamentos.length;
-  const ultimoBackup = parseInt(localStorage.getItem('bs_ultimo_backup_total')||'0');
-  if(totalAtual > 0 && (totalAtual % 5 === 0) && totalAtual !== ultimoBackup) {
-    localStorage.setItem('bs_ultimo_backup_total', String(totalAtual));
-    setTimeout(() => {
-      try {
-        const backup = {versao:'1.0', data_backup:new Date().toISOString(), total:todosLancamentos.length, lancamentos:todosLancamentos};
+  ['modal','banco','tipoop','promotora'].forEach(tipo => {
+    try {
+      const disp  = document.getElementById('sel-'+tipo+'-display');
+      const field = document.getElementById(_getFieldId(tipo));
+      const dd    = document.getElementById('sel-'+tipo+'-dropdown');
+      if(field) field.value = tipo==='tipoop' ? 'NOVO' : '';
+      if(disp)  disp.innerHTML = (tipo==='tipoop' ? 'Novo' : tipo==='promotora' ? 'Nenhuma' : 'Selecione...') + ' <span>▼</span>';
+      if(dd)    { dd.style.display='none'; dd.classList.remove('aberto'); }
+    } catch(e) {}
+  });
+
+  // ── 4. Toast e navega para Clientes ──
+  bs_mostrarToast('\u2705 ' + row.nome_cliente + ' salvo!');
+  setTimeout(function() {
+    try {
+      const btnC = document.querySelector('.bs-sub-btn[onclick*="clientes"]');
+      if(btnC){ bsTab('clientes', btnC); renderTabela(); }
+    } catch(e) {}
+  }, 500);
+
+  // ── 5. Sincroniza em background (nao bloqueia) ──
+  setTimeout(function() {
+    try { if(sbClient) supabaseSalvar(row); } catch(e) {}
+    try { bsJsonpGet(APPS_URL, {action:'salvarLancamento', payload:encodeURIComponent(JSON.stringify(row)), t:Date.now()}); } catch(e) {}
+    try {
+      const total = todosLancamentos.length;
+      const ultimo = parseInt(localStorage.getItem('bs_ultimo_backup_total')||'0');
+      if(total > 0 && total % 5 === 0 && total !== ultimo) {
+        localStorage.setItem('bs_ultimo_backup_total', String(total));
+        const backup = {versao:'1.0', data_backup:new Date().toISOString(), total, lancamentos:todosLancamentos};
         const a = document.createElement('a');
         a.href = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}));
         a.download = 'BomSucesso_AutoBackup_'+new Date().toISOString().slice(0,10)+'.json';
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        bs_mostrarToast('💾 Backup automático gerado ('+totalAtual+' registros)!');
-      } catch(e) {}
-    }, 1500);
-  }
-
-  // ── Limpa formulário e reseta botão SEMPRE ──
-  limparFormulario();
-  const btn = document.getElementById('btn-salvar');
-  if(btn){ btn.disabled=false; btn.innerHTML='💾 Salvar Lançamento'; }
-
-  // Reset selects editáveis para estado inicial
-  ['modal','banco','tipoop','promotora'].forEach(tipo => {
-    const disp = document.getElementById('sel-'+tipo+'-display');
-    const field = document.getElementById(_getFieldId ? _getFieldId(tipo) : '');
-    if(disp && field) {
-      field.value = tipo==='tipoop' ? 'NOVO' : '';
-      disp.innerHTML = (tipo==='tipoop' ? 'Novo' : tipo==='promotora' ? 'Nenhuma' : 'Selecione...') + ' <span>▼</span>';
-    }
-    const dd = document.getElementById('sel-'+tipo+'-dropdown');
-    if(dd) { dd.style.display='none'; dd.classList.remove('aberto'); }
-  });
-
-  // ── Toast e navega para Clientes ──
-  bs_mostrarToast('✅ '+row.nome_cliente+' salvo! ('+todosLancamentos.length+' total)');
-  setTimeout(function(){
-    const btnC = document.querySelector('.bs-sub-btn[onclick*="clientes"]');
-    if(btnC){ bsTab('clientes', btnC); renderTabela(); }
-  }, 600);
+        bs_mostrarToast('\uD83D\uDCBE Backup automatico ('+total+' registros)!');
+      }
+    } catch(e) {}
+  }, 100);
 }
+
 
 // ══════ MODAL EDITAR ══════
 function calcularComissaoEdit() {
