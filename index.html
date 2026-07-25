@@ -3396,13 +3396,30 @@ function pillClass(m){
   const map={'FGTS':'pill-fgts','INSS':'pill-inss','ESTADO':'pill-estado','SIAPE':'pill-siape','FED':'pill-fed','CLT':'pill-clt','PORTABILIDADE':'pill-inss','CART':'pill-fgts'};
   return map[m]||'pill-outro';
 }
-function bs_bs_mostrarToast(msg,tipo='sucesso'){
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.className='visivel '+tipo;
-  setTimeout(()=>{t.className='';},3000);
+function bs_mostrarToast(msg, tipo='sucesso', dur=3500){
+  try {
+    const t = document.getElementById('bs-toast');
+    if(!t) {
+      // Cria toast se não existir
+      const el = document.createElement('div');
+      el.id = 'bs-toast';
+      el.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--azul);color:#fff;padding:12px 22px;border-radius:10px;font-size:13.5px;z-index:9999;transform:translateY(80px);opacity:0;transition:all .3s;pointer-events:none;max-width:320px;box-shadow:0 4px 16px rgba(56,55,114,.3);';
+      document.body.appendChild(el);
+    }
+    const toast = document.getElementById('bs-toast');
+    toast.textContent = msg;
+    toast.style.background = tipo === 'erro-toast' ? '#c0392b' : 'var(--azul)';
+    toast.style.transform = 'translateY(0)';
+    toast.style.opacity = '1';
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => {
+      toast.style.transform = 'translateY(80px)';
+      toast.style.opacity = '0';
+    }, dur);
+  } catch(e) { console.log('Toast:', msg); }
 }
-function bs_bs_mostrarLoading(v){ document.getElementById('loading').style.display=v?'flex':'none'; }
-function bs_bs_trocarAba(nome,btn){
+function bs_mostrarLoading(v){ document.getElementById('loading').style.display=v?'flex':'none'; }
+function bs_trocarAba(nome,btn){
   document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(e=>e.classList.remove('active'));
   document.getElementById('aba-'+nome).classList.add('active');
@@ -3976,44 +3993,73 @@ function calcularComissao() {
 }
 
 function limparFormulario() {
-  ['f-data-dig','f-data-pg','f-data-comissao-rec','f-nome','f-valor','f-perc','f-comissao','f-pact-fixo'].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.value='';
+  // Limpa inputs simples
+  ['f-data-pg','f-data-comissao-rec','f-nome','f-valor','f-perc','f-pact-fixo'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
   });
-  document.getElementById('f-modalidade').value='';
-  document.getElementById('f-banco').value='';
-  document.getElementById('sel-modal-texto').textContent='Selecione...';
-  document.getElementById('sel-banco-texto').textContent='Selecione...';
-  document.getElementById('preview-comissao').style.display='none';
-  document.getElementById('f-data-dig').value=new Date().toISOString().slice(0,10);
-  // Define mês de referência automático baseado no mês atual
-  (function(){
-    const meses=['JANEIRO','FEVEREIRO','MARCO','ABRIL','MAIO','JUNHO',
-                 'JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
-    const hoje=new Date();
-    const chave=meses[hoje.getMonth()]+hoje.getFullYear();
-    const sel=document.getElementById('f-mes-ref');
-    if(sel){
-      // Tenta selecionar o mês atual; se não existir, mantém o primeiro
-      const opt=[...sel.options].find(o=>o.value===chave);
-      if(opt) sel.value=chave;
-    }
-  })();
+
+  // Campo comissão readonly
+  const fc = document.getElementById('f-comissao');
+  if(fc) fc.value = '';
+
+  // Preview
+  const pv = document.getElementById('preview-comissao');
+  if(pv) pv.style.display = 'none';
+
+  // Data de digitação = hoje
+  const fd = document.getElementById('f-data-dig');
+  if(fd) fd.value = new Date().toISOString().slice(0,10);
+
+  // Mês de referência = mês atual
+  const MESES_L = ['JANEIRO','FEVEREIRO','MARCO','ABRIL','MAIO','JUNHO',
+                   'JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+  const chaveAtual = MESES_L[new Date().getMonth()] + new Date().getFullYear();
+  const selMes = document.getElementById('f-mes-ref');
+  if(selMes) {
+    const opt = [...selMes.options].find(o => o.value === chaveAtual);
+    if(opt) selMes.value = chaveAtual;
+  }
+
+  // Status padrão = PAGO
+  const fst = document.getElementById('f-status');
+  if(fst) fst.value = 'PAGO';
+
+  // Reseta selects editáveis (Modalidade, Banco, Tipo Op, Promotora)
+  const resetSel = {
+    'modal':     { fieldId:'f-modalidade',  defaultVal:'',     defaultLabel:'Selecione...' },
+    'banco':     { fieldId:'f-banco',       defaultVal:'',     defaultLabel:'Selecione...' },
+    'tipoop':    { fieldId:'f-tipo-op',     defaultVal:'NOVO', defaultLabel:'Novo'         },
+    'promotora': { fieldId:'f-promotora',   defaultVal:'',     defaultLabel:'Nenhuma'      },
+  };
+  Object.entries(resetSel).forEach(([tipo, cfg]) => {
+    try {
+      const field = document.getElementById(cfg.fieldId);
+      const disp  = document.getElementById('sel-'+tipo+'-display');
+      const dd    = document.getElementById('sel-'+tipo+'-dropdown');
+      if(field) field.value = cfg.defaultVal;
+      if(disp)  disp.innerHTML = cfg.defaultLabel + ' <span>▼</span>';
+      if(dd)    { dd.style.display = 'none'; dd.classList.remove('aberto'); }
+    } catch(e) {}
+  });
+
+  // Fecha qualquer dropdown aberto
+  selectAberto = null;
 }
 
 function salvarLancamento() {
-  // ── Lê campos ──
+  // ── 1. Lê e valida campos ──
   const nome  = (document.getElementById('f-nome')?.value || '').trim();
   const modal = document.getElementById('f-modalidade')?.value || '';
   const banco = document.getElementById('f-banco')?.value || '';
-  const valor = parseFloat(document.getElementById('f-valor')?.value) || 0;
-  const perc  = parseFloat(document.getElementById('f-perc')?.value) || 0;
-  const pact  = parseFloat(document.getElementById('f-pact-fixo')?.value) || 0;
 
-  // ── Validação ──
   if(!nome)  { bs_mostrarToast('⚠️ Informe o Nome do Cliente!','erro-toast'); return; }
   if(!modal) { bs_mostrarToast('⚠️ Selecione a Modalidade / Produto!','erro-toast'); return; }
   if(!banco) { bs_mostrarToast('⚠️ Selecione o Banco / Financeira!','erro-toast'); return; }
 
+  const valor = parseFloat(document.getElementById('f-valor')?.value) || 0;
+  const perc  = parseFloat(document.getElementById('f-perc')?.value)  || 0;
+  const pact  = parseFloat(document.getElementById('f-pact-fixo')?.value) || 0;
   const comissao = valor > 0 && perc > 0
     ? parseFloat(((valor * (perc / 100)) + pact).toFixed(2))
     : pact;
@@ -4025,72 +4071,67 @@ function salvarLancamento() {
     data_comissao_rec: document.getElementById('f-data-comissao-rec')?.value || '',
     nome_cliente:      nome.toUpperCase(),
     status:            document.getElementById('f-status')?.value || 'PAGO',
+    status_comissao:   document.getElementById('f-status')?.value || 'PAGO',
     modalidade:        modal,
     tipo_op:           document.getElementById('f-tipo-op')?.value || 'NOVO',
+    operacao:          document.getElementById('f-tipo-op')?.value || 'NOVO',
     valor_cliente:     valor,
     perc_comissao:     perc,
     comissao:          comissao,
-    operacao:          document.getElementById('f-tipo-op')?.value || 'NOVO',
     banco:             banco,
     promotora:         document.getElementById('f-promotora')?.value || '',
     pact_fixo:         pact,
     mes_ref:           document.getElementById('f-mes-ref')?.value || ''
   };
 
-  // ── 1. Salva localmente IMEDIATAMENTE ──
-  todosLancamentos.push({...row, status_comissao: row.status});
+  // ── 2. Salva no array e localStorage ──
+  todosLancamentos.push(row);
   dadosFiltrados = [...todosLancamentos];
   try {
     localStorage.setItem('bs_cache_lancamentos', JSON.stringify(todosLancamentos));
     localStorage.setItem('bs_cache_ts', String(Date.now()));
-  } catch(e) {}
+  } catch(e) { console.warn('localStorage:', e); }
 
-  // ── 2. Atualiza tela ──
-  renderResumo();
-
-  // ── 3. Limpa formulário e reseta selects IMEDIATAMENTE ──
+  // ── 3. Limpa formulário ──
   limparFormulario();
-  const btn = document.getElementById('btn-salvar');
-  if(btn){ btn.disabled=false; btn.innerHTML='\uD83D\uDCBE Salvar Lançamento'; }
 
-  ['modal','banco','tipoop','promotora'].forEach(tipo => {
-    try {
-      const disp  = document.getElementById('sel-'+tipo+'-display');
-      const field = document.getElementById(_getFieldId(tipo));
-      const dd    = document.getElementById('sel-'+tipo+'-dropdown');
-      if(field) field.value = tipo==='tipoop' ? 'NOVO' : '';
-      if(disp)  disp.innerHTML = (tipo==='tipoop' ? 'Novo' : tipo==='promotora' ? 'Nenhuma' : 'Selecione...') + ' <span>▼</span>';
-      if(dd)    { dd.style.display='none'; dd.classList.remove('aberto'); }
-    } catch(e) {}
-  });
+  // ── 4. Atualiza resumo ──
+  try { renderResumo(); } catch(e) {}
 
-  // ── 4. Toast e navega para Clientes ──
-  bs_mostrarToast('\u2705 ' + row.nome_cliente + ' salvo!');
+  // ── 5. Navega para Clientes e mostra mensagem de confirmação ──
+  const btnC = document.querySelector('.bs-sub-btn[onclick*="clientes"]');
+  if(btnC) {
+    bsTab('clientes', btnC);
+    try { renderTabela(); } catch(e) {}
+  }
+
+  // Mensagem clara de confirmação
   setTimeout(function() {
-    try {
-      const btnC = document.querySelector('.bs-sub-btn[onclick*="clientes"]');
-      if(btnC){ bsTab('clientes', btnC); renderTabela(); }
-    } catch(e) {}
-  }, 500);
+    bs_mostrarToast(
+      '✅ ' + row.nome_cliente + ' salvo com sucesso na aba Clientes!',
+      null, 4000
+    );
+  }, 300);
 
-  // ── 5. Sincroniza em background (nao bloqueia) ──
+  // ── 6. Sincroniza em background ──
   setTimeout(function() {
-    try { if(sbClient) supabaseSalvar(row); } catch(e) {}
+    try { if(typeof sbClient !== 'undefined' && sbClient) supabaseSalvar(row); } catch(e) {}
     try { bsJsonpGet(APPS_URL, {action:'salvarLancamento', payload:encodeURIComponent(JSON.stringify(row)), t:Date.now()}); } catch(e) {}
+    // Auto-backup a cada 5 lançamentos
     try {
       const total = todosLancamentos.length;
       const ultimo = parseInt(localStorage.getItem('bs_ultimo_backup_total')||'0');
       if(total > 0 && total % 5 === 0 && total !== ultimo) {
         localStorage.setItem('bs_ultimo_backup_total', String(total));
-        const backup = {versao:'1.0', data_backup:new Date().toISOString(), total, lancamentos:todosLancamentos};
+        const bk = {versao:'1.0', data_backup:new Date().toISOString(), total, lancamentos:todosLancamentos};
         const a = document.createElement('a');
-        a.href = URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}));
+        a.href = URL.createObjectURL(new Blob([JSON.stringify(bk,null,2)],{type:'application/json'}));
         a.download = 'BomSucesso_AutoBackup_'+new Date().toISOString().slice(0,10)+'.json';
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        bs_mostrarToast('\uD83D\uDCBE Backup automatico ('+total+' registros)!');
+        bs_mostrarToast('💾 Backup automático ('+total+' registros)!');
       }
     } catch(e) {}
-  }, 100);
+  }, 200);
 }
 
 
