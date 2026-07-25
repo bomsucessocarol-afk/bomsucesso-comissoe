@@ -614,10 +614,6 @@ tr.rw-prox:hover td{background:#fdba74!important}
     <span class="month-lbl" id="monthLbl"></span>
     <button onclick="changeMonth(1)">&#8250;</button>
   </div>
-  <button onclick="showTab('bomsucesso',document.querySelector('.tab-btn.comissoes'));initBomSucesso();"
-    style="background:var(--bs-amarelo);color:#383772;border:none;border-radius:8px;padding:8px 16px;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap;">
-    📊 Comissões
-  </button>
 </header>
 
 <!-- SIDEBAR OVERLAY -->
@@ -1328,9 +1324,9 @@ tr.rw-prox:hover td{background:#fdba74!important}
 </section>
 
 <!-- MODAL EDITAR LANÇAMENTO BS -->
-<div class="modal-ov" id="modal-editar" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;align-items:center;justify-content:center;">
-  <div class="modal-box" style="background:#fff;border-radius:16px;padding:28px;width:90%;max-width:680px;max-height:90vh;overflow-y:auto;position:relative;">
-    <button onclick="fecharModal()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--cinza);">✕</button>
+<div class="modal-ov" id="modal-editar" onclick="if(event.target===this)fecharModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;align-items:center;justify-content:center;padding:16px;">
+  <div class="modal-box" onclick="event.stopPropagation()" style="background:#fff;border-radius:16px;padding:28px;width:95%;max-width:700px;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 8px 40px rgba(0,0,0,.25);">
+    <button onclick="fecharModal()" style="position:absolute;top:12px;right:14px;background:#f0f0f0;border:none;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer;color:#333;display:flex;align-items:center;justify-content:center;z-index:10;">✕</button>
     <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:1rem;color:var(--azul);margin-bottom:18px;">✏️ Editar Lançamento</div>
     <input type="hidden" id="e-id">
     <div class="modal-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
@@ -4131,15 +4127,16 @@ function abrirModal(idx) {
   const m=document.getElementById('modal-editar');
   if(m){ m.style.display='flex'; }
 }
+
 function fecharModal(){
   const m=document.getElementById('modal-editar');
   if(m){ m.style.display='none'; }
   editandoIdx=-1;
 }
-function fecharModal(){ document.getElementById('modal-editar').classList.remove('aberto'); editandoIdx=-1; }
-async function salvarEdicao() {
+
+function salvarEdicao() {
   const row={
-    id:document.getElementById('e-id').value,
+    id:document.getElementById('e-id').value||('BS_EDIT_'+Date.now()),
     data_dig:document.getElementById('e-data-dig').value,
     data_pg:document.getElementById('e-data-pg').value,
     data_comissao_rec:document.getElementById('e-data-comissao-rec').value,
@@ -4153,18 +4150,26 @@ async function salvarEdicao() {
     operacao:document.getElementById('e-tipo-op').value,
     banco:document.getElementById('e-banco').value,
     promotora:document.getElementById('e-promotora').value,
-    pact_fixo:0,
+    pact_fixo:parseFloat(document.getElementById('e-pact-fixo').value)||0,
     mes_ref:document.getElementById('e-mes-ref').value
   };
   try {
     // Atualiza localmente IMEDIATAMENTE
-    dadosFiltrados[editandoIdx]={...dadosFiltrados[editandoIdx],...row,status_comissao:row.status};
-    const gi=todosLancamentos.findIndex(x=>x.id===row.id);
-    if(gi>-1) todosLancamentos[gi]={...todosLancamentos[gi],...row,status_comissao:row.status};
+    if(editandoIdx >= 0) {
+      dadosFiltrados[editandoIdx]={...dadosFiltrados[editandoIdx],...row,status_comissao:row.status};
+      const gi=todosLancamentos.findIndex(x=>x.id===row.id);
+      if(gi>-1) todosLancamentos[gi]={...todosLancamentos[gi],...row,status_comissao:row.status};
+    }
+    salvarCacheCompleto();
     bs_mostrarToast('✅ Lançamento atualizado!');
-    fecharModal(); renderTabela(); renderResumo();
-    // Sincroniza com planilha em background
-    bsJsonpGet(APPS_URL, {action:'editarLancamento', payload:encodeURIComponent(JSON.stringify(row)), t:Date.now()});
+    fecharModal();
+    renderTabela();
+    renderResumo();
+    // Sincroniza em background
+    try {
+      supabaseSalvar(row);
+      bsJsonpGet(APPS_URL, {action:'editarLancamento', payload:encodeURIComponent(JSON.stringify(row)), t:Date.now()});
+    } catch(e2){ console.warn('Sync falhou:', e2); }
   } catch(e){ bs_mostrarToast('Erro ao salvar.','erro-toast'); }
 }
 async function deletar(idx) {
