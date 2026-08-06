@@ -886,7 +886,7 @@ tr.rw-prox:hover td{background:#fdba74!important}
       <div style="font-size:0.78rem;color:var(--cinza);margin-top:2px;" id="resumo-periodo">Carregando...</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <select id="filtro-mes-resumo" onchange="renderResumo()" style="border:1.5px solid var(--borda);border-radius:8px;padding:8px 14px;font-size:0.8rem;font-family:'DM Sans',sans-serif;outline:none;">
+      <select id="filtro-mes-resumo" onchange="renderResumoManual(this.value)" style="border:1.5px solid var(--borda);border-radius:8px;padding:8px 14px;font-size:0.8rem;font-family:'DM Sans',sans-serif;outline:none;">
         <option value="todos">Todos os meses</option>
       </select>
       <button class="btn btn-outline btn-sm" onclick="atualizarDados()">🔄 Atualizar</button>
@@ -1650,6 +1650,7 @@ function changeMonth(dir){
   const[y,m]=state.month.split('-').map(Number);
   const d=new Date(y,m-1+dir,1);
   state.month=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  _mesResumoOverride = null; // reset override quando navega pelo seletor superior
   updateMonthLabel();
   renderAll();
   // Sincroniza filtros do módulo BS com o novo mês
@@ -1659,26 +1660,34 @@ function changeMonth(dir){
 // Sincroniza os filtros do módulo BS com state.month
 function sincronizarMesBS() {
   const chave = getMesRefAtivo(); // ex: JULHO2026
-  // Atualiza dropdown de Resumo BS
+
+  // Atualiza dropdown de Resumo BS — força o valor
   const selR = document.getElementById('filtro-mes-resumo');
-  if(selR) {
+  if(selR && chave) {
     const existe = [...selR.options].some(o => o.value === chave);
-    if(chave && existe) selR.value = chave;
-    else if(selR.options.length > 0) selR.value = selR.options[0].value; // 'todos'
+    if(!existe) {
+      const op = document.createElement('option');
+      op.value = chave; op.textContent = MESES[chave]||chave;
+      selR.appendChild(op);
+    }
+    selR.value = chave;
   }
-  // Atualiza dropdown da aba Clientes BS
+
+  // Atualiza dropdown da aba Clientes BS — força o valor
   const selT = document.getElementById('filtro-mes-tab');
-  if(selT) {
+  if(selT && chave) {
     const existe = [...selT.options].some(o => o.value === chave);
-    if(chave && existe) selT.value = chave;
-    else if(selT.options.length > 0) selT.value = selT.options[0].value;
+    if(!existe) {
+      const op = document.createElement('option');
+      op.value = chave; op.textContent = MESES[chave]||chave;
+      selT.appendChild(op);
+    }
+    selT.value = chave;
   }
-  // Re-renderiza se BS estiver visível
-  const pnlBS = document.getElementById('pnl-bomsucesso');
-  if(pnlBS && pnlBS.classList.contains('on')) {
-    try { renderResumo(); } catch(e) {}
-    try { filtrarTabela(); } catch(e) {}
-  }
+
+  // SEMPRE re-renderiza — não depende do painel estar visível
+  try { renderResumo(); } catch(e) {}
+  try { filtrarTabela(); } catch(e) {}
 }
 
 function switchUser(i){
@@ -3868,19 +3877,44 @@ function preencherFiltrosMeses() {
 }
 
 // ══════ RESUMO ══════
+// Quando usuário escolhe manualmente no dropdown — salva override e renderiza
+let _mesResumoOverride = null;
+function renderResumoManual(val) {
+  _mesResumoOverride = val; // null = usa state.month; 'todos' = todos; 'JULHO2026' = filtra
+  renderResumo();
+}
+
 function renderResumo() {
-  // Fonte única de verdade: seletor superior state.month
-  const mesAtivo = getMesRefAtivo(); // ex: JULHO2026
-  const selR = document.getElementById('filtro-mes-resumo');
-  // Sincroniza dropdown interno se necessário
-  if(selR && mesAtivo) {
-    const existe = [...selR.options].some(o => o.value === mesAtivo);
-    if(existe) selR.value = mesAtivo;
+  // ── FONTE ÚNICA DE VERDADE ──
+  // Prioridade: 1) seleção manual do dropdown; 2) state.month do seletor superior
+  const mesAtivo = getMesRefAtivo(); // ex: 'JULHO2026'
+
+  // Decide qual mês usar
+  let mesFinal;
+  if(_mesResumoOverride !== null) {
+    mesFinal = _mesResumoOverride; // escolha manual do dropdown
+  } else {
+    mesFinal = mesAtivo || 'todos';
   }
-  const mes = selR?.value || mesAtivo || 'todos';
-  const dados = mes && mes !== 'todos'
-    ? todosLancamentos.filter(r => r.mes_ref === mes)
-    : todosLancamentos;
+
+  // Sincroniza dropdown interno com o mês final
+  const selR = document.getElementById('filtro-mes-resumo');
+  if(selR && mesFinal && mesFinal !== 'todos') {
+    const existe = [...selR.options].some(o => o.value === mesFinal);
+    if(!existe) {
+      const op = document.createElement('option');
+      op.value = mesFinal; op.textContent = MESES[mesFinal]||mesFinal;
+      selR.appendChild(op);
+    }
+    selR.value = mesFinal;
+  } else if(selR && mesFinal === 'todos') {
+    selR.value = 'todos';
+  }
+
+  // FILTRO GARANTIDO: nunca ignora o mês quando há um selecionado
+  const dados = mesFinal === 'todos' || !mesFinal
+    ? [...todosLancamentos]
+    : todosLancamentos.filter(r => r.mes_ref === mesFinal);
   const pagos=dados.filter(r=>(r.status||r.status_comissao||'').toUpperCase()==='PAGO');
   const abertos=dados.filter(r=>(r.status||r.status_comissao||'').toUpperCase()==='ABERTO');
   const totCom=pagos.reduce((s,r)=>s+parseFloat(r.comissao||0),0);
@@ -3946,14 +3980,21 @@ function filtrarTabela() {
   const banco=document.getElementById('filtro-banco-tab')?.value||'';
   const promotora=document.getElementById('filtro-promotora-tab')?.value||'';
   const tipoOp=document.getElementById('filtro-tipo-op-tab')?.value||'';
-  // Fonte única: seletor superior. Dropdown interno é secundário.
-  const mesAtivo = getMesRefAtivo();
+  // Fonte única: seletor superior state.month
+  const mesAtivo = getMesRefAtivo(); // ex: JULHO2026
   const selT = document.getElementById('filtro-mes-tab');
+  // Força sincronização com state.month
   if(selT && mesAtivo) {
     const existe = [...selT.options].some(o => o.value === mesAtivo);
-    if(existe && selT.value !== mesAtivo) selT.value = mesAtivo;
+    if(!existe) {
+      const op = document.createElement('option');
+      op.value = mesAtivo; op.textContent = MESES[mesAtivo]||mesAtivo;
+      selT.appendChild(op);
+    }
+    selT.value = mesAtivo;
   }
-  const mes = selT?.value || mesAtivo || '';
+  // SEMPRE filtra por mês ativo — nunca mostra todos quando há mês selecionado
+  const mes = mesAtivo || '';
   dadosFiltrados=todosLancamentos.filter(r=>{
     const nome=(r.nome_cliente||'').toLowerCase();
     const st=(r.status||r.status_comissao||'').toUpperCase();
