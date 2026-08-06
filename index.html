@@ -1652,6 +1652,33 @@ function changeMonth(dir){
   state.month=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
   updateMonthLabel();
   renderAll();
+  // Sincroniza filtros do módulo BS com o novo mês
+  sincronizarMesBS();
+}
+
+// Sincroniza os filtros do módulo BS com state.month
+function sincronizarMesBS() {
+  const chave = getMesRefAtivo(); // ex: JULHO2026
+  // Atualiza dropdown de Resumo BS
+  const selR = document.getElementById('filtro-mes-resumo');
+  if(selR) {
+    const existe = [...selR.options].some(o => o.value === chave);
+    if(chave && existe) selR.value = chave;
+    else if(selR.options.length > 0) selR.value = selR.options[0].value; // 'todos'
+  }
+  // Atualiza dropdown da aba Clientes BS
+  const selT = document.getElementById('filtro-mes-tab');
+  if(selT) {
+    const existe = [...selT.options].some(o => o.value === chave);
+    if(chave && existe) selT.value = chave;
+    else if(selT.options.length > 0) selT.value = selT.options[0].value;
+  }
+  // Re-renderiza se BS estiver visível
+  const pnlBS = document.getElementById('pnl-bomsucesso');
+  if(pnlBS && pnlBS.classList.contains('on')) {
+    try { renderResumo(); } catch(e) {}
+    try { filtrarTabela(); } catch(e) {}
+  }
 }
 
 function switchUser(i){
@@ -3167,9 +3194,13 @@ function bsTab(nome, btn) {
   });
   document.getElementById('aba-'+nome).classList.add('active');
   if(btn){ btn.style.background='#FBAD09'; btn.style.color='#383772'; }
-  if(nome==='clientes'){ dadosFiltrados=[...todosLancamentos]; renderTabela(); }
+  if(nome==='clientes'){
+    dadosFiltrados=[...todosLancamentos];
+    sincronizarMesBS();
+    renderTabela();
+  }
   if(nome==='relatorio') renderRelatorio();
-  if(nome==='resumo') renderResumo();
+  if(nome==='resumo') { sincronizarMesBS(); renderResumo(); }
   // Garante que botão Salvar nunca fica travado ao voltar para Lançar
   if(nome==='lancar'){
     const b=document.getElementById('btn-salvar');
@@ -3352,6 +3383,22 @@ const MESES_NOMES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out'
 const MESES_CHAVES = ['JANEIRO','FEVEREIRO','MARCO','ABRIL','MAIO','JUNHO',
                       'JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
 
+// Converte state.month (YYYY-MM) para chave BS (ex: JULHO2026)
+function stateMonthToMesRef(stateMonth) {
+  if(!stateMonth) return null;
+  const parts = stateMonth.split('-');
+  if(parts.length < 2) return null;
+  const ano = parseInt(parts[0]);
+  const mes = parseInt(parts[1]) - 1; // 0-indexed
+  if(isNaN(ano) || isNaN(mes) || mes < 0 || mes > 11) return null;
+  return MESES_CHAVES[mes] + ano;
+}
+
+// Retorna a chave BS do mês ativo no seletor superior
+function getMesRefAtivo() {
+  return stateMonthToMesRef(state.month);
+}
+
 // Constrói o mapa CHAVE → Label (ex: ABRIL2026 → "Abr/26")
 function buildMeses() {
   const map = {};
@@ -3424,7 +3471,11 @@ function bs_trocarAba(nome,btn){
   document.querySelectorAll('.tab-btn').forEach(e=>e.classList.remove('active'));
   document.getElementById('aba-'+nome).classList.add('active');
   if(btn) btn.classList.add('active');
-  if(nome==='clientes'){ dadosFiltrados=[...todosLancamentos]; renderTabela(); }
+  if(nome==='clientes'){
+    dadosFiltrados=[...todosLancamentos];
+    sincronizarMesBS();
+    renderTabela();
+  }
   if(nome==='relatorio') renderRelatorio();
   if(nome==='resumo') renderResumo();
 }
@@ -3818,8 +3869,18 @@ function preencherFiltrosMeses() {
 
 // ══════ RESUMO ══════
 function renderResumo() {
-  const mes=document.getElementById('filtro-mes-resumo')?.value||'todos';
-  const dados=mes&&mes!=='todos'?todosLancamentos.filter(r=>r.mes_ref===mes):todosLancamentos;
+  // Fonte única de verdade: seletor superior state.month
+  const mesAtivo = getMesRefAtivo(); // ex: JULHO2026
+  const selR = document.getElementById('filtro-mes-resumo');
+  // Sincroniza dropdown interno se necessário
+  if(selR && mesAtivo) {
+    const existe = [...selR.options].some(o => o.value === mesAtivo);
+    if(existe) selR.value = mesAtivo;
+  }
+  const mes = selR?.value || mesAtivo || 'todos';
+  const dados = mes && mes !== 'todos'
+    ? todosLancamentos.filter(r => r.mes_ref === mes)
+    : todosLancamentos;
   const pagos=dados.filter(r=>(r.status||r.status_comissao||'').toUpperCase()==='PAGO');
   const abertos=dados.filter(r=>(r.status||r.status_comissao||'').toUpperCase()==='ABERTO');
   const totCom=pagos.reduce((s,r)=>s+parseFloat(r.comissao||0),0);
@@ -3885,7 +3946,14 @@ function filtrarTabela() {
   const banco=document.getElementById('filtro-banco-tab')?.value||'';
   const promotora=document.getElementById('filtro-promotora-tab')?.value||'';
   const tipoOp=document.getElementById('filtro-tipo-op-tab')?.value||'';
-  const mes=document.getElementById('filtro-mes-tab')?.value||'';
+  // Fonte única: seletor superior. Dropdown interno é secundário.
+  const mesAtivo = getMesRefAtivo();
+  const selT = document.getElementById('filtro-mes-tab');
+  if(selT && mesAtivo) {
+    const existe = [...selT.options].some(o => o.value === mesAtivo);
+    if(existe && selT.value !== mesAtivo) selT.value = mesAtivo;
+  }
+  const mes = selT?.value || mesAtivo || '';
   dadosFiltrados=todosLancamentos.filter(r=>{
     const nome=(r.nome_cliente||'').toLowerCase();
     const st=(r.status||r.status_comissao||'').toUpperCase();
