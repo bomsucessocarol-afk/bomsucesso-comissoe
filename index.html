@@ -1275,7 +1275,7 @@ tr.rw-prox:hover td{background:#fdba74!important}
     <button class="btn btn-sm" onclick="baixarSistema()" style="background:#FBAD09;color:#383772;font-weight:700;white-space:nowrap;">⬇️ Baixar sistema para importar</button>
   </div>
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
-    <select id="filtro-mes-rel" onchange="renderRelatorio()" style="border:1.5px solid var(--borda-azul);border-radius:8px;padding:8px 14px;font-size:0.8rem;font-family:'DM Sans',sans-serif;outline:none;background:#F8F7FF;color:var(--texto);cursor:pointer;">
+    <select id="filtro-mes-rel" onchange="renderRelatorioManual(this.value)" style="border:1.5px solid var(--borda-azul);border-radius:8px;padding:8px 14px;font-size:0.8rem;font-family:'DM Sans',sans-serif;outline:none;background:#F8F7FF;color:var(--texto);cursor:pointer;">
       <option value="todos">Visão Geral (todos)</option>
     </select>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;">
@@ -1651,6 +1651,7 @@ function changeMonth(dir){
   const d=new Date(y,m-1+dir,1);
   state.month=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
   _mesResumoOverride = null; // reset override quando navega pelo seletor superior
+  _mesRelOverride = null;    // reset relatório também
   updateMonthLabel();
   renderAll();
   // Sincroniza filtros do módulo BS com o novo mês
@@ -1688,6 +1689,9 @@ function sincronizarMesBS() {
   // SEMPRE re-renderiza — não depende do painel estar visível
   try { renderResumo(); } catch(e) {}
   try { filtrarTabela(); } catch(e) {}
+  // Atualiza relatório e meta também
+  try { renderRelatorio(); } catch(e) {}
+  try { renderMetaAtual(); } catch(e) {}
 }
 
 function switchUser(i){
@@ -3814,13 +3818,27 @@ function bsJsonpGet(url, params) {
 // ══════ META ══════
 function salvarMeta() {
   const v = parseFloat(document.getElementById('meta-input').value)||0;
+  const mesRef = getMesRefAtivo() || 'global';
+  localStorage.setItem('bs_meta_'+mesRef, v);
+  // Mantém compatibilidade: atualiza bs_meta legacy também
   localStorage.setItem('bs_meta', v);
   renderMetaAtual();
 }
 function renderMetaAtual() {
-  const meta = parseFloat(localStorage.getItem('bs_meta')||0);
-  const mes = document.getElementById('filtro-mes-resumo')?.value||'todos';
-  const dados = mes&&mes!=='todos' ? todosLancamentos.filter(r=>r.mes_ref===mes) : todosLancamentos;
+  const mesRef = getMesRefAtivo() || 'global';
+  // Lê chave por mês; fallback migração automática de bs_meta legado (só uma vez por mês)
+  const chave = 'bs_meta_'+mesRef;
+  let meta;
+  if(localStorage.getItem(chave) !== null) {
+    meta = parseFloat(localStorage.getItem(chave)||0);
+  } else {
+    // Migração: usa valor legado para o mês corrente, uma única vez
+    const legado = parseFloat(localStorage.getItem('bs_meta')||0);
+    meta = legado;
+    if(legado > 0) localStorage.setItem(chave, legado); // persiste sem apagar legado
+  }
+  const mes = getMesRefAtivo() || 'todos';
+  const dados = mes && mes !== 'todos' ? todosLancamentos.filter(r=>r.mes_ref===mes) : todosLancamentos;
   const recebido = dados.filter(r=>(r.status||r.status_comissao||'').toUpperCase()==='PAGO')
     .reduce((s,r)=>s+parseFloat(r.comissao||0),0);
   document.getElementById('meta-input').value = meta||'';
@@ -4376,8 +4394,30 @@ function calcularSim(tipo) {
 
 
 // ══════ RELATÓRIO ══════
+let _mesRelOverride = null;
+function renderRelatorioManual(val) {
+  _mesRelOverride = val;
+  renderRelatorio();
+}
+
 function renderRelatorio() {
-  const mes=document.getElementById('filtro-mes-rel')?.value||'todos';
+  // Sincroniza filtro-mes-rel com state.month (fonte única de verdade)
+  const mesAtivo = getMesRefAtivo();
+  // Se o usuário escolheu manualmente, respeita; caso contrário usa state.month
+  const mesFinal = _mesRelOverride !== null ? _mesRelOverride : (mesAtivo || 'todos');
+  const selRel = document.getElementById('filtro-mes-rel');
+  if(selRel && mesFinal && mesFinal !== 'todos') {
+    const existe = [...selRel.options].some(o => o.value === mesFinal);
+    if(!existe) {
+      const op = document.createElement('option');
+      op.value = mesFinal; op.textContent = MESES[mesFinal]||mesFinal;
+      selRel.insertBefore(op, selRel.options[1]||null);
+    }
+    selRel.value = mesFinal;
+  } else if(selRel && mesFinal === 'todos') {
+    selRel.value = 'todos';
+  }
+  const mes = mesFinal;
   const dados=mes&&mes!=='todos'?todosLancamentos.filter(r=>r.mes_ref===mes):todosLancamentos;
   const pagos=dados.filter(r=>(r.status||r.status_comissao||'').toUpperCase()==='PAGO');
   const totCom=pagos.reduce((s,r)=>s+parseFloat(r.comissao||0),0);
