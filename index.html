@@ -631,6 +631,7 @@ tr.rw-prox:hover td{background:#fdba74!important}
     <button class="tab-btn" onclick="showTab('recorrentes',this);closeSidebar()">🔄 Recorrentes</button>
     <button class="tab-btn" onclick="showTab('ganhos',this);closeSidebar()">💰 Ganhos</button>
     <button class="tab-btn" onclick="showTab('debitos',this);closeSidebar()">🚨 Débitos p/ Quitar</button>
+    <button class="tab-btn" onclick="showTab('gastos',this);renderGastos();closeSidebar()" style="color:#ea580c;font-weight:700;">🛒 Gastos do Mês</button>
     <button class="tab-btn" onclick="showTab('calendario',this);closeSidebar()">📅 Calendário</button>
     <button class="tab-btn" onclick="showTab('config',this);closeSidebar()">⚙️ Config</button>
     <div class="sep-nav"></div>
@@ -667,6 +668,7 @@ tr.rw-prox:hover td{background:#fdba74!important}
         <option value="">🏠🏢 Todos</option>
         <option value="CASA">🏠 Casa</option>
         <option value="EMPRESA">🏢 Empresa</option>
+        <option value="GASTOS">🛒 Gastos</option>
         <option value="">— Sem card</option>
       </select>
       <select id="flt-tipo" onchange="renderExpenses()">
@@ -799,6 +801,80 @@ tr.rw-prox:hover td{background:#fdba74!important}
     <span class="bdg bdg-prox">Ficou pro Próximo</span>
   </div>
 </section>
+
+<!-- GASTOS DO MÊS -->
+<section class="pnl" id="pnl-gastos">
+  <div class="sec-ttl" style="color:#ea580c">🛒 Gastos do Mês</div>
+  <div class="sec-sub" id="gastos-sub">Gastos pessoais do dia a dia — <span id="gastos-mes-lbl"></span></div>
+
+  <!-- Totalizador por categoria -->
+  <div id="gastos-resumo" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:18px;"></div>
+
+  <!-- Botão novo gasto -->
+  <button class="btn" style="background:#ea580c;color:#fff;margin-bottom:16px;" onclick="abrirGastosModal()">+ Novo Gasto</button>
+
+  <!-- Filtro por categoria -->
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
+    <label style="font-size:0.8rem;font-weight:600;">Filtrar:</label>
+    <select id="gastos-flt-cat" onchange="renderGastos()" style="border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:0.8rem;">
+      <option value="">Todas as categorias</option>
+    </select>
+    <button class="btn btn-sm btn-outline" onclick="exportarGastosExcel()">📊 Excel</button>
+    <button class="btn btn-sm btn-outline" onclick="exportarGastosJSON()">💾 JSON</button>
+  </div>
+
+  <!-- Lista de gastos -->
+  <div id="gastos-lista" style="display:flex;flex-direction:column;gap:8px;"></div>
+</section>
+
+<!-- MODAL NOVO GASTO -->
+<div id="gastos-modal" onclick="if(event.target===this)fecharGastosModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:600;align-items:center;justify-content:center;padding:16px;">
+  <div onclick="event.stopPropagation()" style="background:#fff;border-radius:14px;padding:24px;width:95%;max-width:480px;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 8px 40px rgba(0,0,0,.25);">
+    <button onclick="fecharGastosModal()" style="position:absolute;top:10px;right:12px;background:#f0f0f0;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:14px;">✕</button>
+    <div style="font-weight:800;font-size:1rem;color:#ea580c;margin-bottom:16px;" id="gastos-modal-ttl">🛒 Novo Gasto</div>
+    <input type="hidden" id="gasto-edit-id">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div style="grid-column:1/-1;">
+        <label style="font-size:0.8rem;font-weight:600;">Descrição *</label>
+        <input type="text" id="gasto-name" placeholder="Ex: Compras no mercado" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;">
+      </div>
+      <div>
+        <label style="font-size:0.8rem;font-weight:600;">Categoria *</label>
+        <select id="gasto-cat" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;margin-top:4px;"></select>
+      </div>
+      <div>
+        <label style="font-size:0.8rem;font-weight:600;">Valor (R$) *</label>
+        <input type="number" id="gasto-value" step="0.01" min="0" placeholder="0,00" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;">
+      </div>
+      <div>
+        <label style="font-size:0.8rem;font-weight:600;">Data</label>
+        <input type="date" id="gasto-date" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;">
+      </div>
+      <div>
+        <label style="font-size:0.8rem;font-weight:600;">Status</label>
+        <select id="gasto-status" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;margin-top:4px;">
+          <option value="PAGO">✅ PAGO</option>
+          <option value="ABERTO">⏳ ABERTO</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:0.8rem;font-weight:600;">Tipo</label>
+        <select id="gasto-type" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;margin-top:4px;">
+          <option value="Variável">Variável</option>
+          <option value="Fixo">Fixo</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1;">
+        <label style="font-size:0.8rem;font-weight:600;">Observação</label>
+        <textarea id="gasto-obs" placeholder="Detalhes extras..." rows="2" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;resize:vertical;"></textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button onclick="salvarGasto()" style="flex:1;background:#ea580c;color:#fff;border:none;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;font-size:0.9rem;">💾 Salvar</button>
+      <button onclick="fecharGastosModal()" style="background:#f0f0f0;border:none;border-radius:8px;padding:10px 18px;cursor:pointer;">Cancelar</button>
+    </div>
+  </div>
+</div>
 
 <!-- CONFIG -->
 <section class="pnl" id="pnl-config">
@@ -1409,6 +1485,7 @@ tr.rw-prox:hover td{background:#fdba74!important}
         <select id="ef-card">
           <option value="CASA">🏠 Casa</option>
           <option value="EMPRESA">🏢 Empresa</option>
+          <option value="GASTOS">🛒 Gastos do Mês</option>
           <option value="">⬜ Sem classificação</option>
         </select>
       </div>
@@ -1554,6 +1631,11 @@ const DEFAULT_CATS = [
   'Investimentos','Alimentação Fora de Casa',
   'Manutenção Empresa','Manutenção Casa',
   'Cartão de Crédito','Empréstimo','Lazer','Boleto Parcelado','Outros'
+];
+// Categorias específicas do card Gastos do Mês
+const CATS_GASTOS = [
+  'Mercado Casa','Combustível / Gasolina','Lazer',
+  'iFood / Delivery','Almoço / Alimentação','Outros Gastos'
 ];
 const DEFAULT_USERS = ['Carol','Thiago'];
 
@@ -1743,6 +1825,7 @@ function renderDashboard(){
   // Cards
   const totalCasa=expenses.filter(e=>e.card==='CASA').reduce((s,e)=>s+(+e.value||0),0);
   const totalEmp=expenses.filter(e=>e.card==='EMPRESA').reduce((s,e)=>s+(+e.value||0),0);
+  const totalGastos=expenses.filter(e=>e.card==='GASTOS').reduce((s,e)=>s+(+e.value||0),0);
   document.getElementById('dash-cards').innerHTML=`
     <div class="card"><div class="card-lbl">💰 Total de Ganhos</div><div class="card-val g">${BRL(totalInc)}</div><div class="card-sub">${d.income.length} entrada(s)</div></div>
     <div class="card"><div class="card-lbl">💸 Total de Despesas</div><div class="card-val">${BRL(totalExp)}</div><div class="card-sub">${expenses.length} despesa(s)</div></div>
@@ -1750,6 +1833,7 @@ function renderDashboard(){
     <div class="card"><div class="card-lbl">✅ Pagas</div><div class="card-val g">${BRL(pago)}</div><div class="card-sub">${qtPago} de ${expenses.length} pagas (${pct}%)<div class="prog"><div class="prog-f" style="width:${pct}%"></div></div></div></div>
     <div class="card" style="border-left:3px solid #2563eb"><div class="card-lbl">🏠 Despesas Casa</div><div class="card-val" style="color:#2563eb">${BRL(totalCasa)}</div><div class="card-sub">${expenses.filter(e=>e.card==='CASA').length} despesa(s)</div></div>
     <div class="card" style="border-left:3px solid #7c3aed"><div class="card-lbl">🏢 Despesas Empresa</div><div class="card-val" style="color:#7c3aed">${BRL(totalEmp)}</div><div class="card-sub">${expenses.filter(e=>e.card==='EMPRESA').length} despesa(s)</div></div>
+    <div class="card" style="border-left:3px solid #ea580c;cursor:pointer;" onclick="showTab('gastos',null)"><div class="card-lbl">🛒 Gastos do Mês</div><div class="card-val" style="color:#ea580c">${BRL(totalGastos)}</div><div class="card-sub">${expenses.filter(e=>e.card==='GASTOS').length} lançamento(s) · clique para ver</div></div>
   `;
 
   // Phrase
@@ -1916,6 +2000,7 @@ function renderExpenses(){
       <td><select class="card-sel ${cardCls}" onchange="changeCard('${e.id}',this.value,this)">
         <option value="CASA" ${e.card==='CASA'?'selected':''}>🏠</option>
         <option value="EMPRESA" ${e.card==='EMPRESA'?'selected':''}>🏢</option>
+        <option value="GASTOS" ${e.card==='GASTOS'?'selected':''}>🛒</option>
       </select></td>
       <td><select class="status-inline" onchange="quickStatus('${e.id}',this.value)" style="font-size:11px;border:1px solid var(--border);border-radius:6px;padding:2px 6px;background:var(--bg2);cursor:pointer">
         <option value="ABERTO"      ${e.status==='ABERTO'?'selected':''}>🟡 Aberto</option>
@@ -4816,6 +4901,203 @@ function cancelarImport() {
 // ══════ INIT ══════
 document.getElementById('f-data-dig').value=new Date().toISOString().slice(0,10);
 // Mês atual padrão
+
+// ══════════════════════════════════════════════════════
+// GASTOS DO MÊS — funções (aditivo, não altera FC existente)
+// ══════════════════════════════════════════════════════
+
+function abrirGastosModal(id) {
+  const m = document.getElementById('gastos-modal');
+  const ttl = document.getElementById('gastos-modal-ttl');
+  const catSel = document.getElementById('gasto-cat');
+  // Popula categorias
+  catSel.innerHTML = CATS_GASTOS.map(c=>`<option value="${c}">${c}</option>`).join('');
+  // Data padrão = hoje
+  document.getElementById('gasto-date').value = new Date().toISOString().slice(0,10);
+
+  if(id) {
+    // Editar
+    const d = data();
+    const e = d.expenses.find(x=>x.id===id && x.card==='GASTOS');
+    if(!e) return;
+    document.getElementById('gasto-edit-id').value = id;
+    document.getElementById('gasto-name').value = e.name||'';
+    document.getElementById('gasto-cat').value = e.category||'';
+    document.getElementById('gasto-value').value = e.value||'';
+    document.getElementById('gasto-date').value = e.dueDate||'';
+    document.getElementById('gasto-status').value = e.status||'PAGO';
+    document.getElementById('gasto-type').value = e.type||'Variável';
+    document.getElementById('gasto-obs').value = e.obs||'';
+    ttl.textContent = '✏️ Editar Gasto';
+  } else {
+    document.getElementById('gasto-edit-id').value = '';
+    document.getElementById('gasto-name').value = '';
+    document.getElementById('gasto-value').value = '';
+    document.getElementById('gasto-obs').value = '';
+    document.getElementById('gasto-status').value = 'PAGO';
+    document.getElementById('gasto-type').value = 'Variável';
+    ttl.textContent = '🛒 Novo Gasto';
+  }
+  m.style.display = 'flex';
+}
+
+function fecharGastosModal() {
+  document.getElementById('gastos-modal').style.display = 'none';
+}
+
+function salvarGasto() {
+  const nome  = (document.getElementById('gasto-name')?.value||'').trim();
+  const valor = parseFloat(document.getElementById('gasto-value')?.value)||0;
+  const cat   = document.getElementById('gasto-cat')?.value||'';
+  if(!nome)  { alert('Informe a descrição.'); return; }
+  if(!valor) { alert('Informe o valor.'); return; }
+
+  const d = data();
+  const editId = document.getElementById('gasto-edit-id').value;
+  const novoGasto = {
+    id:       editId || Math.random().toString(36).slice(2,10),
+    name:     nome.toUpperCase(),
+    category: cat,
+    type:     document.getElementById('gasto-type')?.value || 'Variável',
+    value:    valor,
+    dueDate:  document.getElementById('gasto-date')?.value || '',
+    payDate:  document.getElementById('gasto-status')?.value === 'PAGO' ? (document.getElementById('gasto-date')?.value||new Date().toISOString().slice(0,10)) : '',
+    status:   document.getElementById('gasto-status')?.value || 'PAGO',
+    obs:      document.getElementById('gasto-obs')?.value || '',
+    card:     'GASTOS',
+    _src:     'GastosMes'
+  };
+
+  if(editId) {
+    const idx = d.expenses.findIndex(x=>x.id===editId);
+    if(idx>-1) d.expenses[idx] = novoGasto;
+    else d.expenses.push(novoGasto);
+  } else {
+    d.expenses.push(novoGasto);
+  }
+  save(d);
+  fecharGastosModal();
+  renderGastos();
+  renderDashboard();
+  showToast('✅ Gasto salvo!');
+}
+
+function excluirGasto(id) {
+  if(!confirm('Excluir este gasto?')) return;
+  const d = data();
+  d.expenses = d.expenses.filter(x=>x.id!==id);
+  save(d);
+  renderGastos();
+  renderDashboard();
+  showToast('Gasto excluído.');
+}
+
+function renderGastos() {
+  const d = data();
+  const gastos = d.expenses.filter(e=>e.card==='GASTOS');
+  const catFlt = document.getElementById('gastos-flt-cat')?.value || '';
+
+  // Label do mês
+  const lblEl = document.getElementById('gastos-mes-lbl');
+  if(lblEl) lblEl.textContent = monthLabel(state.month);
+
+  // Popula filtro de categorias
+  const catSel = document.getElementById('gastos-flt-cat');
+  if(catSel) {
+    const cats = [...new Set(gastos.map(g=>g.category).filter(Boolean))];
+    const curVal = catSel.value;
+    catSel.innerHTML = '<option value="">Todas as categorias</option>' +
+      cats.map(c=>`<option value="${c}" ${c===curVal?'selected':''}>${c}</option>`).join('');
+  }
+
+  const filtrados = catFlt ? gastos.filter(g=>g.category===catFlt) : gastos;
+  const total = filtrados.reduce((s,g)=>s+(+g.value||0),0);
+
+  // Cards por categoria
+  const porCat = {};
+  filtrados.forEach(g=>{
+    const c = g.category||'Outros';
+    if(!porCat[c]) porCat[c]={total:0,qtd:0};
+    porCat[c].total += +g.value||0;
+    porCat[c].qtd++;
+  });
+  const resumoEl = document.getElementById('gastos-resumo');
+  if(resumoEl) {
+    resumoEl.innerHTML = `
+      <div class="card" style="border-left:3px solid #ea580c;">
+        <div class="card-lbl">💰 Total do Mês</div>
+        <div class="card-val" style="color:#ea580c;">${BRL(total)}</div>
+        <div class="card-sub">${filtrados.length} lançamento(s)</div>
+      </div>
+      ${Object.entries(porCat).sort((a,b)=>b[1].total-a[1].total).map(([cat,v])=>`
+        <div class="card" style="cursor:pointer;" onclick="document.getElementById('gastos-flt-cat').value='${cat}';renderGastos()">
+          <div class="card-lbl" style="font-size:0.7rem;">${cat}</div>
+          <div class="card-val" style="font-size:1.1rem;color:#ea580c;">${BRL(v.total)}</div>
+          <div class="card-sub">${v.qtd} lançamento(s)</div>
+        </div>`).join('')}`;
+  }
+
+  // Lista
+  const listaEl = document.getElementById('gastos-lista');
+  if(!listaEl) return;
+  if(!filtrados.length) {
+    listaEl.innerHTML = '<div style="text-align:center;color:#aaa;padding:24px;">Nenhum gasto lançado neste mês.<br>Clique em "+ Novo Gasto" para começar.</div>';
+    return;
+  }
+  listaEl.innerHTML = [...filtrados].reverse().map(g=>`
+    <div style="background:#fff;border:1px solid #eee;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:0.85rem;">${g.name||'—'}</div>
+        <div style="font-size:0.72rem;color:#aaa;">${g.category||'—'} · ${g.dueDate||'sem data'}${g.obs?` · <em>${g.obs}</em>`:''}</div>
+      </div>
+      <div style="text-align:right;min-width:80px;">
+        <div style="font-weight:800;color:#ea580c;">${BRL(+g.value||0)}</div>
+        <span style="font-size:0.68rem;background:${g.status==='PAGO'?'#d4f5e5':'#fde8cd'};color:${g.status==='PAGO'?'#1a7a4a':'#a05c00'};padding:2px 6px;border-radius:4px;">${g.status||'—'}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        <button onclick="abrirGastosModal('${g.id}')" style="background:#f0f0f0;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px;" title="Editar">✏️</button>
+        <button onclick="excluirGasto('${g.id}')" style="background:#fee2e2;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px;" title="Excluir">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+function exportarGastosExcel() {
+  const d = data();
+  const gastos = d.expenses.filter(e=>e.card==='GASTOS');
+  const catFlt = document.getElementById('gastos-flt-cat')?.value || '';
+  const filtrados = catFlt ? gastos.filter(g=>g.category===catFlt) : gastos;
+  if(!filtrados.length) { showToast('Sem dados para exportar.'); return; }
+  if(typeof XLSX==='undefined') { showToast('⚠️ Biblioteca XLSX não disponível.'); return; }
+  const ws = XLSX.utils.json_to_sheet(filtrados.map(g=>({
+    'Descrição': g.name||'',
+    'Categoria': g.category||'',
+    'Valor (R$)': +g.value||0,
+    'Data': g.dueDate||'',
+    'Status': g.status||'',
+    'Tipo': g.type||'',
+    'Observação': g.obs||''
+  })));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Gastos do Mês');
+  XLSX.writeFile(wb, `GastosMes_${state.month}.xlsx`);
+  showToast('✅ Excel exportado!');
+}
+
+function exportarGastosJSON() {
+  const d = data();
+  const gastos = d.expenses.filter(e=>e.card==='GASTOS');
+  const catFlt = document.getElementById('gastos-flt-cat')?.value || '';
+  const filtrados = catFlt ? gastos.filter(g=>g.category===catFlt) : gastos;
+  if(!filtrados.length) { showToast('Sem dados para exportar.'); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify({mes:state.month, gastos:filtrados},null,2)],{type:'application/json'}));
+  a.download = `GastosMes_${state.month}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  showToast('✅ JSON exportado!');
+}
+
+// ══════════════════════════════════════════════════════
+
 // ── Popula f-mes-ref dinamicamente (Jan/2025 até Jun/2027) ──
 (function() {
   const sel = document.getElementById('f-mes-ref');
