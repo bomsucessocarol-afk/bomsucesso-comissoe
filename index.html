@@ -936,6 +936,20 @@ tr.rw-prox:hover td{background:#fdba74!important}
     </details>
   </div>
 
+  <!-- SUPABASE SYNC FC -->
+  <div class="cfg-sec" style="border-color:#383772;">
+    <div class="cfg-ttl" style="color:#383772;">🗄️ Banco de Dados — Despesas & Ganhos</div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:14px;">Salva e recupera todas as despesas, ganhos e gastos no banco de dados — funciona em qualquer PC ou celular sem precisar de backup manual.</p>
+    <div id="fc-supa-status" style="font-size:12px;padding:8px 12px;background:#EEF0FF;border-radius:8px;margin-bottom:12px;color:#383772;">
+      ⟳ Aguardando conexão com o banco...
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-sm" style="background:#383772;" onclick="fcSupaEnviarTudo()">⬆️ Enviar tudo ao banco</button>
+      <button class="btn btn-sm" style="background:#16a34a;" onclick="fcSupaReceberTudo()">⬇️ Receber do banco</button>
+      <button class="btn btn-sm btn-out" onclick="fcSupaStatus()">🔌 Verificar conexão</button>
+    </div>
+  </div>
+
   <div class="cfg-sec">
     <div class="cfg-ttl">📥 Importar JSON</div>
     <input type="file" id="import-json-file" accept=".json" onchange="importJSONConfig(this)">
@@ -1661,7 +1675,12 @@ const DB = {
 };
 
 function data(){ return DB.get(state.month); }
-function save(d){ DB.set(state.month,d); syncMonthToSheets(state.month,d); }
+function save(d){
+  DB.set(state.month, d);
+  syncMonthToSheets(state.month, d);
+  // Sincroniza com Supabase em background
+  try { if(sbClient) fcSupaSalvar(state.month, d); } catch(e) {}
+}
 
 // ============================================================
 // HELPERS
@@ -3163,8 +3182,37 @@ function showSyncIndicator(msg, hideAfterMs) {
     localStorage.setItem('fc_sheets_url', 'https://script.google.com/macros/s/AKfycbyPE8SBHNF_Y5Ne_WdYgg4ZR56-6MtNxxes7avYpbxQwRALIvum499CAPzVmtFZPfM/exec');
   }
 
-  // Renderiza IMEDIATAMENTE com dados locais (mesmo que vazios) — nunca fica em branco
+  // Renderiza IMEDIATAMENTE com dados locais — nunca fica em branco
   try { renderAll(); } catch(e) {}
+
+  // Tenta carregar do Supabase primeiro (funciona em qualquer PC)
+  initSupabase();
+  if(sbClient) {
+    try {
+      showSyncIndicator('⟳ Carregando dados do banco...');
+      const todos = await fcSupaCarregarTodos();
+      if(todos && todos.length > 0) {
+        let importados = 0;
+        todos.forEach(({ mes, dados }) => {
+          const chave = 'fc_' + mes;
+          const local = localStorage.getItem(chave);
+          // Só sobrescreve se Supabase tiver dados e local estiver vazio
+          if(!local || local === '{"phrase":"","expenses":[],"income":[]}') {
+            localStorage.setItem(chave, JSON.stringify(dados));
+            importados++;
+          }
+        });
+        if(importados > 0) {
+          renderAll();
+          showSyncIndicator('✅ ' + importados + ' meses carregados do banco!', 3000);
+          return; // já tem dados, não precisa do Sheets
+        } else {
+          showSyncIndicator('✅ Dados sincronizados!', 2000);
+          return;
+        }
+      }
+    } catch(e) { console.warn('FC Supa autoLoad:', e); }
+  }
 
   showSyncIndicator('⟳ Carregando seus dados...');
   try {
@@ -3893,6 +3941,111 @@ function gerarBackupSilencioso() {
     a.click();
     document.body.removeChild(a);
   } catch(e) { console.warn('Auto-backup falhou:', e); }
+}
+
+// ══════ SUPABASE — Finance Control ══════
+
+async function fcSupaStatus() {
+  const el = document.getElementById('fc-supa-status');
+  if(!sbClient) {
+    initSupabase();
+    if(!sbClient) {
+      if(el) el.innerHTML = '❌ Sem conexão com o banco. Verifique sua internet.';
+      return;
+    }
+  }
+  try {
+    const { count } = await sbClient.from('fc_meses').select('mes', { count: 'exact', head: true });
+    if(el) el.innerHTML = `✅ Banco conectado — ${count||0} meses salvos no banco.`;
+  } catch(e) {
+    if(el) el.innerHTML = '⚠️ Erro ao verificar: ' + (e.message||e);
+  }
+}
+
+async function fcSupaEnviarTudo() {
+  if(!sbClient) { initSupabase(); }
+  if(!sbClient) { showToast('⚠️ Banco não conectado.'); return; }
+  const el = document.getElementById('fc-supa-status');
+  if(el) el.innerHTML = '⟳ Enviando todos os meses para o banco...';
+  try {
+    // Coleta todos os meses do localStorage
+    const chaves = Object.keys(localStorage).filter(k => k.startsWith('fc_') && k.match(/fc_\d{4}-\d{2}$/));
+    let enviados = 0;
+    for(const chave of chaves) {
+      const mes = chave.replace('fc_', '');
+      const dados = JSON.parse(localStorage.getItem(chave)||'null');
+      if(dados) {
+        await fcSupaSalvar(mes, dados);
+        enviados++;
+      }
+    }
+    if(el) el.innerHTML = `✅ ${enviados} meses enviados ao banco com sucesso!`;
+    showToast('✅ Tudo enviado ao banco! (' + enviados + ' meses)');
+  } catch(e) {
+    if(el) el.innerHTML = '❌ Erro ao enviar: ' + (e.message||e);
+    showToast('⚠️ Erro ao enviar. Tente novamente.');
+  }
+}
+
+async function fcSupaReceberTudo() {
+  if(!sbClient) { initSupabase(); }
+  if(!sbClient) { showToast('⚠️ Banco não conectado.'); return; }
+  const el = document.getElementById('fc-supa-status');
+  if(el) el.innerHTML = '⟳ Recebendo dados do banco...';
+  try {
+    const todos = await fcSupaCarregarTodos();
+    if(!todos || todos.length === 0) {
+      if(el) el.innerHTML = '📂 Nenhum dado encontrado no banco ainda.';
+      showToast('Banco ainda não tem dados. Use "Enviar tudo" primeiro.');
+      return;
+    }
+    let recebidos = 0;
+    todos.forEach(({ mes, dados }) => {
+      localStorage.setItem('fc_' + mes, JSON.stringify(dados));
+      recebidos++;
+    });
+    renderAll();
+    if(el) el.innerHTML = `✅ ${recebidos} meses recebidos do banco!`;
+    showToast('✅ Dados recebidos! (' + recebidos + ' meses)');
+  } catch(e) {
+    if(el) el.innerHTML = '❌ Erro ao receber: ' + (e.message||e);
+    showToast('⚠️ Erro ao receber. Tente novamente.');
+  }
+}
+
+async function fcSupaSalvar(mes, dados) {
+  if(!sbClient) return;
+  try {
+    await sbClient.from('fc_meses').upsert(
+      { mes, dados },
+      { onConflict: 'mes' }
+    );
+  } catch(e) { console.warn('FC Supa save:', e); }
+}
+
+async function fcSupaCarregar(mes) {
+  if(!sbClient) return null;
+  try {
+    const { data, error } = await sbClient
+      .from('fc_meses')
+      .select('dados')
+      .eq('mes', mes)
+      .single();
+    if(error || !data) return null;
+    return data.dados;
+  } catch(e) { console.warn('FC Supa load:', e); return null; }
+}
+
+async function fcSupaCarregarTodos() {
+  if(!sbClient) return null;
+  try {
+    const { data, error } = await sbClient
+      .from('fc_meses')
+      .select('mes, dados')
+      .order('mes', { ascending: true });
+    if(error || !data) return null;
+    return data; // [{mes, dados}, ...]
+  } catch(e) { console.warn('FC Supa loadAll:', e); return null; }
 }
 
 // JSONP helper para o módulo BomSucesso (evita CORS no Drive)
