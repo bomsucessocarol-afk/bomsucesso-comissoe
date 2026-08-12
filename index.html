@@ -833,6 +833,18 @@ tr.rw-prox:hover td{background:#fdba74!important}
     <button onclick="fecharGastosModal()" style="position:absolute;top:10px;right:12px;background:#f0f0f0;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:14px;">✕</button>
     <div style="font-weight:800;font-size:1rem;color:#ea580c;margin-bottom:16px;" id="gastos-modal-ttl">🛒 Novo Gasto</div>
     <input type="hidden" id="gasto-edit-id">
+
+    <!-- LANÇAMENTO RÁPIDO -->
+    <div style="background:#FFF8E1;border:1.5px solid #FBAD09;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
+      <label style="font-size:0.75rem;font-weight:700;color:#383772;display:block;margin-bottom:6px;">⚡ Lançamento rápido <span style="font-weight:400;color:#7E7A68;">(opcional — pressione Enter para preencher)</span></label>
+      <div style="display:flex;gap:6px;">
+        <input type="text" id="gasto-rapido"
+          placeholder="Ex: Almoço com Thiago - Almoço/Alimentação - R$34,00 - 04/08 - pago - variável - obs: pix Nubank"
+          style="flex:1;border:1.5px solid #FBAD09;border-radius:8px;padding:8px 12px;font-size:0.8rem;outline:none;box-sizing:border-box;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();parseGastoRapido();}">
+        <button onclick="parseGastoRapido()" style="background:#FBAD09;color:#383772;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;white-space:nowrap;font-size:0.8rem;">Preencher</button>
+      </div>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div style="grid-column:1/-1;">
         <label style="font-size:0.8rem;font-weight:600;">Descrição *</label>
@@ -4910,6 +4922,9 @@ function abrirGastosModal(id) {
   const m = document.getElementById('gastos-modal');
   const ttl = document.getElementById('gastos-modal-ttl');
   const catSel = document.getElementById('gasto-cat');
+  // Limpa campo rápido sempre que abre
+  const rapido = document.getElementById('gasto-rapido');
+  if(rapido) rapido.value = '';
   // Popula categorias
   catSel.innerHTML = CATS_GASTOS.map(c=>`<option value="${c}">${c}</option>`).join('');
   // Data padrão = hoje
@@ -4990,6 +5005,103 @@ function excluirGasto(id) {
   renderGastos();
   renderDashboard();
   showToast('Gasto excluído.');
+}
+
+function parseGastoRapido() {
+  const raw = (document.getElementById('gasto-rapido')?.value || '').trim();
+  if(!raw) return;
+
+  // Divide pelos hífens, mas respeita o "obs:" que pode conter hífens
+  // Separa o bloco "obs:..." primeiro
+  let obsTexto = '';
+  let semObs = raw;
+  const obsIdx = raw.toLowerCase().indexOf('obs:');
+  if(obsIdx !== -1) {
+    obsTexto = raw.slice(obsIdx + 4).trim();
+    semObs = raw.slice(0, obsIdx).trim().replace(/-\s*$/, '').trim();
+  }
+
+  const partes = semObs.split('-').map(p => p.trim()).filter(Boolean);
+
+  // Parte 0 — Descrição
+  if(partes[0]) {
+    const el = document.getElementById('gasto-name');
+    if(el) el.value = partes[0];
+  }
+
+  // Parte 1 — Categoria (tenta casar com CATS_GASTOS)
+  if(partes[1]) {
+    const cat = partes[1].trim();
+    const catEl = document.getElementById('gasto-cat');
+    if(catEl) {
+      // Busca match exato ou parcial (case-insensitive)
+      const opcoes = [...catEl.options].map(o => o.value);
+      const match = opcoes.find(o =>
+        o.toLowerCase() === cat.toLowerCase() ||
+        o.toLowerCase().includes(cat.toLowerCase()) ||
+        cat.toLowerCase().includes(o.toLowerCase().split('/')[0])
+      );
+      if(match) catEl.value = match;
+      // Se não achou: deixa em branco (não trava)
+    }
+  }
+
+  // Parte 2 — Valor (aceita R$34, R$34,50, 34.50, 34,50)
+  if(partes[2]) {
+    const vStr = partes[2].replace(/R\$\s*/i,'').replace(',','.').replace(/[^\d.]/g,'');
+    const v = parseFloat(vStr);
+    const el = document.getElementById('gasto-value');
+    if(el && !isNaN(v) && v > 0) el.value = v;
+  }
+
+  // Parte 3 — Data (aceita dd/mm, dd/mm/aaaa, yyyy-mm-dd)
+  if(partes[3]) {
+    const dStr = partes[3].trim();
+    const ano = new Date().getFullYear();
+    let dataISO = '';
+    // dd/mm
+    const m1 = dStr.match(/^(\d{1,2})\/(\d{1,2})$/);
+    if(m1) dataISO = `${ano}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
+    // dd/mm/aaaa
+    const m2 = dStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if(m2) dataISO = `${m2[3]}-${m2[2].padStart(2,'0')}-${m2[1].padStart(2,'0')}`;
+    // yyyy-mm-dd
+    const m3 = dStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(m3) dataISO = dStr;
+    const el = document.getElementById('gasto-date');
+    if(el && dataISO) el.value = dataISO;
+  }
+
+  // Parte 4 — Status (pago / pendente / aberto)
+  if(partes[4]) {
+    const s = partes[4].toLowerCase();
+    const el = document.getElementById('gasto-status');
+    if(el) {
+      if(s.includes('pag')) el.value = 'PAGO';
+      else if(s.includes('pend') || s.includes('abert')) el.value = 'ABERTO';
+    }
+  }
+
+  // Parte 5 — Tipo (fixo / variável)
+  if(partes[5]) {
+    const t = partes[5].toLowerCase();
+    const el = document.getElementById('gasto-type');
+    if(el) {
+      if(t.includes('fix')) el.value = 'Fixo';
+      else if(t.includes('var')) el.value = 'Variável';
+    }
+  }
+
+  // Observação
+  if(obsTexto) {
+    const el = document.getElementById('gasto-obs');
+    if(el) el.value = obsTexto;
+  }
+
+  // Limpa o campo rápido e foca na descrição para revisão
+  const rapido = document.getElementById('gasto-rapido');
+  if(rapido) rapido.value = '';
+  document.getElementById('gasto-name')?.focus();
 }
 
 function renderGastos() {
