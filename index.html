@@ -3185,50 +3185,58 @@ function showSyncIndicator(msg, hideAfterMs) {
   // Renderiza IMEDIATAMENTE com dados locais — nunca fica em branco
   try { renderAll(); } catch(e) {}
 
-  // Tenta carregar do Supabase primeiro (funciona em qualquer PC)
+  // Supabase é a FONTE PRINCIPAL — sempre carrega do banco ao iniciar
   initSupabase();
   if(sbClient) {
     try {
       showSyncIndicator('⟳ Carregando dados do banco...');
       const todos = await fcSupaCarregarTodos();
       if(todos && todos.length > 0) {
-        let importados = 0;
+        // SEMPRE aplica dados do Supabase — eles são a fonte de verdade
         todos.forEach(({ mes, dados }) => {
-          const chave = 'fc_' + mes;
-          const local = localStorage.getItem(chave);
-          // Só sobrescreve se Supabase tiver dados e local estiver vazio
-          if(!local || local === '{"phrase":"","expenses":[],"income":[]}') {
-            localStorage.setItem(chave, JSON.stringify(dados));
-            importados++;
+          if(dados && (dados.expenses?.length > 0 || dados.income?.length > 0)) {
+            localStorage.setItem('fc_' + mes, JSON.stringify(dados));
           }
         });
-        if(importados > 0) {
-          renderAll();
-          showSyncIndicator('✅ ' + importados + ' meses carregados do banco!', 3000);
-          return; // já tem dados, não precisa do Sheets
-        } else {
-          showSyncIndicator('✅ Dados sincronizados!', 2000);
-          return;
-        }
+        localStorage.setItem('fc_historico_done', '1');
+        renderAll();
+        showSyncIndicator('✅ ' + todos.length + ' meses carregados do banco!', 3000);
+        return;
+      } else {
+        // Supabase vazio → tenta Sheets como fallback para migração
+        showSyncIndicator('📂 Banco vazio — verificando planilha...', 1000);
       }
     } catch(e) { console.warn('FC Supa autoLoad:', e); }
   }
 
+  // Fallback: Google Sheets
   showSyncIndicator('⟳ Carregando seus dados...');
   try {
     const r = await gasGet({action:'getAll'});
     if (r && r.ok && r.data) {
-      Object.keys(r.data).forEach(mk => {
-        if (mk === '__recs__') saveRecs(r.data[mk]);
-        else if (mk === '__debitos__') saveDebitos(r.data[mk]);
-        else localStorage.setItem('fc_'+mk, JSON.stringify(r.data[mk]));
+      const meses = Object.keys(r.data).filter(k => k.match(/^\d{4}-\d{2}$/));
+      meses.forEach(mk => {
+        localStorage.setItem('fc_'+mk, JSON.stringify(r.data[mk]));
       });
+      if(r.data.__recs__) saveRecs(r.data.__recs__);
+      if(r.data.__debitos__) saveDebitos(r.data.__debitos__);
       localStorage.setItem('fc_historico_importado','1');
       localStorage.setItem('fc_historico_done','1');
+      // Migra Sheets → Supabase automaticamente
+      if(sbClient && meses.length > 0) {
+        meses.forEach(mk => {
+          try {
+            const dados = JSON.parse(localStorage.getItem('fc_'+mk)||'null');
+            if(dados) fcSupaSalvar(mk, dados);
+          } catch(e) {}
+        });
+        showSyncIndicator('✅ Dados migrados para o banco!', 3000);
+      } else {
+        showSyncIndicator('✅ Dados carregados!', 3000);
+      }
       renderAll();
-      showSyncIndicator('✅ Dados carregados!', 3000);
     } else {
-      showSyncIndicator('📂 Sem dados na planilha', 2000);
+      showSyncIndicator('📂 Sem dados no servidor', 2000);
       renderAll();
     }
   } catch(e) {
@@ -3786,7 +3794,21 @@ async function atualizarDados() {
   dadosFiltrados=[...todosLancamentos];
   preencherFiltrosMeses();
   renderResumo();
-  renderMetaAtual();
+  // Carrega metas do Supabase para o cache local
+  if(sbClient) {
+    sbClient.from('bs_config').select('chave,valor').like('chave','meta_%')
+      .then(({data}) => {
+        if(data) {
+          data.forEach(row => {
+            const localKey = 'bs_' + row.chave; // 'bs_meta_JULHO2026'
+            if(!_lsGet(localKey)) _lsSet(localKey, row.valor);
+          });
+        }
+        renderMetaAtual();
+      }).catch(() => renderMetaAtual());
+  } else {
+    renderMetaAtual();
+  }
   bs_mostrarLoading(false);
 }
 
@@ -3913,6 +3935,7 @@ function salvarCacheCompleto() {
   if(!todosLancamentos.length) return;
   _lsSet('bs_cache_lancamentos', JSON.stringify(todosLancamentos));
   _lsSet('bs_cache_ts', String(Date.now()));
+  // Supabase é a fonte principal — cache local é só performance
   // Auto-backup a cada 5 lançamentos novos
   const total = todosLancamentos.length;
   const ultimo = parseInt(_lsGet('bs_ultimo_backup_total')||'0');
@@ -4069,23 +4092,44 @@ function bsJsonpGet(url, params) {
 function salvarMeta() {
   const v = parseFloat(document.getElementById('meta-input').value)||0;
   const mesRef = getMesRefAtivo() || 'global';
-  localStorage.setItem('bs_meta_'+mesRef, v);
-  // Mantém compatibilidade: atualiza bs_meta legacy também
-  localStorage.setItem('bs_meta', v);
+  // 1. localStorage (cache imediato)
+  _lsSet('bs_meta_'+mesRef, String(v));
+  _lsSet('bs_meta', String(v));
+  // 2. Supabase (persistência permanente)
+  setTimeout(function() {
+    try {
+      if(sbClient) {
+        sbClient.from('bs_config')
+          .upsert({chave:'meta_'+mesRef, valor:String(v)}, {onConflict:'chave'})
+          .then(() => console.log('Meta salva no Supabase'))
+          .catch(e => console.warn('Meta Supa err:', e));
+      }
+    } catch(e) {}
+  }, 0);
   renderMetaAtual();
 }
 function renderMetaAtual() {
   const mesRef = getMesRefAtivo() || 'global';
-  // Lê chave por mês; fallback migração automática de bs_meta legado (só uma vez por mês)
   const chave = 'bs_meta_'+mesRef;
   let meta;
-  if(localStorage.getItem(chave) !== null) {
-    meta = parseFloat(localStorage.getItem(chave)||0);
+  const localVal = _lsGet(chave);
+  if(localVal !== null) {
+    meta = parseFloat(localVal||0);
   } else {
-    // Migração: usa valor legado para o mês corrente, uma única vez
-    const legado = parseFloat(localStorage.getItem('bs_meta')||0);
+    // Tenta legado local
+    const legado = parseFloat(_lsGet('bs_meta')||0);
     meta = legado;
-    if(legado > 0) localStorage.setItem(chave, legado); // persiste sem apagar legado
+    if(legado > 0) _lsSet(chave, String(legado));
+  }
+  // Se ainda zero, tenta buscar do Supabase de forma assíncrona
+  if(!meta && sbClient) {
+    sbClient.from('bs_config').select('valor').eq('chave','meta_'+mesRef).single()
+      .then(({data}) => {
+        if(data && data.valor) {
+          _lsSet(chave, data.valor);
+          renderMetaAtual(); // re-render com valor do banco
+        }
+      }).catch(()=>{});
   }
   const mes = getMesRefAtivo() || 'todos';
   const dados = mes && mes !== 'todos' ? todosLancamentos.filter(r=>r.mes_ref===mes) : todosLancamentos;
