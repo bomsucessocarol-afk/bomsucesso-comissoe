@@ -3447,13 +3447,129 @@ function initSupabase() {
       auth: { persistSession: true, storageKey: 'bs-auth' }
     });
     console.log('Supabase inicializado'); window._sbReady = true;
+    // Ativa sincronização em tempo real após inicializar
+    setTimeout(ativarRealtimeSync, 1000);
   } catch(e) {
     console.warn('Supabase não disponível:', e);
   }
 }
 
-// Salva lançamento no Supabase
+// ══════ REALTIME — Sincronização automática entre dispositivos ══════
+let _realtimeChannel = null;
+let _realtimeFC = null;
+let _ultimaSincBS = 0; // debounce — evita renders em cascata
+
+function ativarRealtimeSync() {
+  if(!sbClient || _realtimeChannel) return;
+
+  // ── Canal 1: Lançamentos de Comissões ──
+  _realtimeChannel = sbClient
+    .channel('lancamentos-sync')
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'lancamentos' },
+      (payload) => {
+        const agora = Date.now();
+        if(agora - _ultimaSincBS < 800) return; // debounce 800ms
+        _ultimaSincBS = agora;
+
+        console.log('[Realtime BS]', payload.eventType, payload.new?.nome_cliente || payload.old?.id);
+
+        if(payload.eventType === 'INSERT') {
+          const novo = payload.new;
+          const existe = todosLancamentos.some(r => r.id === novo.id);
+          if(!existe) {
+            todosLancamentos.unshift(novo);
+            dadosFiltrados = [...todosLancamentos];
+            localStorage.setItem('bs_cache_lancamentos', JSON.stringify(todosLancamentos));
+            _realtimeRenderBS('+ '+( novo.nome_cliente||'novo'));
+          }
+
+        } else if(payload.eventType === 'UPDATE') {
+          const upd = payload.new;
+          const idx = todosLancamentos.findIndex(r => r.id === upd.id);
+          if(idx > -1) {
+            todosLancamentos[idx] = upd;
+            dadosFiltrados = [...todosLancamentos];
+            localStorage.setItem('bs_cache_lancamentos', JSON.stringify(todosLancamentos));
+            _realtimeRenderBS('✏️ '+(upd.nome_cliente||'atualizado'));
+          }
+
+        } else if(payload.eventType === 'DELETE') {
+          const delId = payload.old?.id;
+          if(delId) {
+            todosLancamentos = todosLancamentos.filter(r => r.id !== delId);
+            dadosFiltrados = [...todosLancamentos];
+            localStorage.setItem('bs_cache_lancamentos', JSON.stringify(todosLancamentos));
+            _realtimeRenderBS('🗑️ removido');
+          }
+        }
+      }
+    )
+    .subscribe((status) => {
+      console.log('[Realtime BS] status:', status);
+    });
+
+  // ── Canal 2: Finance Control (fc_meses) ──
+  _realtimeFC = sbClient
+    .channel('fc-meses-sync')
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'fc_meses' },
+      (payload) => {
+        console.log('[Realtime FC]', payload.eventType, payload.new?.mes);
+        if(payload.new?.mes && payload.new?.dados) {
+          localStorage.setItem('fc_'+payload.new.mes, JSON.stringify(payload.new.dados));
+          // Só re-renderiza se for o mês visível
+          if(payload.new.mes === state.month) {
+            try { renderAll(); } catch(e) {}
+            showSyncIndicator('🔄 Dados atualizados!', 2000);
+          }
+        }
+      }
+    )
+    .subscribe();
+
+  console.log('[Realtime] Canais ativos — sync automático entre dispositivos');
+
+  // ── Ping automático: mantém Supabase gratuito sempre ativo ──
+  // Faz uma query leve a cada 4 dias (plano grátis pausa após 7 dias sem uso)
+  const QUATRO_DIAS_MS = 4 * 24 * 60 * 60 * 1000;
+  const ultimoPing = parseInt(localStorage.getItem('sb_ultimo_ping')||'0');
+  const agora = Date.now();
+  if(agora - ultimoPing > QUATRO_DIAS_MS) {
+    sbClient.from('lancamentos').select('id', {count:'exact', head:true})
+      .then(() => {
+        localStorage.setItem('sb_ultimo_ping', String(agora));
+        console.log('[Ping] Supabase mantido ativo');
+      });
+  }
+  // Ping periódico a cada 4 dias enquanto o app estiver aberto
+  setInterval(() => {
+    if(!sbClient) return;
+    sbClient.from('lancamentos').select('id', {count:'exact', head:true})
+      .then(() => {
+        localStorage.setItem('sb_ultimo_ping', String(Date.now()));
+        console.log('[Ping] Supabase ativo');
+      });
+  }, QUATRO_DIAS_MS);
+}
+
+// Re-renderiza módulo BS com indicador visual
+function _realtimeRenderBS(msg) {
+  const pnl = document.getElementById('pnl-bomsucesso');
+  const ativo = pnl && pnl.classList.contains('on');
+  // Atualiza cache independente
+  localStorage.setItem('bs_cache_ts', String(Date.now()));
+  // Se módulo visível, re-renderiza
+  if(ativo) {
+    try { preencherFiltrosMeses(); renderResumo(); filtrarTabela(); } catch(e) {}
+  }
+  showSyncIndicator('🔄 '+msg, 2500);
+  bs_mostrarToast('🔄 Sincronizado: '+msg);
+}
+
+
 async function supabaseSalvar(row) {
+  if(!sbClient) { initSupabase(); }
   if(!sbClient) return false;
   try {
     const dados = {
@@ -3482,38 +3598,22 @@ async function supabaseSalvar(row) {
 }
 
 // Salva múltiplos lançamentos de uma vez (migração)
-async function supabaseSalvarLote(rows) {
-  if(!sbClient || !rows.length) return;
-  try {
-    const lote = rows.map(row => ({
-      id: row.id, nome_cliente: row.nome_cliente,
-      data_dig: row.data_dig||null, data_pg: row.data_pg||null,
-      data_comissao_rec: row.data_comissao_rec||null,
-      modalidade: row.modalidade||'', banco: row.banco||'',
-      promotora: row.promotora||'',
-      valor_cliente: parseFloat(row.valor_cliente)||0,
-      perc_comissao: parseFloat(row.perc_comissao)||0,
-      comissao: parseFloat(row.comissao)||0,
-      tipo_op: row.tipo_op||'NOVO', operacao: row.operacao||row.tipo_op||'NOVO',
-      status: row.status||'ABERTO', status_comissao: row.status_comissao||row.status||'ABERTO',
-      pact_fixo: parseFloat(row.pact_fixo)||0, mes_ref: row.mes_ref||''
-    }));
-    const { error } = await sbClient.from('lancamentos').upsert(lote, {onConflict:'id'});
-    if(error) console.warn('Lote save error:', error);
-    else console.log('Lote salvo:', lote.length, 'registros');
-  } catch(e) { console.warn('Lote save exception:', e); }
-}
-
 // Carrega todos os lançamentos do Supabase
 async function supabaseCarregar() {
   if(!sbClient) return null;
   try {
-    const { data, error } = await sbClient
+    // Tenta ordenar por created_at; se falhar, ordena por id
+    let { data, error } = await sbClient
       .from('lancamentos')
       .select('*')
-      .order('data_dig', {ascending: false});
-    if(error) { console.warn('Supabase load error:', error); return null; }
-    return data;
+      .order('created_at', {ascending: false, nullsFirst: false});
+    if(error) {
+      // Fallback: sem ordenação específica
+      const res2 = await sbClient.from('lancamentos').select('*');
+      if(res2.error) { console.warn('Supabase load error:', res2.error); return null; }
+      return res2.data || [];
+    }
+    return data || [];
   } catch(e) { console.warn('Supabase load exception:', e); return null; }
 }
 
@@ -3553,7 +3653,6 @@ async function supabaseSalvarLote(rows) {
     return dados.length;
   } catch(e) { console.warn('Supabase batch exception:', e); return 0; }
 }
-const SENHA_CORRETA = '8912';
 
 // ══════ LISTAS EDITÁVEIS (salvas no localStorage) ══════
 // Listas com fallback seguro — funciona mesmo sem localStorage (Google Drive)
@@ -3793,52 +3892,67 @@ document.addEventListener('click', e => {
 // ══════ API ══════
 async function atualizarDados() {
   bs_mostrarLoading(true);
-  const st=document.getElementById('status-conexao');
-  st.className='carregando'; st.textContent='Conectando...';
+  const st = document.getElementById('status-conexao');
+  if(st) { st.className='carregando'; st.textContent='Conectando...'; }
 
-  // ── Tenta carregar do Supabase primeiro (fonte principal) ──
-  initSupabase();
-  const dadosSupa = await supabaseCarregar();
-  if(dadosSupa && dadosSupa.length > 0) {
-    todosLancamentos = dadosSupa;
-    salvarCacheCompleto();
-    st.className='ok'; st.textContent=dadosSupa.length+' registros ☁️';
-  } else if(dadosSupa !== null) {
-    // Supabase conectou mas está vazio — tenta Google Sheets como fallback
-    const json = await bsJsonpGet(APPS_URL, {action:'getLancamentos', aba:'DASHBOARD_DADOS', t:Date.now()});
-    if (json && json.status==='ok' && json.data && json.data.length>1) {
-      const h=json.data[0];
-      todosLancamentos=json.data.slice(1).map(row=>{
-        const o={};h.forEach((k,i)=>o[k.toLowerCase().replace(/ /g,'_')]=row[i]);return o;
-      }).filter(r=>r.nome_cliente);
-      salvarCacheCompleto();
-      // Migra dados do Sheets para Supabase automaticamente
-      if(todosLancamentos.length > 0) {
-        supabaseSalvarLote(todosLancamentos).then(n => {
-          if(n > 0) bs_mostrarToast('✅ '+n+' registros migrados para o banco de dados!');
+  if(!sbClient) initSupabase();
+
+  // ── Carrega do Supabase SEM order (evita erro se created_at não existe) ──
+  let dadosSupa = null;
+  if(sbClient) {
+    try {
+      const { data, error } = await sbClient.from('lancamentos').select('*');
+      if(error) {
+        console.warn('atualizarDados Supabase erro:', error.message);
+      } else {
+        dadosSupa = data || [];
+        // Ordena localmente
+        dadosSupa.sort((a,b) => {
+          const da = a.data_dig||a.id||'';
+          const db = b.data_dig||b.id||'';
+          return db.localeCompare(da);
         });
       }
-      st.className='ok'; st.textContent=todosLancamentos.length+' registros';
+    } catch(e) { console.warn('atualizarDados exception:', e); }
+  }
+
+  if(dadosSupa && dadosSupa.length > 0) {
+    todosLancamentos = dadosSupa;
+    localStorage.setItem('bs_cache_lancamentos', JSON.stringify(dadosSupa));
+    localStorage.setItem('bs_cache_ts', String(Date.now()));
+    if(st) { st.className='ok'; st.textContent=dadosSupa.length+' registros ☁️'; }
+  } else if(dadosSupa !== null) {
+    // Supabase vazio — verifica cache local para migrar
+    const local = (() => { try { return JSON.parse(localStorage.getItem('bs_cache_lancamentos')||'[]'); } catch(e){ return []; } })();
+    if(local.length > 0) {
+      todosLancamentos = local;
+      if(sbClient) {
+        supabaseSalvarLote(local).then(n => {
+          if(n > 0) bs_mostrarToast('✅ '+n+' registros enviados ao banco!');
+        });
+      }
     } else {
-      todosLancamentos=[];
-      st.className='ok'; st.textContent='Banco vazio — pronto para lançar!';
+      todosLancamentos = [];
     }
+    if(st) { st.className='ok'; st.textContent=(todosLancamentos.length||'Nenhum')+' registro(s)'; }
   } else {
-    // Supabase falhou — tenta cache local
+    // Supabase falhou — usa cache local
     const cache = (() => { try { return JSON.parse(localStorage.getItem('bs_cache_lancamentos')||'null'); } catch(e){ return null; } })();
-    if (cache && cache.length > 0) {
+    if(cache && cache.length > 0) {
       todosLancamentos = cache;
-      st.className='ok'; st.textContent=todosLancamentos.length+' (cache local)';
-      bs_mostrarToast('⚠️ Sem conexão com banco. Usando cache local.','erro-toast');
+      if(st) { st.className='ok'; st.textContent=cache.length+' (cache local)'; }
+      bs_mostrarToast('⚠️ Usando cache local — sem conexão','erro-toast');
     } else {
-      todosLancamentos=[];
-      st.className='erro'; st.textContent='Sem conexão';
+      todosLancamentos = [];
+      if(st) { st.className='erro'; st.textContent='Sem conexão'; }
     }
   }
-  dadosFiltrados=[...todosLancamentos];
+
+  dadosFiltrados = [...todosLancamentos];
   preencherFiltrosMeses();
   renderResumo();
-  // Carrega metas do Supabase para o cache local
+
+  // Carrega metas
   if(sbClient) {
     sbClient.from('bs_config').select('chave,valor').like('chave','meta_%')
       .then(({data}) => {
@@ -3982,7 +4096,9 @@ function salvarCacheCompleto() {
   // Sincroniza com Supabase em background (fonte principal)
   if(!sbClient) initSupabase();
   if(sbClient) {
-    supabaseSalvarLote(todosLancamentos).catch(e => console.warn('Cache sync erro:', e));
+    supabaseSalvarLote(todosLancamentos)
+      .then(n => { if(n > 0) console.log('Cache sync: ' + n + ' registros no Supabase'); })
+      .catch(e => console.warn('Cache sync erro:', e));
   }
 }
 
@@ -4704,7 +4820,8 @@ function salvarEdicao() {
     renderResumo();
     // Sincroniza em background
     try {
-      supabaseSalvar(row);
+      if(!sbClient) initSupabase();
+      if(sbClient) supabaseSalvar(row).catch(e => console.warn('Edit supa:', e));
       bsJsonpGet(APPS_URL, {action:'editarLancamento', payload:encodeURIComponent(JSON.stringify(row)), t:Date.now()});
     } catch(e2){ console.warn('Sync falhou:', e2); }
   } catch(e){ bs_mostrarToast('Erro ao salvar.','erro-toast'); }
@@ -5584,93 +5701,79 @@ async function mostrarApp(usuario) {
 }
 
 async function sincronizarTudo() {
-  // Garante Supabase inicializado
-  if(!sbClient) { initSupabase(); }
-  if(!sbClient) {
-    console.warn('Sync: Supabase indisponível');
-    return;
-  }
+  // ── Garante Supabase pronto ──
+  if(!sbClient) initSupabase();
+  if(!sbClient) { console.warn('sincronizarTudo: sbClient nulo'); return; }
 
-  // Mostra banner visível no topo
   const banner = document.getElementById('sync-banner');
   if(banner) banner.style.display = 'block';
   showSyncIndicator('⟳ Sincronizando...');
+  let total = 0;
 
-  let totalSincronizado = 0;
-
-  // ── 1. FC: carrega todos os meses do Supabase (fonte principal) ──
+  // ── 1. FC: meses de despesas/ganhos ──
   try {
-    const todos = await fcSupaCarregarTodos();
-    if(todos && todos.length > 0) {
-      // Supabase SEMPRE ganha — é a fonte de verdade
-      todos.forEach(({ mes, dados }) => {
-        if(dados) {
-          localStorage.setItem('fc_' + mes, JSON.stringify(dados));
-          totalSincronizado++;
-        }
+    const fcRows = await fcSupaCarregarTodos();
+    if(fcRows && fcRows.length > 0) {
+      fcRows.forEach(({mes, dados}) => {
+        if(dados) { localStorage.setItem('fc_'+mes, JSON.stringify(dados)); total++; }
       });
-      try { renderAll(); } catch(e){}
+      try { renderAll(); } catch(e) {}
     }
-  } catch(e) { console.warn('FC sync erro:', e); }
+  } catch(e) { console.warn('FC sync:', e); }
 
-  // ── 2. BS: carrega lançamentos do Supabase (fonte principal) ──
+  // ── 2. BS: lançamentos de comissões ──
   try {
-    if(!sbClient) initSupabase();
-    if(sbClient) {
-      const { data: lancamentos, error } = await sbClient
-        .from('lancamentos')
-        .select('*')
-        .order('created_at', {ascending: false});
-
-      if(error) { console.warn('BS lancamentos erro:', error); }
-      else if(lancamentos && lancamentos.length > 0) {
-        // Supabase SEMPRE ganha — sobrescreve cache local
+    // Busca SEM order para evitar erro se coluna não existir
+    const res = await sbClient.from('lancamentos').select('*');
+    if(res.error) {
+      console.warn('BS sync erro:', res.error.message);
+    } else {
+      const lancamentos = res.data || [];
+      if(lancamentos.length > 0) {
+        // Ordena localmente por data de digitação (mais recente primeiro)
+        lancamentos.sort((a,b) => {
+          const da = a.data_dig||a.created_at||'';
+          const db = b.data_dig||b.created_at||'';
+          return db.localeCompare(da);
+        });
         localStorage.setItem('bs_cache_lancamentos', JSON.stringify(lancamentos));
         localStorage.setItem('bs_cache_ts', String(Date.now()));
-
-        // Atualiza arrays em memória SEMPRE (não só se BS iniciado)
         window.todosLancamentos = lancamentos;
         window.dadosFiltrados   = [...lancamentos];
-        totalSincronizado += lancamentos.length;
-
-        // Re-renderiza módulo BS se painel estiver visível
-        const pnlBS = document.getElementById('pnl-bomsucesso');
-        if(pnlBS && pnlBS.classList.contains('on')) {
-          try { preencherFiltrosMeses(); renderResumo(); filtrarTabela(); } catch(e){}
+        total += lancamentos.length;
+        // Re-renderiza se BS visível
+        const pnl = document.getElementById('pnl-bomsucesso');
+        if(pnl && pnl.classList.contains('on')) {
+          try { preencherFiltrosMeses(); renderResumo(); filtrarTabela(); } catch(e) {}
           const st = document.getElementById('status-conexao');
           if(st) { st.className='ok'; st.textContent=lancamentos.length+' registros ☁️'; }
         }
-      } else if(lancamentos && lancamentos.length === 0) {
-        // Supabase vazio — verifica cache local para migrar
-        const cacheLocal = JSON.parse(localStorage.getItem('bs_cache_lancamentos')||'[]');
-        if(cacheLocal.length > 0) {
-          console.log('Migrando', cacheLocal.length, 'registros para Supabase...');
-          await supabaseSalvarLote(cacheLocal);
-          window.todosLancamentos = cacheLocal;
-          window.dadosFiltrados   = [...cacheLocal];
+      } else {
+        // Supabase vazio → migra cache local para o banco
+        const local = (() => { try { return JSON.parse(localStorage.getItem('bs_cache_lancamentos')||'[]'); } catch(e){ return []; } })();
+        if(local.length > 0) {
+          console.log('Migrando', local.length, 'registros locais → Supabase');
+          await supabaseSalvarLote(local);
+          window.todosLancamentos = local;
+          window.dadosFiltrados   = [...local];
+          showSyncIndicator('⬆️ '+local.length+' registros enviados ao banco!', 4000);
         }
       }
     }
-  } catch(e) { console.warn('BS sync erro:', e); }
+  } catch(e) { console.warn('BS sync:', e); }
 
-  // ── 3. Metas: carrega do Supabase ──
+  // ── 3. Metas ──
   try {
-    const { data: configs } = await sbClient
-      .from('bs_config')
-      .select('chave,valor')
-      .like('chave', 'meta_%');
-    if(configs && configs.length > 0) {
-      configs.forEach(row => {
-        try { localStorage.setItem('bs_' + row.chave, row.valor); } catch(e){}
-      });
-      try { renderMetaAtual(); } catch(e){}
+    const mRes = await sbClient.from('bs_config').select('chave,valor').like('chave','meta_%');
+    if(!mRes.error && mRes.data && mRes.data.length > 0) {
+      mRes.data.forEach(r => { try { localStorage.setItem('bs_'+r.chave, r.valor); } catch(e){} });
+      try { renderMetaAtual(); } catch(e) {}
     }
-  } catch(e) { console.warn('Meta sync erro:', e); }
+  } catch(e) { console.warn('Meta sync:', e); }
 
-  // Esconde banner e mostra confirmação
   if(banner) banner.style.display = 'none';
-  showSyncIndicator('✅ Sincronizado — ' + totalSincronizado + ' registros', 3000);
-  console.log('Sync completo:', totalSincronizado, 'registros');
+  showSyncIndicator('✅ Sincronizado — '+total+' registros', 3000);
+  console.log('[Sync] Completo:', total, 'registros');
 }
 
 function mostrarLogin() {
