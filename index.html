@@ -5450,6 +5450,12 @@ function exportarGastosJSON() {
 // AUTENTICAÇÃO — Supabase Auth
 // ══════════════════════════════════════════════════════
 
+// ══════ CREDENCIAIS ══════
+const USUARIOS_VALIDOS = {
+  'carolmoria': '891203',
+  'thiagob':    '891203'
+};
+
 function fazerLogin() {
   const usuario = (document.getElementById('login-usuario')?.value || '').trim().toLowerCase();
   const senha   = document.getElementById('login-senha')?.value || '';
@@ -5461,35 +5467,104 @@ function fazerLogin() {
     return;
   }
 
-  // Validação local — credenciais fixas
-  const USUARIO_OK = 'carolmoria';
-  const SENHA_OK   = '891203';
-
-  if(usuario === USUARIO_OK && senha === SENHA_OK) {
-    // Salva sessão no localStorage para não precisar logar toda vez
+  if(USUARIOS_VALIDOS[usuario] && USUARIOS_VALIDOS[usuario] === senha) {
     try { localStorage.setItem('bs_sessao', btoa(usuario + ':' + Date.now())); } catch(e){}
+    try { localStorage.setItem('bs_usuario_atual', usuario); } catch(e){}
     if(erroEl) erroEl.style.display = 'none';
-    mostrarApp();
+    mostrarApp(usuario);
   } else {
     if(erroEl) { erroEl.textContent = 'Usuário ou senha incorretos.'; erroEl.style.display = 'block'; }
     if(btnEl)  { btnEl.textContent = 'Entrar'; btnEl.disabled = false; }
-    document.getElementById('login-senha').value = '';
-    document.getElementById('login-senha').focus();
+    const s = document.getElementById('login-senha');
+    if(s) { s.value = ''; s.focus(); }
   }
 }
 
 function fazerLogout() {
   if(!confirm('Deseja sair da conta?')) return;
-  try { localStorage.removeItem('bs_sessao'); } catch(e){}
+  try { localStorage.removeItem('bs_sessao'); localStorage.removeItem('bs_usuario_atual'); } catch(e){}
+  // Reseta estado do BS para próxima sessão
+  window._bsIniciado = false;
   mostrarLogin();
 }
 
-function mostrarApp() {
+async function mostrarApp(usuario) {
+  const nome = usuario || (()=>{ try{ return localStorage.getItem('bs_usuario_atual')||'usuário'; }catch(e){return 'usuário';} })();
   document.getElementById('tela-login').style.display = 'none';
   document.getElementById('app-content').style.display = 'block';
   const infoEl = document.getElementById('cfg-usuario-info');
-  if(infoEl) infoEl.textContent = '👤 Logado como: carolmoria';
-  try { init(); updateSyncBadge(); } catch(e){}
+  if(infoEl) infoEl.textContent = '👤 Logado como: ' + nome;
+
+  // 1. Inicializa Supabase UMA vez
+  initSupabase();
+
+  // 2. Roda init() para montar a UI com dados locais (rápido)
+  try { init(); updateSyncBadge(); } catch(e) { console.warn('init:', e); }
+
+  // 3. Puxa dados do Supabase — FC e BS — e re-renderiza
+  await sincronizarTudo();
+}
+
+async function sincronizarTudo() {
+  if(!sbClient) return;
+
+  // ── FC: carrega meses do Supabase ──
+  try {
+    const todos = await fcSupaCarregarTodos();
+    if(todos && todos.length > 0) {
+      let atualizados = 0;
+      todos.forEach(({ mes, dados }) => {
+        if(dados && (dados.expenses?.length > 0 || dados.income?.length > 0)) {
+          const chave = 'fc_' + mes;
+          const local = localStorage.getItem(chave);
+          const localDados = local ? JSON.parse(local) : null;
+          // Só sobrescreve se Supabase tiver mais dados ou local estiver vazio
+          if(!localDados || (dados.expenses?.length >= (localDados.expenses?.length||0))) {
+            localStorage.setItem(chave, JSON.stringify(dados));
+            atualizados++;
+          }
+        }
+      });
+      if(atualizados > 0) {
+        try { renderAll(); } catch(e){}
+        showSyncIndicator('✅ ' + atualizados + ' meses sincronizados!', 3000);
+      }
+    }
+  } catch(e) { console.warn('FC sync:', e); }
+
+  // ── BS: carrega lançamentos do Supabase ──
+  try {
+    const { data: lancamentos } = await sbClient
+      .from('lancamentos').select('*').order('data_dig', {ascending: false});
+    if(lancamentos && lancamentos.length > 0) {
+      // Mescla com cache local (Supabase é fonte principal)
+      const cacheLocal = JSON.parse(localStorage.getItem('bs_cache_lancamentos')||'[]');
+      // Une por ID — Supabase ganha em caso de conflito
+      const mapa = {};
+      cacheLocal.forEach(r => { if(r.id) mapa[r.id] = r; });
+      lancamentos.forEach(r => { if(r.id) mapa[r.id] = r; });
+      const merged = Object.values(mapa);
+      localStorage.setItem('bs_cache_lancamentos', JSON.stringify(merged));
+      localStorage.setItem('bs_cache_ts', String(Date.now()));
+      // Atualiza variáveis em memória se BS já foi iniciado
+      if(window._bsIniciado) {
+        window.todosLancamentos = merged;
+        window.dadosFiltrados   = [...merged];
+        try { preencherFiltrosMeses(); renderResumo(); } catch(e){}
+      }
+    }
+  } catch(e) { console.warn('BS sync:', e); }
+
+  // ── Metas: carrega do Supabase ──
+  try {
+    const { data: configs } = await sbClient
+      .from('bs_config').select('chave,valor').like('chave', 'meta_%');
+    if(configs) {
+      configs.forEach(row => {
+        try { localStorage.setItem('bs_' + row.chave, row.valor); } catch(e){}
+      });
+    }
+  } catch(e) { console.warn('Meta sync:', e); }
 }
 
 function mostrarLogin() {
@@ -5506,12 +5581,11 @@ function mostrarLogin() {
 }
 
 // Verifica sessão salva ao abrir o app
-(function iniciarApp() {
+(async function iniciarApp() {
   try {
     const sessao = localStorage.getItem('bs_sessao');
     if(sessao) {
-      // Sessão existe — entra direto sem pedir login
-      mostrarApp();
+      await mostrarApp();
     } else {
       mostrarLogin();
     }
@@ -5519,6 +5593,7 @@ function mostrarLogin() {
     mostrarLogin();
   }
 })();
+
 
 // PWA: registra service worker para instalação na tela inicial
 if('serviceWorker' in navigator) {
