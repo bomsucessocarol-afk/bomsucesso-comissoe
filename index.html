@@ -1013,6 +1013,7 @@ input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--az
         <option value="todos">Todos os meses</option>
       </select>
       <button class="btn btn-outline btn-sm" onclick="atualizarDados()">🔄 Atualizar</button>
+      <button class="btn btn-sm" style="background:#383772;color:#fff;" onclick="migrarLocalParaSupabase()" title="Envia todos os lançamentos do localStorage para o Supabase">⬆️ Enviar ao banco</button>
       <button class="btn btn-outline btn-sm" onclick="backupDados()" title="Baixar backup JSON de todos os lançamentos">💾 Backup</button>
       <div style="position:relative;overflow:hidden;display:inline-block;">
         <button class="btn btn-outline btn-sm" style="pointer-events:none;">📥 Restaurar Backup</button>
@@ -3978,14 +3979,41 @@ function salvarCacheCompleto() {
   if(!todosLancamentos.length) return;
   _lsSet('bs_cache_lancamentos', JSON.stringify(todosLancamentos));
   _lsSet('bs_cache_ts', String(Date.now()));
-  // Supabase é a fonte principal — cache local é só performance
-  // Auto-backup a cada 5 lançamentos novos
-  const total = todosLancamentos.length;
-  const ultimo = parseInt(_lsGet('bs_ultimo_backup_total')||'0');
-  if(total > 0 && (total - ultimo) >= 5) {
-    _lsSet('bs_ultimo_backup_total', String(total));
-    // Dispara backup silencioso após 1s
-    setTimeout(() => gerarBackupSilencioso(), 1000);
+  // Sincroniza com Supabase em background (fonte principal)
+  if(!sbClient) initSupabase();
+  if(sbClient) {
+    supabaseSalvarLote(todosLancamentos).catch(e => console.warn('Cache sync erro:', e));
+  }
+}
+
+// Migra todos os lançamentos do localStorage → Supabase
+async function migrarLocalParaSupabase() {
+  if(!sbClient) initSupabase();
+  if(!sbClient) {
+    bs_mostrarToast('⚠️ Sem conexão com o banco.', 'erro-toast');
+    return;
+  }
+
+  const cache = JSON.parse(localStorage.getItem('bs_cache_lancamentos') || '[]');
+  if(!cache.length) {
+    bs_mostrarToast('⚠️ Nenhum dado local para enviar.', 'erro-toast');
+    return;
+  }
+
+  bs_mostrarToast('⬆️ Enviando ' + cache.length + ' registros ao banco...');
+  const st = document.getElementById('status-conexao');
+  if(st) { st.className = 'carregando'; st.textContent = 'Enviando...'; }
+
+  try {
+    await supabaseSalvarLote(cache);
+    if(st) { st.className = 'ok'; st.textContent = cache.length + ' registros ☁️'; }
+    bs_mostrarToast('✅ ' + cache.length + ' registros enviados ao banco com sucesso!');
+    // Marca timestamp de sync
+    localStorage.setItem('bs_cache_ts', String(Date.now()));
+  } catch(e) {
+    console.error('Migração erro:', e);
+    if(st) { st.className = 'erro'; st.textContent = 'Erro ao enviar'; }
+    bs_mostrarToast('❌ Erro ao enviar. Verifique a conexão.', 'erro-toast');
   }
 }
 
