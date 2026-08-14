@@ -1705,8 +1705,8 @@ function data(){ return DB.get(state.month); }
 function save(d){
   DB.set(state.month, d);
   syncMonthToSheets(state.month, d);
-  // Sincroniza com Supabase imediatamente
-  try { if(!sbClient) initSupabase(); if(sbClient) fcSupaSalvar(state.month, d); } catch(e) { console.warn('FC save:', e); }
+  // Sync Supabase centralizado
+  _fcSyncMes();
 }
 
 // ============================================================
@@ -2660,7 +2660,10 @@ function exportAllJSON() {
 // RECORRENTES
 // ============================================================
 function getRecs(){ try{ return JSON.parse(localStorage.getItem('fc_recs'))||[]; }catch{ return []; } }
-function saveRecs(r){ localStorage.setItem('fc_recs',JSON.stringify(r)); }
+function saveRecs(r){
+  localStorage.setItem('fc_recs',JSON.stringify(r));
+  _fcSyncRecs();
+}
 
 function monthDiff(a, b){
   const[ay,am]=a.split('-').map(Number);
@@ -3267,7 +3270,11 @@ function showSyncIndicator(msg, hideAfterMs) {
 // DÉBITOS PARA QUITAR
 // ============================================================
 function getDebitos(){ try{return JSON.parse(localStorage.getItem('fc_debitos'))||[];}catch{return [];} }
-function saveDebitos(d){ localStorage.setItem('fc_debitos',JSON.stringify(d)); }
+function saveDebitos(d){
+  localStorage.setItem('fc_debitos',JSON.stringify(d));
+  // Sincroniza débitos
+  _fcSyncDebitos();
+}
 
 function renderDebitos(){
   const debs=getDebitos();
@@ -3459,6 +3466,45 @@ function initSupabase() {
   }
 }
 
+// ══════ SYNC CENTRALIZADO — todos os cards sincronizam aqui ══════
+
+// Sincroniza o mês FC ativo no Supabase (expenses + income do state.month)
+function _fcSyncMes() {
+  if(!sbClient) initSupabase();
+  if(!sbClient) return;
+  try {
+    const d = DB.get(state.month);
+    fcSupaSalvar(state.month, d).catch(e => console.warn('[FC sync mes]', e));
+  } catch(e) {}
+}
+
+// Sincroniza recorrentes numa chave especial 'fc_recs' no Supabase fc_meses
+function _fcSyncRecs() {
+  if(!sbClient) initSupabase();
+  if(!sbClient) return;
+  try {
+    const recs = JSON.parse(localStorage.getItem('fc_recs')||'[]');
+    fcSupaSalvar('__recs__', { recs }).catch(e => console.warn('[FC sync recs]', e));
+  } catch(e) {}
+}
+
+// Sincroniza débitos numa chave especial no Supabase
+function _fcSyncDebitos() {
+  if(!sbClient) initSupabase();
+  if(!sbClient) return;
+  try {
+    const debs = JSON.parse(localStorage.getItem('fc_debitos')||'[]');
+    fcSupaSalvar('__debitos__', { debitos: debs }).catch(e => console.warn('[FC sync debitos]', e));
+  } catch(e) {}
+}
+
+// Sincroniza TUDO do FC de uma vez (chamado após operações em lote)
+function _fcSyncTudo() {
+  _fcSyncMes();
+  _fcSyncRecs();
+  _fcSyncDebitos();
+}
+
 // ══════ REALTIME — Sincronização automática entre dispositivos ══════
 let _realtimeChannel = null;
 let _realtimeFC = null;
@@ -3520,19 +3566,37 @@ function ativarRealtimeSync() {
     .on('postgres_changes',
       { event: '*', schema: 'public', table: 'fc_meses' },
       (payload) => {
-        console.log('[Realtime FC]', payload.eventType, payload.new?.mes);
-        if(payload.new?.mes && payload.new?.dados) {
-          localStorage.setItem('fc_'+payload.new.mes, JSON.stringify(payload.new.dados));
-          // Re-renderiza se for o mês visível
-          if(payload.new.mes === state.month) {
-            try { renderAll(); } catch(e) {}
-            // Atualiza Gastos se a aba estiver aberta
-            const pnlGastos = document.getElementById('pnl-gastos');
-            if(pnlGastos && pnlGastos.classList.contains('on')) {
-              try { renderGastos(); } catch(e) {}
-            }
-            showSyncIndicator('🔄 Gastos atualizados!', 2000);
+        const mes = payload.new?.mes;
+        const dados = payload.new?.dados;
+        console.log('[Realtime FC]', payload.eventType, mes);
+        if(!mes || !dados) return;
+
+        // Casos especiais: recorrentes e débitos
+        if(mes === '__recs__' && dados.recs) {
+          localStorage.setItem('fc_recs', JSON.stringify(dados.recs));
+          try { renderRecorrentes(); } catch(e) {}
+          showSyncIndicator('🔄 Recorrentes atualizadas!', 2000);
+          return;
+        }
+        if(mes === '__debitos__' && dados.debitos) {
+          localStorage.setItem('fc_debitos', JSON.stringify(dados.debitos));
+          try { renderDebitos(); } catch(e) {}
+          showSyncIndicator('🔄 Débitos atualizados!', 2000);
+          return;
+        }
+
+        // Mês normal — atualiza localStorage
+        localStorage.setItem('fc_'+mes, JSON.stringify(dados));
+
+        // Se for o mês visível: re-renderiza TODOS os cards
+        if(mes === state.month) {
+          try { renderAll(); } catch(e) {}
+          // Gastos
+          const pnlGastos = document.getElementById('pnl-gastos');
+          if(pnlGastos && pnlGastos.classList.contains('on')) {
+            try { renderGastos(); } catch(e) {}
           }
+          showSyncIndicator('🔄 Dados atualizados!', 2000);
         }
       }
     )
@@ -5742,14 +5806,22 @@ async function sincronizarTudo() {
   showSyncIndicator('⟳ Sincronizando...');
   let total = 0;
 
-  // ── 1. FC: meses de despesas/ganhos ──
+  // ── 1. FC: meses + recorrentes + débitos ──
   try {
     const fcRows = await fcSupaCarregarTodos();
     if(fcRows && fcRows.length > 0) {
       fcRows.forEach(({mes, dados}) => {
-        if(dados) { localStorage.setItem('fc_'+mes, JSON.stringify(dados)); total++; }
+        if(!mes || !dados) return;
+        if(mes === '__recs__' && dados.recs) {
+          localStorage.setItem('fc_recs', JSON.stringify(dados.recs));
+        } else if(mes === '__debitos__' && dados.debitos) {
+          localStorage.setItem('fc_debitos', JSON.stringify(dados.debitos));
+        } else {
+          localStorage.setItem('fc_'+mes, JSON.stringify(dados));
+        }
+        total++;
       });
-      try { renderAll(); } catch(e) {}
+      try { renderAll(); renderDebitos(); renderRecorrentes(); } catch(e) {}
     }
   } catch(e) { console.warn('FC sync:', e); }
 
