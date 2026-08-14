@@ -584,6 +584,10 @@ input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--az
 
 <!-- APP CONTENT -->
 <div id="app-content" style="display:none;">
+<!-- BANNER DE SINCRONIZAÇÃO VISÍVEL -->
+<div id="sync-banner" style="display:none;background:#383772;color:#fff;text-align:center;padding:8px;font-size:13px;font-weight:600;position:sticky;top:56px;z-index:80;">
+  ⟳ Sincronizando dados com o servidor...
+</div>
 
 <!-- HEADER -->
 <header class="hdr">
@@ -596,6 +600,10 @@ input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--az
     <span class="month-lbl" id="monthLbl"></span>
     <button onclick="changeMonth(1)">&#8250;</button>
   </div>
+  <button onclick="sincronizarTudo()" title="Sincronizar dados" id="btn-sync-hdr"
+    style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:16px;display:flex;align-items:center;gap:4px;">
+    🔄
+  </button>
 </header>
 
 <!-- SIDEBAR OVERLAY -->
@@ -3179,20 +3187,6 @@ function showSyncIndicator(msg, hideAfterMs) {
   if (hideAfterMs) setTimeout(() => { el.style.opacity = '0'; }, hideAfterMs);
 }
 
-// ── Indicador flutuante de sync ──
-function showSyncIndicator(msg, hideAfterMs) {
-  let el = document.getElementById('sync-indicator-fc');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'sync-indicator-fc';
-    el.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;background:#0a0a0a;color:#fff;padding:10px 16px;border-radius:9px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.25);transition:opacity .4s;opacity:0;pointer-events:none';
-    document.body.appendChild(el);
-  }
-  el.textContent = msg;
-  el.style.opacity = '1';
-  if (hideAfterMs) setTimeout(() => { el.style.opacity = '0'; }, hideAfterMs);
-}
-
 // ── AUTO-PULL ao iniciar ──
 (async function autoLoad() {
   if (!localStorage.getItem('fc_sheets_url')) {
@@ -5525,15 +5519,28 @@ async function mostrarApp(usuario) {
   const infoEl = document.getElementById('cfg-usuario-info');
   if(infoEl) infoEl.textContent = '👤 Logado como: ' + nome;
 
-  // 1. Monta UI imediatamente com dados locais
+  // 1. Monta UI imediatamente com dados locais (cache)
   try { init(); updateSyncBadge(); } catch(e) { console.warn('init:', e); }
 
-  // 2. Aguarda biblioteca Supabase carregar se necessário
+  // 2. Aguarda biblioteca Supabase — até 8 segundos (celular pode ser lento)
   let tentativas = 0;
-  while(typeof window.supabase === 'undefined' && tentativas < 20) {
+  while(typeof window.supabase === 'undefined' && tentativas < 80) {
     await new Promise(r => setTimeout(r, 100));
     tentativas++;
   }
+
+  if(typeof window.supabase === 'undefined') {
+    // Biblioteca não carregou — tenta recarregar dinamicamente
+    await new Promise(r => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+      s.onload = r;
+      s.onerror = r;
+      document.head.appendChild(s);
+    });
+    await new Promise(r => setTimeout(r, 500));
+  }
+
   initSupabase();
 
   // 3. Sincroniza com banco de dados
@@ -5548,7 +5555,10 @@ async function sincronizarTudo() {
     return;
   }
 
-  showSyncIndicator('⟳ Sincronizando dados...');
+  // Mostra banner visível no topo
+  const banner = document.getElementById('sync-banner');
+  if(banner) banner.style.display = 'block';
+  showSyncIndicator('⟳ Sincronizando...');
 
   let totalSincronizado = 0;
 
@@ -5616,8 +5626,10 @@ async function sincronizarTudo() {
     }
   } catch(e) { console.warn('Meta sync erro:', e); }
 
-  showSyncIndicator('✅ Sincronizado!', 2500);
-  console.log('Sync completo — ' + totalSincronizado + ' registros atualizados');
+  // Esconde banner e mostra confirmação
+  if(banner) banner.style.display = 'none';
+  showSyncIndicator('✅ Sincronizado — ' + totalSincronizado + ' registros', 3000);
+  console.log('Sync completo:', totalSincronizado, 'registros');
 }
 
 function mostrarLogin() {
