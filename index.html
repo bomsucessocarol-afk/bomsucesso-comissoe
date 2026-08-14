@@ -560,11 +560,11 @@ input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--az
 <div id="tela-login" style="display:flex;position:fixed;inset:0;background:linear-gradient(135deg,#383772 0%,#2d2c5e 60%,#1a1930 100%);z-index:9999;align-items:center;justify-content:center;padding:20px;">
   <div style="background:#fff;border-radius:20px;padding:40px 36px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.4);text-align:center;">
     <div style="font-family:'Montserrat',sans-serif;font-size:28px;font-weight:900;color:#383772;margin-bottom:4px;">Finance<span style="color:#FBAD09;">Control</span></div>
-    <div style="font-size:13px;color:#7E7A68;margin-bottom:32px;">Bom Sucesso — Controle de Comissoes</div>
+    <div style="font-size:13px;color:#7E7A68;margin-bottom:32px;">Bom Sucesso — Controle de Comissões</div>
     <div id="login-erro" style="display:none;background:#fee2e2;color:#c0392b;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:16px;"></div>
     <div style="text-align:left;margin-bottom:14px;">
-      <label style="font-size:11px;font-weight:700;color:#383772;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;">E-mail</label>
-      <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email" inputmode="email"
+      <label style="font-size:11px;font-weight:700;color:#383772;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;">Usuário</label>
+      <input type="text" id="login-usuario" placeholder="seu usuário" autocomplete="username"
         style="width:100%;border:1.5px solid #ddd;border-radius:10px;padding:13px 14px;font-size:16px;box-sizing:border-box;outline:none;font-family:'DM Sans',sans-serif;-webkit-appearance:none;"
         onkeydown="if(event.key==='Enter')document.getElementById('login-senha').focus()">
     </div>
@@ -5450,54 +5450,46 @@ function exportarGastosJSON() {
 // AUTENTICAÇÃO — Supabase Auth
 // ══════════════════════════════════════════════════════
 
-async function fazerLogin() {
-  const email = (document.getElementById('login-email')?.value || '').trim();
-  const senha = document.getElementById('login-senha')?.value || '';
-  const erroEl = document.getElementById('login-erro');
-  const btnEl  = document.getElementById('btn-login');
+function fazerLogin() {
+  const usuario = (document.getElementById('login-usuario')?.value || '').trim().toLowerCase();
+  const senha   = document.getElementById('login-senha')?.value || '';
+  const erroEl  = document.getElementById('login-erro');
+  const btnEl   = document.getElementById('btn-login');
 
-  if(!email || !senha) {
-    if(erroEl) { erroEl.textContent = 'Preencha e-mail e senha.'; erroEl.style.display = 'block'; }
+  if(!usuario || !senha) {
+    if(erroEl) { erroEl.textContent = 'Preencha usuário e senha.'; erroEl.style.display = 'block'; }
     return;
   }
 
-  if(btnEl) { btnEl.textContent = 'Entrando...'; btnEl.disabled = true; }
-  if(erroEl) erroEl.style.display = 'none';
+  // Validação local — credenciais fixas
+  const USUARIO_OK = 'carolmoria';
+  const SENHA_OK   = '891203';
 
-  try {
-    initSupabase();
-    if(!sbClient) throw new Error('Banco de dados não disponível. Tente novamente.');
-
-    const { data, error } = await sbClient.auth.signInWithPassword({ email, password: senha });
-    if(error) throw error;
-
-    mostrarApp(data.user);
-  } catch(e) {
-    const msg = e.message || 'Erro ao entrar.';
-    const msgPT = msg.includes('Invalid login') ? 'E-mail ou senha incorretos.' :
-                  msg.includes('Email not confirmed') ? 'Confirme seu e-mail antes de entrar.' :
-                  msg.includes('não disponível') ? msg : 'Erro ao conectar. Verifique sua internet.';
-    if(erroEl) { erroEl.textContent = msgPT; erroEl.style.display = 'block'; }
-    if(btnEl) { btnEl.textContent = 'Entrar'; btnEl.disabled = false; }
+  if(usuario === USUARIO_OK && senha === SENHA_OK) {
+    // Salva sessão no localStorage para não precisar logar toda vez
+    try { localStorage.setItem('bs_sessao', btoa(usuario + ':' + Date.now())); } catch(e){}
+    if(erroEl) erroEl.style.display = 'none';
+    mostrarApp();
+  } else {
+    if(erroEl) { erroEl.textContent = 'Usuário ou senha incorretos.'; erroEl.style.display = 'block'; }
+    if(btnEl)  { btnEl.textContent = 'Entrar'; btnEl.disabled = false; }
+    document.getElementById('login-senha').value = '';
+    document.getElementById('login-senha').focus();
   }
 }
 
-async function fazerLogout() {
-  if(!confirm('Deseja sair da sua conta?')) return;
-  try {
-    if(sbClient) await sbClient.auth.signOut();
-  } catch(e) {}
+function fazerLogout() {
+  if(!confirm('Deseja sair da conta?')) return;
+  try { localStorage.removeItem('bs_sessao'); } catch(e){}
   mostrarLogin();
 }
 
-function mostrarApp(user) {
+function mostrarApp() {
   document.getElementById('tela-login').style.display = 'none';
   document.getElementById('app-content').style.display = 'block';
-  // Mostra email do usuário na Config
   const infoEl = document.getElementById('cfg-usuario-info');
-  if(infoEl && user) infoEl.textContent = '👤 Logado como: ' + (user.email || '');
-  // Inicializa o app
-  try { init(); updateSyncBadge(); } catch(e) {}
+  if(infoEl) infoEl.textContent = '👤 Logado como: carolmoria';
+  try { init(); updateSyncBadge(); } catch(e){}
 }
 
 function mostrarLogin() {
@@ -5507,36 +5499,24 @@ function mostrarLogin() {
   if(btnEl) { btnEl.textContent = 'Entrar'; btnEl.disabled = false; }
   const erroEl = document.getElementById('login-erro');
   if(erroEl) erroEl.style.display = 'none';
+  const u = document.getElementById('login-usuario');
+  const s = document.getElementById('login-senha');
+  if(u) u.value = '';
+  if(s) s.value = '';
 }
 
-// Inicialização: verifica sessão existente antes de mostrar qualquer coisa
-(async function iniciarApp() {
+// Verifica sessão salva ao abrir o app
+(function iniciarApp() {
   try {
-    initSupabase();
-    if(!sbClient) {
-      // Sem Supabase (offline) — mostra app direto
-      mostrarApp(null);
-      return;
-    }
-    // Verifica sessão salva
-    const { data: { session } } = await sbClient.auth.getSession();
-    if(session && session.user) {
-      mostrarApp(session.user);
+    const sessao = localStorage.getItem('bs_sessao');
+    if(sessao) {
+      // Sessão existe — entra direto sem pedir login
+      mostrarApp();
     } else {
       mostrarLogin();
     }
-    // Escuta mudanças de sessão
-    sbClient.auth.onAuthStateChange((event, session) => {
-      if(event === 'SIGNED_IN' && session) mostrarApp(session.user);
-      if(event === 'SIGNED_OUT') mostrarLogin();
-      if(event === 'TOKEN_REFRESHED') {
-        const infoEl = document.getElementById('cfg-usuario-info');
-        if(infoEl && session?.user) infoEl.textContent = '👤 Logado como: ' + session.user.email;
-      }
-    });
   } catch(e) {
-    console.warn('Auth init error:', e);
-    mostrarApp(null); // fallback sem auth
+    mostrarLogin();
   }
 })();
 
