@@ -1696,8 +1696,8 @@ function data(){ return DB.get(state.month); }
 function save(d){
   DB.set(state.month, d);
   syncMonthToSheets(state.month, d);
-  // Sincroniza com Supabase em background
-  try { if(sbClient) fcSupaSalvar(state.month, d); } catch(e) {}
+  // Sincroniza com Supabase imediatamente
+  try { if(!sbClient) initSupabase(); if(sbClient) fcSupaSalvar(state.month, d); } catch(e) { console.warn('FC save:', e); }
 }
 
 // ============================================================
@@ -3478,6 +3478,29 @@ async function supabaseSalvar(row) {
   } catch(e) { console.warn('Supabase save exception:', e); return false; }
 }
 
+// Salva múltiplos lançamentos de uma vez (migração)
+async function supabaseSalvarLote(rows) {
+  if(!sbClient || !rows.length) return;
+  try {
+    const lote = rows.map(row => ({
+      id: row.id, nome_cliente: row.nome_cliente,
+      data_dig: row.data_dig||null, data_pg: row.data_pg||null,
+      data_comissao_rec: row.data_comissao_rec||null,
+      modalidade: row.modalidade||'', banco: row.banco||'',
+      promotora: row.promotora||'',
+      valor_cliente: parseFloat(row.valor_cliente)||0,
+      perc_comissao: parseFloat(row.perc_comissao)||0,
+      comissao: parseFloat(row.comissao)||0,
+      tipo_op: row.tipo_op||'NOVO', operacao: row.operacao||row.tipo_op||'NOVO',
+      status: row.status||'ABERTO', status_comissao: row.status_comissao||row.status||'ABERTO',
+      pact_fixo: parseFloat(row.pact_fixo)||0, mes_ref: row.mes_ref||''
+    }));
+    const { error } = await sbClient.from('lancamentos').upsert(lote, {onConflict:'id'});
+    if(error) console.warn('Lote save error:', error);
+    else console.log('Lote salvo:', lote.length, 'registros');
+  } catch(e) { console.warn('Lote save exception:', e); }
+}
+
 // Carrega todos os lançamentos do Supabase
 async function supabaseCarregar() {
   if(!sbClient) return null;
@@ -4552,9 +4575,16 @@ function salvarLancamento() {
     );
   }, 300);
 
-  // ── 6. Sincroniza em background ──
+  // ── 6. Sincroniza com Supabase imediatamente ──
   setTimeout(function() {
-    try { if(typeof sbClient !== 'undefined' && sbClient) supabaseSalvar(row); } catch(e) {}
+    if(!sbClient) initSupabase();
+    try {
+      if(sbClient) {
+        supabaseSalvar(row)
+          .then(() => console.log('✅ Salvo no Supabase:', row.nome_cliente))
+          .catch(e => console.warn('Supa save erro:', e));
+      }
+    } catch(e) { console.warn('Supa save:', e); }
     try { bsJsonpGet(APPS_URL, {action:'salvarLancamento', payload:encodeURIComponent(JSON.stringify(row)), t:Date.now()}); } catch(e) {}
     // Auto-backup a cada 5 lançamentos
     try {
@@ -5495,76 +5525,99 @@ async function mostrarApp(usuario) {
   const infoEl = document.getElementById('cfg-usuario-info');
   if(infoEl) infoEl.textContent = '👤 Logado como: ' + nome;
 
-  // 1. Inicializa Supabase UMA vez
-  initSupabase();
-
-  // 2. Roda init() para montar a UI com dados locais (rápido)
+  // 1. Monta UI imediatamente com dados locais
   try { init(); updateSyncBadge(); } catch(e) { console.warn('init:', e); }
 
-  // 3. Puxa dados do Supabase — FC e BS — e re-renderiza
+  // 2. Aguarda biblioteca Supabase carregar se necessário
+  let tentativas = 0;
+  while(typeof window.supabase === 'undefined' && tentativas < 20) {
+    await new Promise(r => setTimeout(r, 100));
+    tentativas++;
+  }
+  initSupabase();
+
+  // 3. Sincroniza com banco de dados
   await sincronizarTudo();
 }
 
 async function sincronizarTudo() {
-  if(!sbClient) return;
+  // Garante Supabase inicializado
+  if(!sbClient) { initSupabase(); }
+  if(!sbClient) {
+    console.warn('Sync: Supabase indisponível');
+    return;
+  }
 
-  // ── FC: carrega meses do Supabase ──
+  showSyncIndicator('⟳ Sincronizando dados...');
+
+  let totalSincronizado = 0;
+
+  // ── 1. FC: carrega todos os meses do Supabase (fonte principal) ──
   try {
     const todos = await fcSupaCarregarTodos();
     if(todos && todos.length > 0) {
-      let atualizados = 0;
+      // Supabase SEMPRE ganha — é a fonte de verdade
       todos.forEach(({ mes, dados }) => {
-        if(dados && (dados.expenses?.length > 0 || dados.income?.length > 0)) {
-          const chave = 'fc_' + mes;
-          const local = localStorage.getItem(chave);
-          const localDados = local ? JSON.parse(local) : null;
-          // Só sobrescreve se Supabase tiver mais dados ou local estiver vazio
-          if(!localDados || (dados.expenses?.length >= (localDados.expenses?.length||0))) {
-            localStorage.setItem(chave, JSON.stringify(dados));
-            atualizados++;
-          }
+        if(dados) {
+          localStorage.setItem('fc_' + mes, JSON.stringify(dados));
+          totalSincronizado++;
         }
       });
-      if(atualizados > 0) {
-        try { renderAll(); } catch(e){}
-        showSyncIndicator('✅ ' + atualizados + ' meses sincronizados!', 3000);
-      }
+      try { renderAll(); } catch(e){}
     }
-  } catch(e) { console.warn('FC sync:', e); }
+  } catch(e) { console.warn('FC sync erro:', e); }
 
-  // ── BS: carrega lançamentos do Supabase ──
+  // ── 2. BS: carrega lançamentos do Supabase (fonte principal) ──
   try {
-    const { data: lancamentos } = await sbClient
-      .from('lancamentos').select('*').order('data_dig', {ascending: false});
-    if(lancamentos && lancamentos.length > 0) {
-      // Mescla com cache local (Supabase é fonte principal)
-      const cacheLocal = JSON.parse(localStorage.getItem('bs_cache_lancamentos')||'[]');
-      // Une por ID — Supabase ganha em caso de conflito
-      const mapa = {};
-      cacheLocal.forEach(r => { if(r.id) mapa[r.id] = r; });
-      lancamentos.forEach(r => { if(r.id) mapa[r.id] = r; });
-      const merged = Object.values(mapa);
-      localStorage.setItem('bs_cache_lancamentos', JSON.stringify(merged));
+    const { data: lancamentos, error } = await sbClient
+      .from('lancamentos')
+      .select('*')
+      .order('created_at', {ascending: false});
+
+    if(error) { console.warn('BS lancamentos erro:', error); }
+    else if(lancamentos && lancamentos.length > 0) {
+      // Supabase SEMPRE ganha — sobrescreve cache local
+      localStorage.setItem('bs_cache_lancamentos', JSON.stringify(lancamentos));
       localStorage.setItem('bs_cache_ts', String(Date.now()));
-      // Atualiza variáveis em memória se BS já foi iniciado
+
+      // Atualiza arrays em memória
+      window.todosLancamentos = lancamentos;
+      window.dadosFiltrados   = [...lancamentos];
+      totalSincronizado += lancamentos.length;
+
+      // Re-renderiza módulo BS se já iniciado
       if(window._bsIniciado) {
-        window.todosLancamentos = merged;
-        window.dadosFiltrados   = [...merged];
-        try { preencherFiltrosMeses(); renderResumo(); } catch(e){}
+        try { preencherFiltrosMeses(); renderResumo(); filtrarTabela(); } catch(e){}
+      }
+    } else if(lancamentos && lancamentos.length === 0) {
+      // Supabase vazio mas respondeu — verifica se tem cache local para enviar
+      const cacheLocal = JSON.parse(localStorage.getItem('bs_cache_lancamentos')||'[]');
+      if(cacheLocal.length > 0) {
+        // Envia cache local para o Supabase (migração)
+        console.log('Migrando', cacheLocal.length, 'registros para Supabase...');
+        await supabaseSalvarLote(cacheLocal);
+        window.todosLancamentos = cacheLocal;
+        window.dadosFiltrados   = [...cacheLocal];
       }
     }
-  } catch(e) { console.warn('BS sync:', e); }
+  } catch(e) { console.warn('BS sync erro:', e); }
 
-  // ── Metas: carrega do Supabase ──
+  // ── 3. Metas: carrega do Supabase ──
   try {
     const { data: configs } = await sbClient
-      .from('bs_config').select('chave,valor').like('chave', 'meta_%');
-    if(configs) {
+      .from('bs_config')
+      .select('chave,valor')
+      .like('chave', 'meta_%');
+    if(configs && configs.length > 0) {
       configs.forEach(row => {
         try { localStorage.setItem('bs_' + row.chave, row.valor); } catch(e){}
       });
+      try { renderMetaAtual(); } catch(e){}
     }
-  } catch(e) { console.warn('Meta sync:', e); }
+  } catch(e) { console.warn('Meta sync erro:', e); }
+
+  showSyncIndicator('✅ Sincronizado!', 2500);
+  console.log('Sync completo — ' + totalSincronizado + ' registros atualizados');
 }
 
 function mostrarLogin() {
