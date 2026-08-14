@@ -818,8 +818,8 @@ input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--az
 
 <!-- GASTOS DO MÊS -->
 <section class="pnl" id="pnl-gastos">
-  <div class="sec-ttl" style="color:#ea580c">🛒 Gastos do Mês</div>
-  <div class="sec-sub" id="gastos-sub">Gastos pessoais do dia a dia — <span id="gastos-mes-lbl"></span></div>
+  <div class="sec-ttl" style="color:#ea580c">🛒 Gastos do Mês — <span id="gastos-mes-lbl" style="font-size:.85rem;font-weight:600;"></span></div>
+  <div class="sec-sub">Gastos pessoais do dia a dia · cada mês é independente</div>
 
   <!-- Totalizador por categoria -->
   <div id="gastos-resumo" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:18px;"></div>
@@ -1790,12 +1790,17 @@ function changeMonth(dir){
   const[y,m]=state.month.split('-').map(Number);
   const d=new Date(y,m-1+dir,1);
   state.month=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-  _mesResumoOverride = null; // reset override quando navega pelo seletor superior
-  _mesRelOverride = null;    // reset relatório também
+  _mesResumoOverride = null;
+  _mesRelOverride = null;
   updateMonthLabel();
   renderAll();
-  // Sincroniza filtros do módulo BS com o novo mês
+  // Sincroniza filtros BS com novo mês
   sincronizarMesBS();
+  // Atualiza Gastos se a aba estiver aberta
+  const pnlGastos = document.getElementById('pnl-gastos');
+  if(pnlGastos && pnlGastos.classList.contains('on')) {
+    try { renderGastos(); } catch(e) {}
+  }
 }
 
 // Sincroniza os filtros do módulo BS com state.month
@@ -3518,10 +3523,15 @@ function ativarRealtimeSync() {
         console.log('[Realtime FC]', payload.eventType, payload.new?.mes);
         if(payload.new?.mes && payload.new?.dados) {
           localStorage.setItem('fc_'+payload.new.mes, JSON.stringify(payload.new.dados));
-          // Só re-renderiza se for o mês visível
+          // Re-renderiza se for o mês visível
           if(payload.new.mes === state.month) {
             try { renderAll(); } catch(e) {}
-            showSyncIndicator('🔄 Dados atualizados!', 2000);
+            // Atualiza Gastos se a aba estiver aberta
+            const pnlGastos = document.getElementById('pnl-gastos');
+            if(pnlGastos && pnlGastos.classList.contains('on')) {
+              try { renderGastos(); } catch(e) {}
+            }
+            showSyncIndicator('🔄 Gastos atualizados!', 2000);
           }
         }
       }
@@ -3557,14 +3567,29 @@ function ativarRealtimeSync() {
 function _realtimeRenderBS(msg) {
   const pnl = document.getElementById('pnl-bomsucesso');
   const ativo = pnl && pnl.classList.contains('on');
-  // Atualiza cache independente
+  // Cache sempre atualizado
   localStorage.setItem('bs_cache_ts', String(Date.now()));
-  // Se módulo visível, re-renderiza
+  localStorage.setItem('bs_cache_lancamentos', JSON.stringify(todosLancamentos));
+  // Re-renderiza todas as abas do BS se visível
   if(ativo) {
-    try { preencherFiltrosMeses(); renderResumo(); filtrarTabela(); } catch(e) {}
+    try { preencherFiltrosMeses(); } catch(e) {}
+    // Renderiza a aba ativa
+    const resumoAtivo = document.getElementById('aba-resumo')?.classList.contains('active');
+    const clientesAtivo = document.getElementById('aba-clientes')?.classList.contains('active');
+    const relAtivo = document.getElementById('aba-relatorio')?.classList.contains('active');
+    try { if(resumoAtivo||true) renderResumo(); } catch(e) {}
+    try { if(clientesAtivo) { dadosFiltrados=[...todosLancamentos]; renderTabela(); filtrarTabela(); } } catch(e) {}
+    try { if(relAtivo) renderRelatorio(); } catch(e) {}
   }
   showSyncIndicator('🔄 '+msg, 2500);
-  bs_mostrarToast('🔄 Sincronizado: '+msg);
+  // Toast discreto para não atrapalhar
+  const t = document.getElementById('bs-toast');
+  if(t && msg !== '') {
+    t.textContent = '🔄 ' + msg;
+    t.style.transform = 'translateY(0)'; t.style.opacity = '1';
+    clearTimeout(t._rt);
+    t._rt = setTimeout(() => { t.style.transform='translateY(80px)'; t.style.opacity='0'; }, 2000);
+  }
 }
 
 
@@ -4574,15 +4599,20 @@ async function mudarStatus(idx, sel) {
   const novoStatus = sel.value;
   sel.className = 'status-select '+(novoStatus==='PAGO'?'pago':'aberto');
   r.status = novoStatus; r.status_comissao = novoStatus;
-  // atualizar no array global
+  // Atualiza arrays globais
   const gi = todosLancamentos.findIndex(x=>x.id===r.id);
   if(gi>-1){ todosLancamentos[gi].status=novoStatus; todosLancamentos[gi].status_comissao=novoStatus; }
-  // Sincroniza status em background via JSONP
-  try {
-    const rowAtualizado={...r,status:novoStatus,status_comissao:novoStatus};
-    bsJsonpGet(APPS_URL, {action:'editarLancamento', payload:encodeURIComponent(JSON.stringify(rowAtualizado)), t:Date.now()});
-  } catch(e){}
-  bs_mostrarToast('Status atualizado para '+novoStatus+'!');
+  // ── Salva no Supabase IMEDIATAMENTE ──
+  const rowAtualizado = {...r, status:novoStatus, status_comissao:novoStatus};
+  if(!sbClient) initSupabase();
+  if(sbClient) {
+    supabaseSalvar(rowAtualizado)
+      .then(() => console.log('[Status] Salvo Supabase:', novoStatus))
+      .catch(e => console.warn('[Status] Supa erro:', e));
+  }
+  // Cache local
+  salvarCacheCompleto();
+  bs_mostrarToast('✅ Status → '+novoStatus);
   renderResumo();
 }
 
@@ -4818,12 +4848,13 @@ function salvarEdicao() {
     fecharModal();
     renderTabela();
     renderResumo();
-    // Sincroniza em background
-    try {
-      if(!sbClient) initSupabase();
-      if(sbClient) supabaseSalvar(row).catch(e => console.warn('Edit supa:', e));
-      bsJsonpGet(APPS_URL, {action:'editarLancamento', payload:encodeURIComponent(JSON.stringify(row)), t:Date.now()});
-    } catch(e2){ console.warn('Sync falhou:', e2); }
+    // Supabase — salva imediatamente
+    if(!sbClient) initSupabase();
+    if(sbClient) {
+      supabaseSalvar(row)
+        .then(() => console.log('[Editar] Supabase ok:', row.nome_cliente))
+        .catch(e => console.warn('[Editar] Supa erro:', e));
+    }
   } catch(e){ bs_mostrarToast('Erro ao salvar.','erro-toast'); }
 }
 async function deletar(idx) {
@@ -5382,11 +5413,11 @@ function salvarGasto() {
   } else {
     d.expenses.push(novoGasto);
   }
-  save(d);
+  save(d); // save() já chama fcSupaSalvar internamente
   fecharGastosModal();
   renderGastos();
   renderDashboard();
-  showToast('✅ Gasto salvo!');
+  showToast('✅ Gasto salvo em ' + monthLabel(state.month) + '!');
 }
 
 function excluirGasto(id) {
@@ -5497,7 +5528,8 @@ function parseGastoRapido() {
 }
 
 function renderGastos() {
-  const d = data();
+  // Gastos do mês ATIVO (state.month) — cada mês é isolado
+  const d = data(); // já retorna dados do state.month atual
   const gastos = d.expenses.filter(e=>e.card==='GASTOS');
   const catFlt = document.getElementById('gastos-flt-cat')?.value || '';
 
