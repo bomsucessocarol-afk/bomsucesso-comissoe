@@ -1210,10 +1210,7 @@ html { scroll-behavior: smooth; }
 </nav>
 
 <!-- FAB — Lançar contrato rápido (só mobile) -->
-<div class="fab-container" id="fab-container">
-  <button class="fab" onclick="fabLancar()" title="Lançar novo contrato">＋</button>
-  <div class="fab-tooltip">Novo contrato</div>
-</div>
+<!-- FAB removido — Lançamento Rápido disponível apenas no Simulador -->
 
 <!-- BOTTOM NAV MOBILE 2.0 -->
 <nav class="bottom-nav" id="bottom-nav">
@@ -1512,17 +1509,7 @@ html { scroll-behavior: smooth; }
     <div style="font-weight:800;font-size:1rem;color:#ea580c;margin-bottom:16px;" id="gastos-modal-ttl">🛒 Novo Gasto</div>
     <input type="hidden" id="gasto-edit-id">
 
-    <!-- LANÇAMENTO RÁPIDO -->
-    <div style="background:#FFF8E1;border:1.5px solid #FBAD09;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
-      <label style="font-size:0.75rem;font-weight:700;color:#383772;display:block;margin-bottom:6px;">⚡ Lançamento rápido <span style="font-weight:400;color:#7E7A68;">(opcional — pressione Enter para preencher)</span></label>
-      <div style="display:flex;gap:6px;">
-        <input type="text" id="gasto-rapido"
-          placeholder="Ex: Almoço com Thiago - Almoço/Alimentação - R$34,00 - 04/08 - pago - variável - obs: pix Nubank"
-          style="flex:1;border:1.5px solid #FBAD09;border-radius:8px;padding:8px 12px;font-size:0.8rem;outline:none;box-sizing:border-box;"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();parseGastoRapido();}">
-        <button onclick="parseGastoRapido()" style="background:#FBAD09;color:#383772;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;white-space:nowrap;font-size:0.8rem;">Preencher</button>
-      </div>
-    </div>
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div style="grid-column:1/-1;">
         <label style="font-size:0.8rem;font-weight:600;">Descrição *</label>
@@ -2111,6 +2098,17 @@ html { scroll-behavior: smooth; }
       </div>
     </div>
 
+
+    <!-- LANÇAMENTO RÁPIDO [ITEM 21] — exclusivo do Simulador -->
+    <div style="margin-top:20px;padding-top:18px;border-top:2px dashed rgba(56,55,114,.15);">
+      <div style="text-align:center;margin-bottom:12px;">
+        <div style="font-size:0.75rem;color:var(--cinza);margin-bottom:10px;">Calculou e gostou? Registre agora com 5 campos:</div>
+        <button onclick="abrirLancRapido()" style="background:linear-gradient(135deg,#383772,#5C6BC0);color:#fff;border:none;border-radius:14px;padding:14px 32px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:1rem;cursor:pointer;box-shadow:0 4px 16px rgba(56,55,114,.3);letter-spacing:.3px;display:inline-flex;align-items:center;gap:10px;transition:transform .15s;">
+          ⚡ Lançamento Rápido
+        </button>
+        <div style="font-size:0.68rem;color:var(--cinza);margin-top:8px;">Cliente · Banco · Produto · Valor · % Comissão</div>
+      </div>
+    </div>
     
   </div>
 </div>
