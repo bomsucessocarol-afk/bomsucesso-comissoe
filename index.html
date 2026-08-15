@@ -551,6 +551,520 @@ input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--az
   .bottom-nav{display:none!important}
   .wrap{padding-bottom:24px}
 }
+
+/* ════════════════════════════════════════════════════
+   REDESIGN 2.0 — Mobile-First · Design Sênior
+   Hierarquia visual limpa · Respiração · Touch-first
+   ════════════════════════════════════════════════════ */
+
+/* ── Variáveis extras ── */
+:root {
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --gap-xs: 6px;
+  --gap-sm: 10px;
+  --gap-md: 16px;
+  --gap-lg: 24px;
+  --touch-min: 44px;
+  --fab-size: 56px;
+  --nav-h: 68px;
+  --hdr-h: 56px;
+  --amarelo-dark: #d4900a;
+  --shadow-card: 0 1px 4px rgba(56,55,114,.08), 0 4px 16px rgba(56,55,114,.06);
+  --shadow-float: 0 8px 32px rgba(56,55,114,.22);
+}
+
+/* ── Header redesenhado ── */
+.hdr {
+  height: var(--hdr-h);
+  padding: 0 16px;
+  gap: 12px;
+}
+.hdr .logo { font-size: 15px; letter-spacing: -.3px; }
+.month-nav {
+  padding: 5px 12px;
+  border-radius: 22px;
+  background: rgba(255,255,255,.13);
+  border: 1px solid rgba(255,255,255,.12);
+  gap: 8px;
+}
+.month-nav button {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  transition: background .15s;
+}
+.month-nav button:hover { background: rgba(255,255,255,.15); }
+.month-lbl { font-size: 13px; min-width: 100px; }
+
+/* ── Bottom Nav 2.0 — pill indicator ── */
+.bottom-nav {
+  height: var(--nav-h);
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 20px rgba(56,55,114,.08);
+  padding: 6px 8px max(10px, env(safe-area-inset-bottom));
+}
+.bottom-nav-inner {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
+  height: 100%;
+  align-items: center;
+}
+.bn-item {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 3px;
+  padding: 4px 2px;
+  min-height: var(--touch-min);
+  min-width: 0;
+  border-radius: var(--radius-md);
+  transition: all .18s;
+  position: relative;
+}
+.bn-ico {
+  width: 32px; height: 32px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  transition: all .2s cubic-bezier(.34,1.56,.64,1);
+}
+.bn-lbl {
+  font-size: 9.5px; font-weight: 600;
+  color: var(--text3);
+  white-space: nowrap;
+  transition: color .15s;
+  letter-spacing: .2px;
+}
+.bn-item.on .bn-ico {
+  background: linear-gradient(135deg, #383772, #4a48a0);
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(56,55,114,.3);
+}
+.bn-item.on .bn-ico { font-size: 17px; }
+.bn-item.on .bn-lbl { color: var(--azul); font-weight: 800; }
+
+/* ── FAB — Botão de ação rápida ── */
+.fab-container {
+  display: none;
+  position: fixed;
+  bottom: calc(var(--nav-h) + 16px);
+  right: 18px;
+  z-index: 88;
+}
+.fab {
+  width: var(--fab-size); height: var(--fab-size);
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--amarelo), var(--amarelo-dark));
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; line-height: 1;
+  box-shadow: 0 6px 24px rgba(251,173,9,.45);
+  transition: all .2s cubic-bezier(.34,1.56,.64,1);
+  color: var(--azul);
+  font-weight: 900;
+}
+.fab:hover, .fab:active {
+  transform: scale(1.12) rotate(45deg);
+  box-shadow: 0 10px 32px rgba(251,173,9,.55);
+}
+.fab-tooltip {
+  position: absolute; right: calc(100% + 10px); top: 50%;
+  transform: translateY(-50%);
+  background: var(--azul); color: #fff;
+  font-size: 12px; font-weight: 700;
+  padding: 6px 12px; border-radius: 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0; transition: opacity .2s;
+  box-shadow: 0 4px 12px rgba(0,0,0,.2);
+}
+.fab-tooltip::after {
+  content: '';
+  position: absolute; left: 100%; top: 50%;
+  transform: translateY(-50%);
+  border: 5px solid transparent;
+  border-left-color: var(--azul);
+}
+.fab:hover + .fab-tooltip, .fab:focus + .fab-tooltip { opacity: 1; }
+
+/* ── Seção BS — Cards de resumo ── */
+.cards-grid.bs-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.bs-wrap .card {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow .2s, transform .18s;
+}
+.bs-wrap .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-float); }
+.bs-wrap .card.destaque {
+  background: linear-gradient(135deg, #383772 0%, #2d2c5e 100%);
+}
+
+/* ── Filtros colapsáveis no mobile ── */
+.bs-filtros-toggle {
+  display: none;
+  width: 100%;
+  background: var(--fundo);
+  border: 1.5px solid var(--borda);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: .82rem; font-weight: 700;
+  color: var(--azul);
+  cursor: pointer;
+  text-align: left;
+  margin-bottom: 8px;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.bs-filtros-wrap {
+  transition: max-height .3s ease, opacity .3s;
+  overflow: hidden;
+}
+.bs-filtros-wrap.fechado {
+  max-height: 0 !important;
+  opacity: 0;
+}
+
+/* ── Tabela BS → Cards no Mobile ── */
+@media (max-width: 768px) {
+
+  /* FAB visível no mobile */
+  .fab-container { display: block; }
+
+  /* Bottom nav tab gaps melhores */
+  .wrap { padding: 14px 12px; padding-bottom: calc(var(--nav-h) + 72px); }
+
+  /* Header mobile compacto */
+  .hdr { padding: 0 12px; gap: 8px; }
+  .month-lbl { min-width: 84px; font-size: 12px; }
+
+  /* BS Cards 2x2 no mobile */
+  .cards-grid.bs-cards-grid,
+  .bs-wrap .cards-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px;
+  }
+  .bs-wrap .card { padding: 14px 14px; }
+  .bs-wrap .card.destaque { grid-column: span 2; }
+
+  /* ── Filtros: toggle no mobile ── */
+  .bs-filtros-toggle { display: flex !important; }
+  .bs-filtros-wrap.fechado { max-height: 0 !important; opacity: 0; pointer-events: none; }
+  .bs-filtros-wrap { max-height: 500px; opacity: 1; }
+
+  /* ── TABLE → CARDS (BS lancamentos) ── */
+  .bs-wrap .tabela-wrapper { overflow: visible; border: none; border-radius: 0; box-shadow: none; background: transparent; }
+  .bs-wrap .tabela-wrapper table { display: block; min-width: unset; }
+  .bs-wrap .tabela-wrapper thead { display: none; }
+  .bs-wrap .tabela-wrapper tbody { display: flex; flex-direction: column; gap: 10px; }
+
+  .bs-wrap .tabela-wrapper tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    background: var(--card);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    transition: box-shadow .2s;
+    padding: 0;
+  }
+  .bs-wrap .tabela-wrapper tbody tr:hover { box-shadow: 0 4px 20px rgba(56,55,114,.13); }
+
+  /* Oculta todas as td por padrão e redefine */
+  .bs-wrap .tabela-wrapper td {
+    display: block;
+    padding: 0;
+    border: none;
+    background: transparent !important;
+    font-size: .82rem;
+  }
+
+  /* Col 1: Nome + datas — ocupa linha inteira (header do card) */
+  .bs-wrap .tabela-wrapper td:nth-child(1) {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, #383772 0%, #2d2c5e 100%) !important;
+    padding: 11px 14px 10px;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+  .bs-wrap .tabela-wrapper td:nth-child(1) > div:first-child {
+    color: #fff;
+    font-size: .88rem;
+    font-weight: 800;
+  }
+  .bs-wrap .tabela-wrapper td:nth-child(1) > div:last-child {
+    color: rgba(255,255,255,.6);
+    font-size: .68rem;
+    margin-top: 2px;
+  }
+  /* ajusta o badge de alerta para funcionar no dark bg */
+  .bs-wrap .tabela-wrapper td:nth-child(1) span[title] {
+    background: rgba(255,248,230,.2) !important;
+    color: #ffe082 !important;
+  }
+
+  /* Col 2: Produto — célula esquerda linha 2 */
+  .bs-wrap .tabela-wrapper td:nth-child(2) {
+    grid-column: 1;
+    padding: 9px 14px 6px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Col 3: Banco — célula direita linha 2 */
+  .bs-wrap .tabela-wrapper td:nth-child(3) {
+    grid-column: 2;
+    padding: 9px 14px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .bs-wrap .tabela-wrapper td:nth-child(3)::before {
+    content: '🏦 ';
+    font-size: .72rem;
+    opacity: .6;
+  }
+
+  /* Col 4: Valor + Col 5: Comissão — linha 3 */
+  .bs-wrap .tabela-wrapper td:nth-child(4) {
+    grid-column: 1;
+    padding: 8px 14px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .bs-wrap .tabela-wrapper td:nth-child(4)::before {
+    content: 'Valor cliente';
+    display: block;
+    font-size: .63rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--cinza);
+    margin-bottom: 2px;
+  }
+
+  .bs-wrap .tabela-wrapper td:nth-child(5) {
+    grid-column: 2;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .bs-wrap .tabela-wrapper td:nth-child(5)::before {
+    content: 'Comissão';
+    display: block;
+    font-size: .63rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--azul);
+    margin-bottom: 2px;
+  }
+  .bs-wrap .tabela-wrapper td:nth-child(5) {
+    font-size: 1rem !important;
+    font-weight: 900 !important;
+    color: var(--azul) !important;
+  }
+
+  /* Col 6: Status — linha inteira */
+  .bs-wrap .tabela-wrapper td:nth-child(6) {
+    grid-column: 1;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
+  .bs-wrap .tabela-wrapper td:nth-child(6)::before {
+    content: 'Status:';
+    font-size: .68rem;
+    font-weight: 700;
+    color: var(--cinza);
+    white-space: nowrap;
+  }
+
+  /* Col 7: Mês — oculto no mobile (ocupa muito espaço, não essencial) */
+  .bs-wrap .tabela-wrapper td:nth-child(7) { display: none; }
+
+  /* Col 8: Ações — linha 5, direita */
+  .bs-wrap .tabela-wrapper td:nth-child(8) {
+    grid-column: 2;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    border-bottom: none;
+  }
+  /* Botões de ação maiores no mobile */
+  .bs-wrap .tabela-wrapper td:nth-child(8) .btn {
+    min-width: 36px; min-height: 36px;
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+
+  /* Paginação mobile */
+  .bs-wrap .paginacao {
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    padding: 14px 16px;
+  }
+  .bs-wrap .paginacao-btns { flex-wrap: wrap; justify-content: center; }
+  .pag-btn { min-width: 36px; min-height: 36px; display: flex; align-items: center; justify-content: center; }
+
+  /* Resumo/Relatórios — empilhado */
+  .grid-2 { grid-template-columns: 1fr !important; }
+
+  /* Barras de gráfico menores */
+  .bs-wrap .barra-label { width: 60px; font-size: .68rem; }
+  .bs-wrap .barra-valor { width: 70px; font-size: .68rem; }
+
+  /* Seção título compacta */
+  .secao-titulo { font-size: .78rem; margin-bottom: 10px; }
+
+  /* Modal fullscreen no mobile */
+  .bs-wrap .modal {
+    max-height: 95vh;
+    margin: 0;
+    border-radius: 20px 20px 0 0;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+  .bs-wrap .modal-overlay { align-items: flex-end; padding: 0; }
+  .modal { border-radius: 20px 20px 0 0; max-height: 92vh; }
+  .ov { align-items: flex-end; padding: 0; }
+  .ov .modal { border-radius: 20px 20px 0 0; }
+
+  /* Status select maior no mobile */
+  .status-select { padding: 6px 10px; font-size: .75rem; min-height: 34px; }
+
+  /* Cards FC mais compactos */
+  .card { padding: 14px 14px; }
+  .card-val { font-size: 18px; }
+
+  /* Alertas de orçamento */
+  #gastos-alertas-orcamento > div {
+    padding: 10px 12px !important;
+    font-size: .78rem !important;
+  }
+}
+
+/* ── PC (≥ 769px) melhorias ── */
+@media (min-width: 769px) {
+  .wrap { max-width: 1280px; padding: 24px 28px; }
+
+  /* Cards BS em 3 colunas no PC */
+  .cards-grid.bs-cards-grid,
+  .bs-wrap .cards-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  /* Tabela BS com hover mais suave */
+  .bs-wrap .tabela-wrapper tr:hover td {
+    background: #f5f4fc !important;
+  }
+
+  /* Sidebar sempre disponível via toggle */
+  .bs-wrap { max-width: 1280px; }
+
+  /* Gráficos lado a lado */
+  .charts { grid-template-columns: 1fr 1fr; gap: 18px; }
+}
+
+/* ── Melhorias gerais (mobile + PC) ── */
+
+/* Cabeçalhos de seção com mais personalidade */
+.secao-titulo {
+  font-size: .82rem;
+  gap: 10px;
+  color: var(--azul);
+  margin-bottom: 16px;
+}
+
+/* Pills de modalidade mais legíveis */
+.pill { font-size: .7rem; padding: 4px 10px; letter-spacing: .2px; }
+
+/* Botões com touch target mínimo de 44px */
+.btn { min-height: 38px; }
+.btn-sm { min-height: 32px; }
+
+/* Inputs maiores no mobile para evitar zoom iOS */
+@media (max-width: 480px) {
+  select, input[type=text], input[type=number], input[type=date], textarea {
+    font-size: 16px !important; /* força sem zoom no iOS */
+    min-height: 44px;
+  }
+  .bs-wrap .form-grupo input,
+  .bs-wrap .form-grupo select {
+    font-size: 16px !important;
+    min-height: 44px;
+  }
+}
+
+/* Meta bar mais visual */
+.meta-bar-track { height: 8px; border-radius: 4px; }
+.meta-bar-fill { border-radius: 4px; }
+
+/* Bloco projeção compacto no mobile */
+@media (max-width: 480px) {
+  #bloco-projecao > div:nth-child(2) {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+}
+
+/* Toast mais visível e acima do bottom nav */
+.toast, #toast {
+  bottom: calc(var(--nav-h) + 16px) !important;
+}
+@media (min-width: 769px) {
+  .toast, #toast { bottom: 24px !important; }
+}
+
+/* Animação de entrada dos cards */
+.bs-wrap .tabela-wrapper tbody tr {
+  animation: slideUp .2s ease both;
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Melhora visual do status select */
+.status-select {
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: box-shadow .15s;
+}
+.status-select:focus { box-shadow: 0 0 0 3px rgba(56,55,114,.15); }
+.status-select.pago { background: #d4f5e5; color: #1a7a4a; border-color: #a3e4c1; }
+.status-select.aberto { background: #fde9cd; color: #a05c00; border-color: #f5c98a; }
+
+/* Scroll suave global */
+html { scroll-behavior: smooth; }
+
+/* Melhora o vazio */
+.bs-wrap .vazio {
+  padding: 48px 24px;
+  background: var(--card);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border);
+}
+.vazio-icon { font-size: 3rem; margin-bottom: 16px; }
 </style>
 
 </head>
@@ -645,10 +1159,16 @@ input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--az
   </div>
 </nav>
 
-<!-- BOTTOM NAV MOBILE -->
+<!-- FAB — Lançar contrato rápido (só mobile) -->
+<div class="fab-container" id="fab-container">
+  <button class="fab" onclick="fabLancar()" title="Lançar novo contrato">＋</button>
+  <div class="fab-tooltip">Novo contrato</div>
+</div>
+
+<!-- BOTTOM NAV MOBILE 2.0 -->
 <nav class="bottom-nav" id="bottom-nav">
   <div class="bottom-nav-inner">
-    <button class="bn-item on" id="bn-dashboard" onclick="showTab('dashboard',document.querySelector('.tab-btn.on'));setBnActive('bn-dashboard')">
+    <button class="bn-item on" id="bn-dashboard" onclick="showTab('dashboard',null);setBnActive('bn-dashboard')">
       <div class="bn-ico">🏠</div><div class="bn-lbl">Início</div>
     </button>
     <button class="bn-item" id="bn-despesas" onclick="showTab('despesas',null);setBnActive('bn-despesas')">
@@ -1323,33 +1843,45 @@ input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--az
   <div class="tabela-wrapper">
     <div class="tabela-header">
       <div class="tabela-titulo">Todos os Registros</div>
-      <div class="filtros" style="flex-wrap:wrap;gap:6px;">
-        <input type="text" id="busca-cliente" placeholder="🔍 Buscar cliente..." oninput="filtrarTabela()" style="width:180px;">
-        <select id="filtro-status-tab" onchange="filtrarTabela()">
-          <option value="">Todos status</option>
-          <option value="PAGO">✅ Pago</option>
-          <option value="ABERTO">⏳ Aberto</option>
-        </select>
-        <select id="filtro-modal-tab" onchange="filtrarTabela()">
-          <option value="">Todas modalidades</option>
-        </select>
-        <select id="filtro-banco-tab" onchange="filtrarTabela()">
-          <option value="">Todos os bancos</option>
-        </select>
-        <select id="filtro-promotora-tab" onchange="filtrarTabela()">
-          <option value="">Todas promotoras</option>
-        </select>
-        <select id="filtro-tipo-op-tab" onchange="filtrarTabela()">
-          <option value="">Todos tipos op.</option>
-          <option value="NOVO">Novo</option>
-          <option value="PORTABILIDADE">Portabilidade</option>
-          <option value="REFINANCIAMENTO">Refinanciamento</option>
-          <option value="REFIN">Refin</option>
-        </select>
-        <select id="filtro-mes-tab" onchange="filtrarTabela()">
-          <option value="">Todos os meses</option>
-        </select>
-        <button class="btn btn-outline btn-sm" onclick="limparFiltrosTabela()" title="Limpar filtros">✕ Limpar</button>
+      <!-- Busca rápida sempre visível -->
+      <div style="margin-bottom:8px;">
+        <input type="text" id="busca-cliente" placeholder="🔍 Buscar cliente..." oninput="filtrarTabela()"
+          style="width:100%;max-width:340px;border:1.5px solid var(--borda);border-radius:10px;padding:9px 14px;font-size:.85rem;outline:none;font-family:'DM Sans',sans-serif;">
+      </div>
+      <!-- Toggle de filtros (visível só no mobile via CSS) -->
+      <button class="bs-filtros-toggle" id="btn-toggle-filtros" onclick="toggleFiltrosMobile()">
+        <span>⚙️ Filtros avançados</span>
+        <span id="icon-filtros-toggle">▼</span>
+      </button>
+      <!-- Filtros avançados -->
+      <div class="bs-filtros-wrap fechado" id="bs-filtros-wrap">
+        <div class="filtros" style="flex-wrap:wrap;gap:6px;padding-bottom:8px;">
+          <select id="filtro-status-tab" onchange="filtrarTabela()">
+            <option value="">Todos status</option>
+            <option value="PAGO">✅ Pago</option>
+            <option value="ABERTO">⏳ Aberto</option>
+          </select>
+          <select id="filtro-modal-tab" onchange="filtrarTabela()">
+            <option value="">Todas modalidades</option>
+          </select>
+          <select id="filtro-banco-tab" onchange="filtrarTabela()">
+            <option value="">Todos os bancos</option>
+          </select>
+          <select id="filtro-promotora-tab" onchange="filtrarTabela()">
+            <option value="">Todas promotoras</option>
+          </select>
+          <select id="filtro-tipo-op-tab" onchange="filtrarTabela()">
+            <option value="">Todos tipos op.</option>
+            <option value="NOVO">Novo</option>
+            <option value="PORTABILIDADE">Portabilidade</option>
+            <option value="REFINANCIAMENTO">Refinanciamento</option>
+            <option value="REFIN">Refin</option>
+          </select>
+          <select id="filtro-mes-tab" onchange="filtrarTabela()">
+            <option value="">Todos os meses</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="limparFiltrosTabela()" title="Limpar filtros">✕ Limpar</button>
+        </div>
       </div>
     </div>
     <div style="overflow-x:auto;">
@@ -6078,6 +6610,66 @@ function mostrarLogin() {
   }
 })();
 
+
+// ══════════════════════════════════════════════════════
+// ══ DESIGN 2.0 — Mobile UX helpers ══════════════════
+// ══════════════════════════════════════════════════════
+
+// ── FAB: Lançar contrato rápido ──────────────────────
+function fabLancar() {
+  // Vai para o módulo de comissões, aba Lançar
+  showTab('bomsucesso', null);
+  setBnActive('bn-comissoes');
+  if(typeof initBomSucesso === 'function') initBomSucesso();
+  // Pequeno delay para garantir que a aba renderizou
+  setTimeout(() => {
+    // Tenta encontrar a aba de lançamento
+    const tabBtns = document.querySelectorAll('.bs-tab-btn');
+    tabBtns.forEach(btn => {
+      if(btn.textContent.includes('Lançar') || btn.getAttribute('onclick')?.includes('lancar')) {
+        btn.click();
+      }
+    });
+    // Foca no primeiro campo do formulário
+    const primeiroInput = document.getElementById('f-nome') || document.getElementById('f-data-dig');
+    if(primeiroInput) {
+      primeiroInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => primeiroInput.focus(), 300);
+    }
+  }, 250);
+  // Anima o FAB
+  const fab = document.querySelector('.fab');
+  if(fab) {
+    fab.style.transform = 'scale(0.9) rotate(45deg)';
+    setTimeout(() => { fab.style.transform = ''; }, 300);
+  }
+}
+
+// ── Toggle filtros no mobile ─────────────────────────
+let _filtrosMobileAberto = false;
+function toggleFiltrosMobile() {
+  const wrap = document.getElementById('bs-filtros-wrap');
+  const icon = document.getElementById('icon-filtros-toggle');
+  if(!wrap) return;
+  _filtrosMobileAberto = !_filtrosMobileAberto;
+  if(_filtrosMobileAberto) {
+    wrap.classList.remove('fechado');
+    if(icon) icon.textContent = '▲';
+  } else {
+    wrap.classList.add('fechado');
+    if(icon) icon.textContent = '▼';
+  }
+}
+
+// Abre filtros automaticamente no PC (sem toggle)
+function _initFiltrosPCMode() {
+  if(window.innerWidth >= 769) {
+    const wrap = document.getElementById('bs-filtros-wrap');
+    if(wrap) wrap.classList.remove('fechado');
+  }
+}
+window.addEventListener('resize', _initFiltrosPCMode);
+document.addEventListener('DOMContentLoaded', _initFiltrosPCMode);
 
 // ══════════════════════════════════════════════════════
 // ══ NOVAS FUNCIONALIDADES — BOM SUCESSO 2.0 ══════════
