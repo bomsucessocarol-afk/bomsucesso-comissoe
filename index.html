@@ -1214,7 +1214,7 @@ html { scroll-behavior: smooth; }
 </nav>
 
 <!-- FAB — Lançar contrato rápido (só mobile) -->
-<!-- FAB removido — Lançamento Rápido disponível apenas no Simulador -->
+<!-- FAB removido -->
 
 <!-- BOTTOM NAV MOBILE 2.0 -->
 <nav class="bottom-nav" id="bottom-nav">
@@ -2144,18 +2144,6 @@ html { scroll-behavior: smooth; }
         <div class="sim-res-detalhe" id="sim-det-refin"></div>
       </div>
     </div>
-
-
-    <!-- LANÇAMENTO RÁPIDO [ITEM 21] — exclusivo do Simulador -->
-    <div style="margin-top:20px;padding-top:18px;border-top:2px dashed rgba(56,55,114,.15);">
-      <div style="text-align:center;margin-bottom:12px;">
-        <div style="font-size:0.75rem;color:var(--cinza);margin-bottom:10px;">Calculou e gostou? Registre agora com 5 campos:</div>
-        <button onclick="abrirLancRapido()" style="background:linear-gradient(135deg,#383772,#5C6BC0);color:#fff;border:none;border-radius:14px;padding:14px 32px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:1rem;cursor:pointer;box-shadow:0 4px 16px rgba(56,55,114,.3);letter-spacing:.3px;display:inline-flex;align-items:center;gap:10px;transition:transform .15s;">
-          ⚡ Lançamento Rápido
-        </button>
-        <div style="font-size:0.68rem;color:var(--cinza);margin-top:8px;">Cliente · Banco · Produto · Valor · % Comissão</div>
-      </div>
-    </div>
     
   </div>
 </div>
@@ -2339,52 +2327,7 @@ html { scroll-behavior: smooth; }
 </section>
 
 
-<!-- ══ MODAL LANÇAMENTO RÁPIDO [ITEM 21] ══ -->
-<div class="modal-rapido-ov" id="modal-lanc-rapido" onclick="if(event.target===this)fecharLancRapido()">
-  <div class="modal-rapido-box" onclick="event.stopPropagation()">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
-      <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:1rem;color:#383772;">⚡ Lançamento Rápido</div>
-      <button onclick="fecharLancRapido()" style="background:#f0f0f0;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:14px;">✕</button>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div style="grid-column:1/-1;">
-        <label style="font-size:0.78rem;font-weight:700;color:#383772;">👤 Nome do cliente *</label>
-        <input type="text" id="rl-nome" placeholder="Ex: João da Silva" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;" oninput="rl_autoCalc()">
-      </div>
-      <div>
-        <label style="font-size:0.78rem;font-weight:700;color:#383772;">🏦 Banco *</label>
-        <input type="text" id="rl-banco" placeholder="Ex: BMG, C6..." style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;">
-      </div>
-      <div>
-        <label style="font-size:0.78rem;font-weight:700;color:#383772;">📦 Modalidade *</label>
-        <select id="rl-modal" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;">
-          <option value="">Selecionar...</option>
-          <option value="INSS">INSS</option>
-          <option value="FGTS">FGTS</option>
-          <option value="CLT">CLT</option>
-          <option value="SERVIDOR">Servidor Público</option>
-          <option value="SIAPE">SIAPE</option>
-        </select>
-      </div>
-      <div>
-        <label style="font-size:0.78rem;font-weight:700;color:#383772;">💵 Valor do contrato *</label>
-        <input type="number" id="rl-valor" step="0.01" placeholder="0,00" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;" oninput="rl_autoCalc()">
-      </div>
-      <div>
-        <label style="font-size:0.78rem;font-weight:700;color:#383772;">% Comissão *</label>
-        <input type="number" id="rl-perc" step="0.1" placeholder="Ex: 3.5" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;" oninput="rl_autoCalc()">
-      </div>
-      <div>
-        <label style="font-size:0.78rem;font-weight:700;color:#10B981;">💰 Comissão calculada</label>
-        <div id="rl-com-preview" style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.1rem;color:#10B981;background:#d1fae5;border-radius:8px;padding:9px 12px;margin-top:4px;">R$ 0,00</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:18px;">
-      <button onclick="fecharLancRapido()" style="flex:1;background:#f0f0f0;color:#333;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;font-size:0.85rem;">Cancelar</button>
-      <button onclick="salvarLancRapido()" style="flex:2;background:#383772;color:#fff;border:none;border-radius:10px;padding:12px;font-family:'Montserrat',sans-serif;font-weight:800;cursor:pointer;font-size:0.9rem;">⚡ Salvar Lançamento</button>
-    </div>
-  </div>
-</div>
+<!-- Lançamento Rápido removido a pedido da Carol -->
 
 <!-- ══ MODAL FOLLOW-UP [ITEM 22] ══ -->
 <div id="modal-followup" onclick="if(event.target===this)fecharFollowup()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:800;align-items:center;justify-content:center;padding:16px;">
@@ -7215,63 +7158,7 @@ function mostrarLogin() {
 // ══ DESIGN 2.0 — Mobile UX helpers ══════════════════
 // ══════════════════════════════════════════════════════
 
-// ── FAB: Lançar contrato rápido ──────────────────────
-function abrirLancRapido() {
-  const m = document.getElementById('modal-lanc-rapido');
-  if(m){ m.style.display='flex'; document.getElementById('rl-nome').focus(); }
-}
-function fecharLancRapido() {
-  document.getElementById('modal-lanc-rapido').style.display='none';
-}
-function rl_autoCalc() {
-  const v = parseFloat(document.getElementById('rl-valor')?.value)||0;
-  const p = parseFloat(document.getElementById('rl-perc')?.value)||0;
-  const com = v * p / 100;
-  const el = document.getElementById('rl-com-preview');
-  if(el) el.textContent = fmt(com);
-}
-async function salvarLancRapido() {
-  const nome = document.getElementById('rl-nome')?.value?.trim();
-  const banco = document.getElementById('rl-banco')?.value?.trim();
-  const modal = document.getElementById('rl-modal')?.value;
-  const valor = parseFloat(document.getElementById('rl-valor')?.value)||0;
-  const perc = parseFloat(document.getElementById('rl-perc')?.value)||0;
-  if(!nome || !banco || !modal || !valor) {
-    bs_mostrarToast('⚠️ Preencha todos os campos obrigatórios','erro-toast'); return;
-  }
-  const com = valor * perc / 100;
-  const hoje = new Date().toISOString().slice(0,10);
-  const mesRef = getMesRefAtivo() || stateMonthToMesRef(state.month);
-  const row = {
-    nome_cliente: nome, banco, modalidade: modal,
-    valor_cliente: valor, perc_comissao: perc, comissao: com,
-    data_dig: hoje, status: 'ABERTO', status_comissao: 'ABERTO',
-    mes_ref: mesRef, tipo_op: 'NOVO', pact_fixo: 0
-  };
-  const btn = document.querySelector('#modal-lanc-rapido button[onclick="salvarLancRapido()"]');
-  if(btn){ btn.disabled=true; btn.textContent='Salvando...'; }
-  let ok = false;
-  if(sbClient){
-    const { error } = await sbClient.from('lancamentos').insert([row]);
-    if(!error) ok = true;
-    else console.error(error);
-  }
-  if(!ok){
-    row.id = Date.now();
-    todosLancamentos.push(row);
-    localStorage.setItem('bs_cache_lancamentos', JSON.stringify(todosLancamentos));
-    ok = true;
-  } else {
-    await _pollingSync();
-  }
-  fecharLancRapido();
-  bs_mostrarToast('✅ Lançamento salvo com sucesso!','ok-toast');
-  ['rl-nome','rl-banco','rl-valor','rl-perc'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  document.getElementById('rl-modal').value='';
-  document.getElementById('rl-com-preview').textContent='R$ 0,00';
-  sincronizarMesBS(); renderResumo();
-  if(btn){ btn.disabled=false; btn.textContent='⚡ Salvar Lançamento'; }
-}
+// Lançamento Rápido removido — use ➕ Lançar na aba Comissões
 function fabLancar() {
   // Vai para o módulo de comissões, aba Lançar
   showTab('bomsucesso', null);
