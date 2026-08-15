@@ -600,6 +600,20 @@ input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--az
     <span class="month-lbl" id="monthLbl"></span>
     <button onclick="changeMonth(1)">&#8250;</button>
   </div>
+  <!-- SININHO DE ALERTAS [ITEM 16] -->
+  <div style="position:relative;display:inline-block;">
+    <button id="btn-sininho" onclick="togglePainelAlertas()" title="Alertas de vencimento"
+      style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:16px;display:flex;align-items:center;gap:2px;position:relative;">
+      🔔
+      <span id="sininho-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:800;display:none;align-items:center;justify-content:center;line-height:1;font-family:'Montserrat',sans-serif;"></span>
+    </button>
+    <div id="painel-alertas" style="display:none;position:absolute;right:0;top:calc(100% + 8px);width:320px;max-width:95vw;background:#fff;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.2);z-index:300;border:1px solid #eee;overflow:hidden;">
+      <div style="background:#dc2626;color:#fff;padding:10px 14px;font-weight:700;font-size:0.82rem;display:flex;align-items:center;gap:6px;">
+        🔔 Alertas de Vencimento
+      </div>
+      <div id="painel-alertas-lista" style="max-height:300px;overflow-y:auto;padding:8px 0;"></div>
+    </div>
+  </div>
   <button onclick="sincronizarTudo()" title="Sincronizar dados" id="btn-sync-hdr"
     style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:16px;display:flex;align-items:center;gap:4px;">
     🔄
@@ -827,7 +841,10 @@ input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--az
   <!-- Botão novo gasto -->
   <button class="btn" style="background:#ea580c;color:#fff;margin-bottom:16px;" onclick="abrirGastosModal()">+ Novo Gasto</button>
 
-  <!-- Filtro por categoria -->
+  <!-- ALERTA DE ORÇAMENTO [ITEM 10] -->
+  <div id="gastos-alertas-orcamento" style="display:none;margin-bottom:12px;"></div>
+
+  <!-- Filtro por categoria + botão + categoria [ITEM 20] -->
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
     <label style="font-size:0.8rem;font-weight:600;">Filtrar:</label>
     <select id="gastos-flt-cat" onchange="renderGastos()" style="border:1px solid #ddd;border-radius:6px;padding:6px 10px;font-size:0.8rem;">
@@ -835,11 +852,49 @@ input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--az
     </select>
     <button class="btn btn-sm btn-outline" onclick="exportarGastosExcel()">📊 Excel</button>
     <button class="btn btn-sm btn-outline" onclick="exportarGastosJSON()">💾 JSON</button>
+    <button class="btn btn-sm" style="background:#383772;color:#fff;" onclick="abrirGerenciarCategorias()" title="Gerenciar categorias e orçamentos">⚙️ Categorias & Orçamentos</button>
   </div>
+
+  <!-- GRÁFICO POR CATEGORIA [ITEM 20] -->
+  <div id="gastos-grafico-box" style="display:none;background:#fff;border:1px solid #eee;border-radius:14px;padding:16px;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="font-size:0.78rem;font-weight:700;color:#383772;text-transform:uppercase;letter-spacing:.5px;">📊 Gastos por Categoria</div>
+      <button onclick="document.getElementById('gastos-grafico-box').style.display='none'" style="background:none;border:none;cursor:pointer;color:#aaa;font-size:14px;">✕</button>
+    </div>
+    <canvas id="gastos-pie-chart" style="max-height:200px;"></canvas>
+  </div>
+  <button onclick="toggleGastosGrafico()" style="background:none;border:1px dashed #ea580c;color:#ea580c;border-radius:8px;padding:5px 12px;font-size:0.75rem;cursor:pointer;margin-bottom:12px;font-weight:600;">📊 Ver gráfico por categoria</button>
 
   <!-- Lista de gastos -->
   <div id="gastos-lista" style="display:flex;flex-direction:column;gap:8px;"></div>
 </section>
+
+<!-- MODAL GERENCIAR CATEGORIAS & ORÇAMENTOS [ITEM 10 + 20] -->
+<div id="modal-cats-orcamento" onclick="if(event.target===this)fecharCatsOrcamento()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:700;align-items:center;justify-content:center;padding:16px;">
+  <div onclick="event.stopPropagation()" style="background:#fff;border-radius:14px;padding:24px;width:95%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.25);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="font-weight:800;font-size:1rem;color:#383772;">⚙️ Categorias & Orçamentos</div>
+      <button onclick="fecharCatsOrcamento()" style="background:#f0f0f0;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;">✕</button>
+    </div>
+    <div style="font-size:0.78rem;color:#7E7A68;margin-bottom:16px;">Defina o limite de gasto por categoria. O app alerta quando você atingir 80% ou ultrapassar.</div>
+
+    <!-- ADICIONAR CATEGORIA -->
+    <div style="background:#f9f9f9;border-radius:10px;padding:12px;margin-bottom:14px;">
+      <div style="font-size:0.75rem;font-weight:700;color:#383772;margin-bottom:8px;">➕ Nova Categoria</div>
+      <div style="display:flex;gap:6px;">
+        <input type="text" id="nova-cat-gastos-inp" placeholder="Nome da categoria..." style="flex:1;border:1.5px solid #ddd;border-radius:8px;padding:8px 10px;font-size:0.82rem;outline:none;" onkeydown="if(event.key==='Enter')adicionarCatGastos()">
+        <button onclick="adicionarCatGastos()" style="background:#383772;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:0.8rem;">+ Add</button>
+      </div>
+    </div>
+
+    <!-- LISTA DE CATEGORIAS COM ORÇAMENTO -->
+    <div id="lista-cats-orcamento" style="display:flex;flex-direction:column;gap:8px;"></div>
+
+    <div style="margin-top:16px;display:flex;justify-content:flex-end;">
+      <button onclick="salvarOrcamentos()" style="background:#ea580c;color:#fff;border:none;border-radius:10px;padding:10px 22px;font-weight:700;cursor:pointer;font-size:0.85rem;">💾 Salvar Orçamentos</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL NOVO GASTO -->
 <div id="gastos-modal" onclick="if(event.target===this)fecharGastosModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:600;align-items:center;justify-content:center;padding:16px;">
@@ -1044,6 +1099,40 @@ input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--az
       <div class="meta-bar-fill" id="meta-bar" style="width:0%"></div>
     </div>
     <div style="font-size:0.68rem;color:var(--cinza);margin-top:2px;" id="meta-sub">Defina uma meta no campo acima</div>
+  </div>
+
+  <!-- PROJEÇÃO DIÁRIA [ITEM 1] -->
+  <div id="bloco-projecao" style="display:none;background:linear-gradient(135deg,#1a1930,#383772);border-radius:14px;padding:16px 20px;margin-bottom:16px;color:#fff;">
+    <div style="font-size:0.68rem;letter-spacing:.8px;text-transform:uppercase;color:var(--azul-claro);margin-bottom:10px;">📈 Ritmo do Mês · Meta Diária</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;">
+      <div>
+        <div style="font-size:0.65rem;color:rgba(255,255,255,.55);margin-bottom:2px;">Dias úteis passados</div>
+        <div style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.3rem;color:#fff;" id="proj-dias-passados">—</div>
+      </div>
+      <div>
+        <div style="font-size:0.65rem;color:rgba(255,255,255,.55);margin-bottom:2px;">Ritmo atual / dia</div>
+        <div style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.3rem;color:var(--amarelo);" id="proj-ritmo-dia">R$ 0</div>
+      </div>
+      <div>
+        <div style="font-size:0.65rem;color:rgba(255,255,255,.55);margin-bottom:2px;">Precisa ganhar / dia</div>
+        <div style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.3rem;color:#fff;" id="proj-precisa-dia">R$ 0</div>
+      </div>
+      <div>
+        <div style="font-size:0.65rem;color:rgba(255,255,255,.55);margin-bottom:2px;">Projeção de fechamento</div>
+        <div style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.3rem;" id="proj-fechamento" style="color:#fff;">R$ 0</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;font-size:0.78rem;font-weight:700;padding:6px 12px;border-radius:8px;display:inline-block;" id="proj-status-badge">—</div>
+  </div>
+
+  <!-- ALERTA CONTRATOS SEM RETORNO [ITEM 9] -->
+  <div id="bloco-sem-retorno" style="display:none;background:#fff8e6;border:1.5px solid #f5c98a;border-radius:14px;padding:14px 18px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <span style="font-size:1.1rem;">⏳</span>
+      <span style="font-weight:700;font-size:0.85rem;color:#a05c00;">Aguardando Retorno do Banco</span>
+      <span style="background:#f5c98a;color:#a05c00;border-radius:20px;padding:2px 8px;font-size:0.72rem;font-weight:700;" id="badge-sem-retorno">0</span>
+    </div>
+    <div id="lista-sem-retorno" style="display:flex;flex-direction:column;gap:6px;"></div>
   </div>
 
   <!-- CARDS PRINCIPAIS -->
@@ -3505,36 +3594,98 @@ function _fcSyncTudo() {
   _fcSyncDebitos();
 }
 
-// ══════ REALTIME — Sincronização automática entre dispositivos ══════
+// ══════ SYNC — WebSocket com fallback automático para Polling REST ══════
 let _realtimeChannel = null;
 let _realtimeFC = null;
-let _ultimaSincBS = 0; // debounce — evita renders em cascata
+let _ultimaSincBS = 0;
+let _wsRetryCount = 0;
+const _WS_MAX_TENTATIVAS = 3; // após 3 falhas WebSocket → ativa polling
+let _pollingTimer = null;
+let _pollingAtivo = false;
+let _ultimoHashBS = ''; // detecta mudanças no polling
 
-function ativarRealtimeSync() {
-  if(!sbClient || _realtimeChannel) return;
+// ── Polling REST: busca lancamentos a cada 30s e atualiza se mudou ──────────
+async function _pollingSync() {
+  if(!sbClient) return;
+  try {
+    const { data, error } = await sbClient.from('lancamentos').select('*');
+    if(error || !data) return;
 
-  // ── Canal 1: Lançamentos de Comissões ──
+    // Compara via hash simples (length + último id)
+    const hashAtual = data.length + '_' + (data[0]?.id||'') + '_' + (data[data.length-1]?.id||'');
+    if(hashAtual === _ultimoHashBS) return; // nada mudou
+    _ultimoHashBS = hashAtual;
+
+    // Detectou mudança — atualiza tudo
+    const antes = todosLancamentos.length;
+    todosLancamentos = data;
+    dadosFiltrados = [...data];
+    localStorage.setItem('bs_cache_lancamentos', JSON.stringify(data));
+
+    const diff = data.length - antes;
+    const msg = diff > 0 ? `🔄 +${diff} novo(s)` : diff < 0 ? `🔄 ${Math.abs(diff)} removido(s)` : '🔄 Dados atualizados';
+    _realtimeRenderBS(msg);
+    console.log('[Polling BS] atualizado —', data.length, 'registros');
+  } catch(e) {
+    console.warn('[Polling BS] erro:', e.message||e);
+  }
+}
+
+function _ativarPolling() {
+  if(_pollingAtivo) return;
+  _pollingAtivo = true;
+  // Cancela WebSocket se ainda tentando
+  if(_realtimeChannel) {
+    try { sbClient.removeChannel(_realtimeChannel); } catch(e) {}
+    _realtimeChannel = null;
+  }
+  if(_realtimeFC) {
+    try { sbClient.removeChannel(_realtimeFC); } catch(e) {}
+    _realtimeFC = null;
+  }
+  console.log('[Sync] WebSocket indisponível — ativando polling REST a cada 30s');
+  showSyncIndicator('🔄 Sync automático ativo (30s)', 3000);
+  _pollingSync(); // executa imediatamente
+  _pollingTimer = setInterval(_pollingSync, 30000);
+}
+
+// ── WebSocket (tenta primeiro) ───────────────────────────────────────────────
+function _chanName(base) {
+  return base + '-' + Math.random().toString(36).slice(2,7);
+}
+
+function _onWsFalha(status) {
+  _wsRetryCount++;
+  if(_wsRetryCount >= _WS_MAX_TENTATIVAS) {
+    console.warn('[Sync] WebSocket falhou', _wsRetryCount, 'vezes — trocando para polling REST');
+    _ativarPolling();
+  } else {
+    console.warn('[Realtime BS] falha', _wsRetryCount + '/' + _WS_MAX_TENTATIVAS, '—', status);
+  }
+}
+
+function _iniciarCanalBS() {
+  if(!sbClient || _pollingAtivo) return;
+  if(_realtimeChannel) {
+    try { sbClient.removeChannel(_realtimeChannel); } catch(e) {}
+    _realtimeChannel = null;
+  }
   _realtimeChannel = sbClient
-    .channel('lancamentos-sync')
+    .channel(_chanName('bs-lancamentos'))
     .on('postgres_changes',
       { event: '*', schema: 'public', table: 'lancamentos' },
       (payload) => {
         const agora = Date.now();
-        if(agora - _ultimaSincBS < 800) return; // debounce 800ms
+        if(agora - _ultimaSincBS < 800) return;
         _ultimaSincBS = agora;
-
-        console.log('[Realtime BS]', payload.eventType, payload.new?.nome_cliente || payload.old?.id);
-
         if(payload.eventType === 'INSERT') {
           const novo = payload.new;
-          const existe = todosLancamentos.some(r => r.id === novo.id);
-          if(!existe) {
+          if(!todosLancamentos.some(r => r.id === novo.id)) {
             todosLancamentos.unshift(novo);
             dadosFiltrados = [...todosLancamentos];
             localStorage.setItem('bs_cache_lancamentos', JSON.stringify(todosLancamentos));
-            _realtimeRenderBS('+ '+( novo.nome_cliente||'novo'));
+            _realtimeRenderBS('+ '+(novo.nome_cliente||'novo'));
           }
-
         } else if(payload.eventType === 'UPDATE') {
           const upd = payload.new;
           const idx = todosLancamentos.findIndex(r => r.id === upd.id);
@@ -3544,7 +3695,6 @@ function ativarRealtimeSync() {
             localStorage.setItem('bs_cache_lancamentos', JSON.stringify(todosLancamentos));
             _realtimeRenderBS('✏️ '+(upd.nome_cliente||'atualizado'));
           }
-
         } else if(payload.eventType === 'DELETE') {
           const delId = payload.old?.id;
           if(delId) {
@@ -3557,21 +3707,31 @@ function ativarRealtimeSync() {
       }
     )
     .subscribe((status) => {
-      console.log('[Realtime BS] status:', status);
+      if(status === 'SUBSCRIBED') {
+        _wsRetryCount = 0;
+        console.log('[Realtime BS] ✅ WebSocket conectado');
+        showSyncIndicator('🟢 Sync em tempo real ativo', 2500);
+      } else if(['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status)) {
+        _onWsFalha(status);
+      }
     });
+}
 
-  // ── Canal 2: Finance Control (fc_meses) ──
+function ativarRealtimeSync() {
+  if(!sbClient) return;
+
+  // Tenta WebSocket primeiro
+  _iniciarCanalBS();
+
+  // Canal FC — tenta WebSocket mas silencia erros (não é crítico)
   _realtimeFC = sbClient
-    .channel('fc-meses-sync')
+    .channel(_chanName('bs-fc-meses'))
     .on('postgres_changes',
       { event: '*', schema: 'public', table: 'fc_meses' },
       (payload) => {
         const mes = payload.new?.mes;
         const dados = payload.new?.dados;
-        console.log('[Realtime FC]', payload.eventType, mes);
         if(!mes || !dados) return;
-
-        // Casos especiais: recorrentes e débitos
         if(mes === '__recs__' && dados.recs) {
           localStorage.setItem('fc_recs', JSON.stringify(dados.recs));
           try { renderRecorrentes(); } catch(e) {}
@@ -3584,23 +3744,22 @@ function ativarRealtimeSync() {
           showSyncIndicator('🔄 Débitos atualizados!', 2000);
           return;
         }
-
-        // Mês normal — atualiza localStorage
         localStorage.setItem('fc_'+mes, JSON.stringify(dados));
-
-        // Se for o mês visível: re-renderiza TODOS os cards
         if(mes === state.month) {
           try { renderAll(); } catch(e) {}
-          // Gastos
           const pnlGastos = document.getElementById('pnl-gastos');
           if(pnlGastos && pnlGastos.classList.contains('on')) {
             try { renderGastos(); } catch(e) {}
           }
-          showSyncIndicator('🔄 Dados atualizados!', 2000);
+          showSyncIndicator('🔄 FC atualizado!', 2000);
         }
       }
     )
-    .subscribe();
+    .subscribe((status) => {
+      if(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.info('[Sync FC] WebSocket indisponível — FC usa polling passivo');
+      }
+    });
 
   console.log('[Realtime] Canais ativos — sync automático entre dispositivos');
 
@@ -4615,21 +4774,32 @@ function renderTabela() {
   const pagina=dadosFiltrados.slice(inicio,inicio+ITENS_POR_PAGINA);
   const tb=document.getElementById('tbody-clientes');
   if(!pagina.length){
-    tb.innerHTML=`<tr><td colspan="11"><div class="vazio"><div class="vazio-icon">🔍</div><div style="font-size:0.8rem;">Nenhum registro</div></div></td></tr>`;
+    tb.innerHTML=`<tr><td colspan="8"><div class="vazio"><div class="vazio-icon">🔍</div><div style="font-size:0.8rem;">Nenhum registro</div></div></td></tr>`;
   } else {
+    // [7] LISTA DE CLIENTES RICA — mostra nome, banco, produto, valor, comissão, status num layout claro
     tb.innerHTML=pagina.map((r,i)=>{
       const mod=normModal(r.modalidade);
       const st=(r.status||r.status_comissao||'').toUpperCase();
       const idx=inicio+i;
+      // Alerta de sem retorno: digitado há mais de 5 dias sem data_pg
+      const diasSemRetorno = _diasSemRetorno(r);
+      const alertaRetorno = diasSemRetorno > 5
+        ? `<span title="⏳ ${diasSemRetorno} dias sem retorno do banco" style="background:#fff8e6;color:#a05c00;border-radius:4px;padding:1px 5px;font-size:0.65rem;font-weight:700;">⏳${diasSemRetorno}d</span>`
+        : '';
       return `<tr>
-        <td style="color:var(--cinza);font-size:0.72rem;">${r.data_dig||'—'}</td>
-        <td style="color:var(--cinza);font-size:0.72rem;">${r.data_pg||'—'}</td>
-        <td style="color:var(--cinza);font-size:0.72rem;">${r.data_comissao_rec||'—'}</td>
-        <td style="font-weight:600;font-size:0.82rem;">${r.nome_cliente||'—'}</td>
-        <td><span class="pill ${pillClass(mod)}" style="font-size:0.65rem;padding:3px 8px;">${mod}</span></td>
-        <td style="font-size:0.75rem;color:var(--cinza);">${r.banco||r.banco_digitado||'—'}</td>
-        <td style="font-weight:600;">${fmt(r.valor_cliente)}</td>
-        <td style="font-weight:700;color:var(--azul);">${fmt(r.comissao)}</td>
+        <td>
+          <div style="font-weight:700;font-size:0.85rem;">${r.nome_cliente||'—'} ${alertaRetorno}</div>
+          <div style="font-size:0.68rem;color:var(--cinza);margin-top:2px;">
+            Dig: ${r.data_dig||'—'} ${r.data_pg?`· Pg: ${r.data_pg}`:''}
+          </div>
+        </td>
+        <td>
+          <span class="pill ${pillClass(mod)}" style="font-size:0.65rem;padding:3px 8px;">${mod}</span>
+          <div style="font-size:0.65rem;color:var(--cinza);margin-top:3px;">${r.tipo_op||r.operacao||''}</div>
+        </td>
+        <td style="font-size:0.78rem;font-weight:600;">${r.banco||r.banco_digitado||'—'}</td>
+        <td style="font-weight:600;font-size:0.85rem;">${fmt(r.valor_cliente)}</td>
+        <td style="font-weight:800;color:var(--azul);font-size:0.9rem;">${fmt(r.comissao)}</td>
         <td>
           <select class="status-select ${st==='PAGO'?'pago':'aberto'}" onchange="mudarStatus(${idx},this)">
             <option value="PAGO" ${st==='PAGO'?'selected':''}>✅ PAGO</option>
@@ -4638,9 +4808,10 @@ function renderTabela() {
         </td>
         <td style="font-size:0.72rem;color:var(--cinza);">${MESES[r.mes_ref]||r.mes_ref||'—'}</td>
         <td>
-          <div style="display:flex;gap:4px;">
-            <button class="btn btn-outline btn-sm" onclick="abrirModal(${idx})">✏️</button>
-            <button class="btn btn-perigo btn-sm" onclick="deletar(${idx})">🗑️</button>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            <button class="btn btn-outline btn-sm" onclick="abrirModal(${idx})" title="Editar">✏️</button>
+            <button class="btn btn-sm" style="background:#f0fdf4;color:#16a34a;border:1px solid #a3e4c1;" onclick="duplicarLancamento(${idx})" title="Duplicar contrato">📋</button>
+            <button class="btn btn-perigo btn-sm" onclick="deletar(${idx})" title="Excluir">🗑️</button>
           </div>
         </td>
       </tr>`;
@@ -5907,6 +6078,496 @@ function mostrarLogin() {
   }
 })();
 
+
+// ══════════════════════════════════════════════════════
+// ══ NOVAS FUNCIONALIDADES — BOM SUCESSO 2.0 ══════════
+// ══════════════════════════════════════════════════════
+
+// ── [HELPER] Dias sem retorno do banco ──────────────────────────────────────
+// Retorna quantos dias úteis um contrato ficou sem data_pg após data_dig
+function _diasSemRetorno(r) {
+  if(r.data_pg) return 0; // já tem pagamento — sem alerta
+  if(!r.data_dig) return 0;
+  const dig = new Date(r.data_dig);
+  const hoje = new Date();
+  if(isNaN(dig.getTime())) return 0;
+  const diff = Math.floor((hoje - dig) / 86400000);
+  return diff > 0 ? diff : 0;
+}
+
+// ── [8] DUPLICAR LANÇAMENTO ─────────────────────────────────────────────────
+// Pré-preenche o formulário de novo lançamento com dados do contrato escolhido
+// Mantém: banco, modalidade, promotora, % comissão, tipo_op
+// Limpa: nome, valor, datas, status (novo lançamento independente)
+function duplicarLancamento(idx) {
+  const r = dadosFiltrados[idx];
+  if(!r) return;
+
+  // Vai para a aba de lançamento
+  showTab('bomsucesso', null);
+  // Pequeno delay para garantir que a aba renderizou
+  setTimeout(() => {
+    try {
+      const tabLancar = document.getElementById('bs-tab-lancar');
+      if(tabLancar) {
+        document.querySelectorAll('.bs-tab-content').forEach(t => t.style.display='none');
+        tabLancar.style.display = 'block';
+        document.querySelectorAll('.bs-tab-btn').forEach(b => b.classList.remove('ativo'));
+        const btnLancar = document.querySelector('.bs-tab-btn[onclick*="lancar"]');
+        if(btnLancar) btnLancar.classList.add('ativo');
+      }
+      // Preenche campos mantidos
+      const setV = (id, val) => { const el = document.getElementById(id); if(el) el.value = val||''; };
+      setV('f-banco', r.banco || r.banco_digitado || '');
+      setV('f-modalidade', r.modalidade || '');
+      setV('f-promotora', r.promotora || '');
+      setV('f-perc', r.perc_comissao || '');
+      setV('f-tipo-op', r.tipo_op || r.operacao || 'NOVO');
+      setV('f-mes-ref', getMesRefAtivo() || r.mes_ref || '');
+      // Limpa campos novos
+      setV('f-nome', '');
+      setV('f-valor', '');
+      setV('f-data-dig', '');
+      setV('f-data-pg', '');
+      setV('f-status', 'ABERTO');
+      setV('f-comissao', '');
+      // Atualiza visuais dos selects editáveis (bancos, promotoras, modalidades)
+      ['f-banco','f-modalidade','f-promotora','f-tipo-op'].forEach(id => {
+        const el = document.getElementById(id);
+        if(!el) return;
+        const display = document.getElementById(id+'-display') || document.querySelector(`[data-input="${id}"]`);
+        if(display) display.textContent = el.value || '';
+      });
+      document.getElementById('preview-comissao').style.display = 'none';
+      bs_mostrarToast('📋 Dados copiados — preencha cliente e valor!');
+      // Scroll até o formulário
+      const form = document.getElementById('form-lancamento') || document.getElementById('f-nome');
+      if(form) form.scrollIntoView({behavior:'smooth', block:'start'});
+      if(document.getElementById('f-nome')) document.getElementById('f-nome').focus();
+    } catch(e) { console.warn('[Duplicar] erro:', e); }
+  }, 200);
+}
+
+// ── [1] PROJEÇÃO DIÁRIA — Ritmo do mês vs Meta ──────────────────────────────
+function renderProjecaoDiaria(dados, meta) {
+  const bloco = document.getElementById('bloco-projecao');
+  if(!bloco) return;
+
+  // Só mostra quando há meta definida
+  if(!meta || meta <= 0) { bloco.style.display = 'none'; return; }
+
+  const hoje = new Date();
+  const ano = hoje.getFullYear();
+  const mes = hoje.getMonth(); // 0-based
+
+  // Total de dias no mês
+  const totalDias = new Date(ano, mes + 1, 0).getDate();
+  const diaAtual = hoje.getDate();
+  const diasPassados = diaAtual;
+  const diasRestantes = totalDias - diaAtual;
+
+  // Comissões recebidas (PAGO) no mês ativo
+  const recebido = dados
+    .filter(r => (r.status||r.status_comissao||'').toUpperCase() === 'PAGO')
+    .reduce((s,r) => s + parseFloat(r.comissao||0), 0);
+
+  // Ritmo diário atual
+  const ritmoDia = diasPassados > 0 ? recebido / diasPassados : 0;
+
+  // Projeção de fechamento no ritmo atual
+  const projecaoFechamento = ritmoDia * totalDias;
+
+  // Quanto precisa por dia para bater a meta
+  const faltaMeta = Math.max(meta - recebido, 0);
+  const precisaPorDia = diasRestantes > 0 ? faltaMeta / diasRestantes : faltaMeta;
+
+  // Status
+  let statusTxt = '', statusColor = '';
+  if(recebido >= meta) {
+    statusTxt = '🎉 Meta já atingida! Parabéns!';
+    statusColor = '#16a34a';
+  } else if(projecaoFechamento >= meta * 0.9) {
+    statusTxt = '🔥 No caminho certo!';
+    statusColor = '#ea580c';
+  } else if(projecaoFechamento >= meta * 0.6) {
+    statusTxt = '📈 Precisa acelerar no ritmo.';
+    statusColor = '#d97706';
+  } else {
+    statusTxt = '⚠️ Ritmo abaixo da meta.';
+    statusColor = '#dc2626';
+  }
+
+  const p = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+  p('proj-dias-passados', diaAtual + '/' + totalDias + ' dias');
+  p('proj-ritmo-dia', fmt(ritmoDia) + '/dia');
+  p('proj-precisa-dia', fmt(precisaPorDia) + '/dia');
+  p('proj-fechamento', fmt(projecaoFechamento));
+  const badge = document.getElementById('proj-status-badge');
+  if(badge) { badge.textContent = statusTxt; badge.style.color = statusColor; }
+
+  bloco.style.display = 'block';
+}
+
+// ── [9] ALERTA CONTRATOS SEM RETORNO ────────────────────────────────────────
+function renderAlertaSemRetorno(dados) {
+  const bloco = document.getElementById('bloco-sem-retorno');
+  if(!bloco) return;
+
+  const semRetorno = dados.filter(r => _diasSemRetorno(r) > 5);
+  const badge = document.getElementById('badge-sem-retorno');
+  if(badge) badge.textContent = semRetorno.length;
+
+  if(!semRetorno.length) { bloco.style.display = 'none'; return; }
+
+  const lista = document.getElementById('lista-sem-retorno');
+  if(lista) {
+    lista.innerHTML = semRetorno
+      .sort((a,b) => _diasSemRetorno(b) - _diasSemRetorno(a))
+      .slice(0, 8)
+      .map(r => {
+        const dias = _diasSemRetorno(r);
+        const urgencia = dias > 15 ? '#dc2626' : dias > 10 ? '#d97706' : '#a05c00';
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #fde8b4;">
+          <span style="font-size:1.1rem;">⏳</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.nome_cliente||'—'}</div>
+            <div style="font-size:0.7rem;color:#a05c00;">${r.banco||r.banco_digitado||'—'} · Dig: ${r.data_dig||'—'}</div>
+          </div>
+          <span style="font-weight:800;color:${urgencia};font-size:0.85rem;white-space:nowrap;">${dias}d</span>
+        </div>`;
+      }).join('');
+  }
+  bloco.style.display = 'block';
+}
+
+// ── [16] SININHO DE ALERTAS ──────────────────────────────────────────────────
+function togglePainelAlertas() {
+  const painel = document.getElementById('painel-alertas');
+  if(!painel) return;
+  const aberto = painel.style.display !== 'none';
+  painel.style.display = aberto ? 'none' : 'block';
+  if(!aberto) renderListaAlertas();
+  // Fecha ao clicar fora
+  if(!aberto) {
+    setTimeout(() => {
+      const fechar = (e) => {
+        const btn = document.getElementById('btn-sininho');
+        if(!painel.contains(e.target) && e.target !== btn && !btn?.contains(e.target)) {
+          painel.style.display = 'none';
+          document.removeEventListener('click', fechar);
+        }
+      };
+      document.addEventListener('click', fechar);
+    }, 50);
+  }
+}
+
+function renderListaAlertas() {
+  const lista = document.getElementById('painel-alertas-lista');
+  if(!lista) return;
+
+  const hoje = new Date();
+  const em3dias = new Date(hoje); em3dias.setDate(hoje.getDate() + 3);
+  const alertas = [];
+
+  // Contratos abertos próximos — verifica data_pg esperada (usando data_dig + 7 como estimativa)
+  todosLancamentos.forEach(r => {
+    if((r.status||r.status_comissao||'').toUpperCase() === 'PAGO') return;
+    if(!r.data_dig) return;
+    const dig = new Date(r.data_dig);
+    if(isNaN(dig.getTime())) return;
+    // Estimativa: banco costuma pagar entre 5-10 dias úteis após digitação
+    const estimativa = new Date(dig); estimativa.setDate(dig.getDate() + 7);
+    const diffDias = Math.floor((estimativa - hoje) / 86400000);
+    if(diffDias >= 0 && diffDias <= 3) {
+      alertas.push({ r, diffDias, tipo: 'vencimento', estimativa });
+    }
+    // Contratos muito antigos sem retorno
+    const diasSem = _diasSemRetorno(r);
+    if(diasSem >= 10) {
+      alertas.push({ r, diasSem, tipo: 'semRetorno' });
+    }
+  });
+
+  if(!alertas.length) {
+    lista.innerHTML = '<div style="text-align:center;color:#aaa;padding:16px;font-size:0.8rem;">✅ Nenhum alerta no momento</div>';
+    return;
+  }
+
+  lista.innerHTML = alertas.slice(0, 10).map(a => {
+    if(a.tipo === 'vencimento') {
+      return `<div style="padding:10px 12px;border-bottom:1px solid #eee;">
+        <div style="font-weight:700;font-size:0.8rem;">⏰ ${(a.r.nome_cliente||'—').split(' ').slice(0,2).join(' ')}</div>
+        <div style="font-size:0.7rem;color:#6b7280;">${a.r.banco||'—'} · Retorno estimado em ${a.diffDias === 0 ? 'hoje' : a.diffDias + ' dias'}</div>
+      </div>`;
+    } else {
+      return `<div style="padding:10px 12px;border-bottom:1px solid #eee;background:#fff8e6;">
+        <div style="font-weight:700;font-size:0.8rem;">⏳ ${(a.r.nome_cliente||'—').split(' ').slice(0,2).join(' ')}</div>
+        <div style="font-size:0.7rem;color:#a05c00;">${a.r.banco||'—'} · ${a.diasSem} dias sem retorno</div>
+      </div>`;
+    }
+  }).join('');
+}
+
+function atualizarSininho() {
+  const badge = document.getElementById('sininho-badge');
+  if(!badge) return;
+
+  const hoje = new Date();
+  let count = 0;
+
+  todosLancamentos.forEach(r => {
+    if((r.status||r.status_comissao||'').toUpperCase() === 'PAGO') return;
+    if(!r.data_dig) return;
+    const dig = new Date(r.data_dig);
+    if(isNaN(dig.getTime())) return;
+    const estimativa = new Date(dig); estimativa.setDate(dig.getDate() + 7);
+    const diffDias = Math.floor((estimativa - hoje) / 86400000);
+    if(diffDias >= 0 && diffDias <= 3) count++;
+    if(_diasSemRetorno(r) >= 10) count++;
+  });
+
+  if(count > 0) {
+    badge.textContent = count > 9 ? '9+' : count;
+    badge.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// ── [20] GRÁFICO DE GASTOS POR CATEGORIA ─────────────────────────────────────
+let _gastosChartInstance = null;
+
+function toggleGastosGrafico() {
+  const box = document.getElementById('gastos-grafico-box');
+  if(!box) return;
+  const visivel = box.style.display !== 'none';
+  if(visivel) {
+    box.style.display = 'none';
+  } else {
+    box.style.display = 'block';
+    const d = data();
+    const gastos = d.expenses.filter(e=>e.card==='GASTOS');
+    renderGastosGrafico(gastos);
+  }
+}
+
+function renderGastosGrafico(gastos) {
+  if(typeof Chart === 'undefined') return;
+  const canvas = document.getElementById('gastos-pie-chart');
+  if(!canvas) return;
+
+  // Agrupa por categoria
+  const porCat = {};
+  gastos.forEach(g => {
+    const c = g.category || 'Outros';
+    porCat[c] = (porCat[c]||0) + (+g.value||0);
+  });
+
+  const labels = Object.keys(porCat);
+  const valores = Object.values(porCat);
+
+  if(!labels.length) {
+    canvas.parentElement.innerHTML = '<div style="text-align:center;color:#aaa;padding:24px;font-size:0.8rem;">Sem gastos lançados neste mês.</div>';
+    return;
+  }
+
+  const PALETTE = ['#383772','#FBAD09','#ea580c','#16a34a','#2563eb','#7c3aed','#db2777','#0891b2','#65a30d','#dc2626'];
+
+  if(_gastosChartInstance) { _gastosChartInstance.destroy(); _gastosChartInstance = null; }
+
+  _gastosChartInstance = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: valores,
+        backgroundColor: labels.map((_,i) => PALETTE[i % PALETTE.length]),
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { family:'DM Sans', size:11 }, padding:8, color:'#4A4760' } },
+        tooltip: { callbacks: { label: ctx => `${ctx.label}: ${BRL(ctx.raw)}` } }
+      }
+    }
+  });
+}
+
+// ── [10] ORÇAMENTO POR CATEGORIA ─────────────────────────────────────────────
+function _getCatsGastos() {
+  try { return JSON.parse(localStorage.getItem('bs_cats_gastos')) || [...CATS_GASTOS]; }
+  catch { return [...CATS_GASTOS]; }
+}
+function _saveCatsGastos(arr) {
+  localStorage.setItem('bs_cats_gastos', JSON.stringify(arr));
+}
+function _getOrcamentos() {
+  try { return JSON.parse(localStorage.getItem('bs_orcamentos')) || {}; }
+  catch { return {}; }
+}
+function _saveOrcamentos(obj) {
+  localStorage.setItem('bs_orcamentos', JSON.stringify(obj));
+}
+
+function abrirGerenciarCategorias() {
+  const modal = document.getElementById('modal-cats-orcamento');
+  if(!modal) return;
+  renderOrcamentosModal();
+  modal.style.display = 'flex';
+}
+
+function fecharCatsOrcamento() {
+  const modal = document.getElementById('modal-cats-orcamento');
+  if(modal) modal.style.display = 'none';
+}
+
+function renderOrcamentosModal() {
+  const lista = document.getElementById('cats-orcamento-lista');
+  if(!lista) return;
+
+  const cats = _getCatsGastos();
+  const orcs = _getOrcamentos();
+
+  lista.innerHTML = cats.map((c, i) => `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <span style="flex:1;font-size:0.82rem;font-weight:600;color:#383772;">${c}</span>
+      <span style="font-size:0.72rem;color:#aaa;">Limite R$</span>
+      <input type="number" id="orc-cat-${i}" value="${orcs[c]||''}" placeholder="Sem limite"
+        style="width:90px;border:1.5px solid #ddd;border-radius:8px;padding:5px 8px;font-size:0.8rem;outline:none;"
+        min="0" step="0.01">
+      <button onclick="_removerCatGastos(${i})"
+        style="background:#fee2e2;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:11px;color:#dc2626;" title="Remover">✕</button>
+    </div>`).join('');
+}
+
+function adicionarCatGastos() {
+  const inp = document.getElementById('nova-cat-gastos-inp');
+  if(!inp) return;
+  const nome = inp.value.trim();
+  if(!nome) { bs_mostrarToast('Digite um nome para a categoria.','aviso-toast'); return; }
+  const cats = _getCatsGastos();
+  if(cats.includes(nome)) { bs_mostrarToast('Categoria já existe!','aviso-toast'); return; }
+  cats.push(nome);
+  _saveCatsGastos(cats);
+  inp.value = '';
+  renderOrcamentosModal();
+  bs_mostrarToast('✅ Categoria adicionada!');
+}
+
+function _removerCatGastos(idx) {
+  const cats = _getCatsGastos();
+  const nome = cats[idx];
+  if(!confirm(`Remover categoria "${nome}"?`)) return;
+  cats.splice(idx, 1);
+  _saveCatsGastos(cats);
+  // Remove orçamento associado
+  const orcs = _getOrcamentos();
+  delete orcs[nome];
+  _saveOrcamentos(orcs);
+  renderOrcamentosModal();
+  bs_mostrarToast('Categoria removida.');
+}
+
+function salvarOrcamentos() {
+  const cats = _getCatsGastos();
+  const orcs = {};
+  cats.forEach((c, i) => {
+    const inp = document.getElementById('orc-cat-'+i);
+    if(inp && inp.value) orcs[c] = parseFloat(inp.value)||0;
+  });
+  _saveOrcamentos(orcs);
+  fecharCatsOrcamento();
+  bs_mostrarToast('💾 Orçamentos salvos!');
+  renderGastos();
+}
+
+function checkAlertasOrcamento(gastos) {
+  const alertasEl = document.getElementById('gastos-alertas-orcamento');
+  if(!alertasEl) return;
+
+  const orcs = _getOrcamentos();
+  if(!Object.keys(orcs).length) { alertasEl.style.display = 'none'; return; }
+
+  // Totaliza por categoria
+  const porCat = {};
+  gastos.forEach(g => {
+    const c = g.category||'Outros';
+    porCat[c] = (porCat[c]||0) + (+g.value||0);
+  });
+
+  const alertas = [];
+  Object.entries(orcs).forEach(([cat, limite]) => {
+    if(!limite || limite <= 0) return;
+    const gasto = porCat[cat]||0;
+    const perc = (gasto/limite)*100;
+    if(perc >= 100) {
+      alertas.push({ cat, gasto, limite, perc, nivel:'perigo' });
+    } else if(perc >= 80) {
+      alertas.push({ cat, gasto, limite, perc, nivel:'aviso' });
+    }
+  });
+
+  if(!alertas.length) { alertasEl.style.display = 'none'; return; }
+
+  alertasEl.style.display = 'block';
+  alertasEl.innerHTML = alertas.map(a => {
+    const cor = a.nivel === 'perigo' ? { bg:'#fee2e2', border:'#dc2626', txt:'#991b1b', icon:'🔴' }
+                                     : { bg:'#fef9c3', border:'#d97706', txt:'#92400e', icon:'⚠️' };
+    return `<div style="background:${cor.bg};border-left:3px solid ${cor.border};border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+      <span>${cor.icon}</span>
+      <div style="flex:1;">
+        <span style="font-weight:700;color:${cor.txt};font-size:0.8rem;">${a.cat}</span>
+        <span style="font-size:0.75rem;color:${cor.txt};margin-left:6px;">${BRL(a.gasto)} de ${BRL(a.limite)} (${a.perc.toFixed(0)}%)</span>
+      </div>
+      <span style="font-size:0.72rem;color:${cor.txt};font-weight:700;">${a.nivel==='perigo'?'LIMITE ATINGIDO':'ATENÇÃO'}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── ATUALIZA renderResumo para chamar novas funções ─────────────────────────
+// Sobrescreve o hook de renderização para incluir projeção + alertas
+const _renderResumoOriginal = renderResumo;
+renderResumo = function() {
+  _renderResumoOriginal();
+  // Projeção diária [Item 1]
+  const mesAtivo = getMesRefAtivo();
+  const dadosMes = mesAtivo ? todosLancamentos.filter(r=>r.mes_ref===mesAtivo) : [...todosLancamentos];
+  const metaRaw = parseFloat(_lsGet('bs_meta_'+(mesAtivo||'global'))||_lsGet('bs_meta')||0);
+  renderProjecaoDiaria(dadosMes, metaRaw);
+  // Contratos sem retorno [Item 9]
+  renderAlertaSemRetorno(dadosMes);
+  // Sininho [Item 16]
+  atualizarSininho();
+};
+
+// ── ATUALIZA renderGastos para chamar checkAlertasOrcamento ─────────────────
+const _renderGastosOriginal = renderGastos;
+renderGastos = function() {
+  _renderGastosOriginal();
+  const d = data();
+  const gastos = d.expenses.filter(e=>e.card==='GASTOS');
+  checkAlertasOrcamento(gastos);
+  // Atualiza gráfico se estiver visível
+  const box = document.getElementById('gastos-grafico-box');
+  if(box && box.style.display !== 'none') renderGastosGrafico(gastos);
+};
+
+// ── INIT: dispara sininho ao carregar dados ──────────────────────────────────
+// Hook no carregamento de lançamentos para atualizar badge
+const _syncOriginal = typeof syncTodosOsDados === 'function' ? syncTodosOsDados : null;
+// O sininho é atualizado quando renderResumo() é chamado (via hook acima)
+// Para garantir na primeira carga, chama também no DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(atualizarSininho, 2000);
+});
+
+// ══════════════════════════════════════════════════════
+// FIM DAS NOVAS FUNCIONALIDADES
+// ══════════════════════════════════════════════════════
 
 // PWA: registra service worker para instalação na tela inicial
 if('serviceWorker' in navigator) {
