@@ -1114,6 +1114,10 @@ html { scroll-behavior: smooth; }
   border: 1px dashed var(--border);
 }
 .vazio-icon { font-size: 3rem; margin-bottom: 16px; }
+
+/* Header: grupo sino+sync */
+.hdr-actions { display: flex; align-items: center; gap: 6px; }
+
 </style>
 
 </head>
@@ -1163,25 +1167,25 @@ html { scroll-behavior: smooth; }
     <span class="month-lbl" id="monthLbl"></span>
     <button onclick="changeMonth(1)">&#8250;</button>
   </div>
-  <!-- SININHO DE ALERTAS [ITEM 16] -->
-  <div style="position:relative;display:inline-block;">
-    <button id="btn-sininho" onclick="togglePainelAlertas()" title="Alertas de vencimento"
-      style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:16px;display:flex;align-items:center;gap:2px;position:relative;">
-      🔔
-      <span id="sininho-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:800;display:none;align-items:center;justify-content:center;line-height:1;font-family:'Montserrat',sans-serif;"></span>
-    </button>
-    <div id="painel-alertas" style="display:none;position:absolute;right:0;top:calc(100% + 8px);width:320px;max-width:95vw;background:#fff;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.2);z-index:300;border:1px solid #eee;overflow:hidden;">
-      <div style="background:#383772;color:#fff;padding:10px 14px;font-weight:700;font-size:0.82rem;display:flex;align-items:center;justify-content:space-between;gap:6px;">
-        <span>🔔 Alertas</span>
-        <button onclick="abrirFollowup()" style="background:#FBAD09;color:#383772;border:none;border-radius:7px;padding:4px 10px;font-size:0.68rem;font-weight:800;cursor:pointer;">📋 Follow-up</button>
+  <!-- SINO + SYNC agrupados à direita -->
+  <div style="display:flex;align-items:center;gap:6px;">
+    <button onclick="sincronizarTudo()" title="Sincronizar dados" id="btn-sync-hdr"
+      style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:16px;display:flex;align-items:center;gap:4px;">🔄</button>
+    <div style="position:relative;display:inline-block;">
+      <button id="btn-sininho" onclick="togglePainelAlertas()" title="Alertas"
+        style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:16px;display:flex;align-items:center;gap:2px;position:relative;">
+        🔔
+        <span id="sininho-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:800;align-items:center;justify-content:center;line-height:1;font-family:'Montserrat',sans-serif;"></span>
+      </button>
+      <div id="painel-alertas" style="display:none;position:absolute;right:0;top:calc(100% + 8px);width:320px;max-width:95vw;background:#fff;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.2);z-index:300;border:1px solid #eee;overflow:hidden;">
+        <div style="background:#383772;color:#fff;padding:10px 14px;font-weight:700;font-size:0.82rem;display:flex;align-items:center;justify-content:space-between;gap:6px;">
+          <span>🔔 Alertas</span>
+          <button onclick="abrirFollowup()" style="background:#FBAD09;color:#383772;border:none;border-radius:7px;padding:4px 10px;font-size:0.68rem;font-weight:800;cursor:pointer;">📋 Follow-up</button>
+        </div>
+        <div id="painel-alertas-lista" style="max-height:300px;overflow-y:auto;padding:8px 0;"></div>
       </div>
-      <div id="painel-alertas-lista" style="max-height:300px;overflow-y:auto;padding:8px 0;"></div>
     </div>
   </div>
-  <button onclick="sincronizarTudo()" title="Sincronizar dados" id="btn-sync-hdr"
-    style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:16px;display:flex;align-items:center;gap:4px;">
-    🔄
-  </button>
 </header>
 
 <!-- SIDEBAR OVERLAY -->
@@ -1332,15 +1336,53 @@ html { scroll-behavior: smooth; }
   </div>
   <div class="two-col" id="inc-persons"></div>
   <!-- SALDO POR BANCO [ITEM 11] -->
-  <div style="margin-top:20px;">
-    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.95rem;color:var(--azul);margin-bottom:8px;">🏦 Saldo por Banco</div>
-    <div style="font-size:0.75rem;color:var(--cinza);margin-bottom:12px;">Informe o saldo atual em cada banco onde recebe comissões</div>
-    <div class="saldo-banco-grid" id="saldo-banco-grid">
-      <div style="text-align:center;color:var(--cinza);font-size:0.78rem;grid-column:1/-1;padding:16px;">Carregando bancos...</div>
+  <div style="margin-top:24px;padding-top:20px;border-top:1px dashed #e0e0ee;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+      <div>
+        <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.95rem;color:var(--azul);">🏦 Saldo por Banco</div>
+        <div style="font-size:0.73rem;color:var(--cinza);margin-top:2px;">Saldo atual das suas contas bancárias</div>
+      </div>
+      <button onclick="abrirFormSaldoBanco()" style="background:#383772;color:#fff;border:none;border-radius:9px;padding:8px 16px;font-size:0.78rem;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">＋ Adicionar Banco</button>
     </div>
-    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-      <button onclick="renderSaldoBanco()" class="btn btn-outline btn-sm">🔄 Atualizar</button>
-      <button onclick="salvarSaldoBanco()" class="btn btn-sm" style="background:#383772;color:#fff;">💾 Salvar Saldos</button>
+
+    <!-- Formulário de adição (oculto por padrão) -->
+    <div id="form-saldo-banco" style="display:none;background:#f8f7ff;border:1.5px solid #d0cfe8;border-radius:12px;padding:16px;margin-bottom:14px;">
+      <div style="font-size:0.78rem;font-weight:700;color:var(--azul);margin-bottom:12px;">＋ Novo Registro de Saldo</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <label style="font-size:0.72rem;font-weight:600;color:var(--azul);">Banco *</label>
+          <input type="text" id="sb-banco" placeholder="Ex: BMG, C6, Itaú..." style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:8px 10px;font-size:0.82rem;box-sizing:border-box;margin-top:3px;outline:none;">
+        </div>
+        <div>
+          <label style="font-size:0.72rem;font-weight:600;color:var(--azul);">Titular da conta *</label>
+          <select id="sb-titular" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:8px 10px;font-size:0.82rem;box-sizing:border-box;margin-top:3px;outline:none;">
+            <option value="Carol">👩 Carol</option>
+            <option value="Thiago">👨 Thiago</option>
+            <option value="Empresa">🏢 Empresa</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.72rem;font-weight:600;color:var(--azul);">Saldo atual (R$) *</label>
+          <input type="number" id="sb-valor" step="0.01" min="0" placeholder="0,00" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:8px 10px;font-size:0.82rem;box-sizing:border-box;margin-top:3px;outline:none;">
+        </div>
+        <div>
+          <label style="font-size:0.72rem;font-weight:600;color:var(--azul);">Data do saldo *</label>
+          <input type="date" id="sb-data" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:8px 10px;font-size:0.82rem;box-sizing:border-box;margin-top:3px;outline:none;">
+        </div>
+        <div style="grid-column:1/-1;">
+          <label style="font-size:0.72rem;font-weight:600;color:var(--azul);">Observação (opcional)</label>
+          <input type="text" id="sb-obs" placeholder="Ex: Conta corrente, Poupança..." style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:8px 10px;font-size:0.82rem;box-sizing:border-box;margin-top:3px;outline:none;">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button onclick="document.getElementById('form-saldo-banco').style.display='none'" style="flex:1;background:#f0f0f0;color:#333;border:none;border-radius:8px;padding:9px;font-weight:600;cursor:pointer;font-size:0.8rem;">Cancelar</button>
+        <button onclick="salvarRegistroSaldo()" style="flex:2;background:#383772;color:#fff;border:none;border-radius:8px;padding:9px;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;font-size:0.82rem;">💾 Salvar Saldo</button>
+      </div>
+    </div>
+
+    <!-- Lista de saldos cadastrados -->
+    <div id="saldo-banco-grid" class="saldo-banco-grid">
+      <div style="text-align:center;color:var(--cinza);font-size:0.78rem;grid-column:1/-1;padding:20px;background:#f8f7ff;border-radius:10px;">Nenhum saldo cadastrado ainda.</div>
     </div>
   </div>
 
@@ -1774,10 +1816,10 @@ html { scroll-behavior: smooth; }
       <tbody id="tbody-recentes"></tbody>
     </table>
   </div>
-</div>
+
   <!-- RANKING BANCO × PRODUTO [ITEM 4] -->
   <div style="margin-top:24px;">
-    <div class="secao-titulo">🏆 Ranking Rentabilidade — Banco × Produto</div>
+    <div class="secao-titulo">🏆 Ranking — Banco × Produto</div>
     <div class="tabela-wrapper" style="margin-top:10px;">
       <table class="ranking-table">
         <thead><tr><th>#</th><th>Banco</th><th>Produto</th><th>Contratos</th><th>Bruto</th><th>Comissão</th><th>% Médio</th></tr></thead>
@@ -1786,14 +1828,14 @@ html { scroll-behavior: smooth; }
     </div>
   </div>
 
-  <!-- GRÁFICO MÊS A MÊS [ITEM 12] -->
-  <div style="margin-top:24px;">
-    <div class="secao-titulo">📊 Evolução Últimos 6 Meses</div>
+  <!-- EVOLUÇÃO 6 MESES [ITEM 12] -->
+  <div style="margin-top:24px;margin-bottom:8px;">
+    <div class="secao-titulo">📊 Evolução — Últimos 6 Meses</div>
     <div style="background:#fff;border-radius:12px;border:1px solid #e0e0ee;padding:16px;margin-top:10px;">
-      <canvas id="grafico-6meses" style="max-height:220px;"></canvas>
+      <canvas id="grafico-6meses" style="max-height:240px;"></canvas>
     </div>
   </div>
-
+</div>
 
 <!-- ══════════ ABA LANÇAR ══════════ -->
 <div class="tab-content" id="aba-lancar">
@@ -3387,7 +3429,7 @@ function renderIncome(){
       <div class="inc-person-hdr ${cls}">
         <span style="font-size:18px">${ico}</span>
         <span class="inc-person-ttl">${u}</span>
-        <button class="btn btn-sm" style="margin-left:8px;font-size:11px;padding:3px 10px" onclick="openIncModalFor('${u}')">＋ Adicionar</button>
+
         <span class="inc-person-sum ${cls}">${BRL(personTotal)}</span>
       </div>
       <div class="tbl-wrap" style="border-radius:0 0 10px 10px">
@@ -4662,7 +4704,7 @@ function ativarRealtimeSync() {
     )
     .subscribe((status) => {
       if(status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        console.info('[Sync FC] WebSocket indisponível — FC usa polling passivo');
+        console.log('[Sync FC] WebSocket indisponível — FC usa polling passivo');
       }
     });
 
@@ -7724,7 +7766,7 @@ if('serviceWorker' in navigator) {
       .then(() => console.log('PWA: Service Worker registrado'))
       .catch(() => {
         // Fallback silencioso — SW opcional para PWA
-        console.info('PWA: SW não suportado neste ambiente');
+        console.log('PWA: SW não suportado neste ambiente');
       });
   });
 }
@@ -7860,60 +7902,8 @@ function renderTicketMedio(dados) {
 // Já integrado no Pipeline como coluna "Sem Retorno"
 
 /* ══ [11] SALDO POR BANCO ══ */
-function renderSaldoBanco() {
-  const mesRef = getMesRefAtivo() || 'geral';
-  const saldosKey = 'bs_saldos_' + mesRef;
-  const saldos = JSON.parse(localStorage.getItem(saldosKey)||'{}');
-  const grid = document.getElementById('saldo-banco-grid');
-  if(!grid) return;
-  
-  // Detectar bancos com comissões no mês
-  const dados = getMesRefAtivo()
-    ? todosLancamentos.filter(r=>(r.mes_ref||'').toUpperCase()===(getMesRefAtivo()||'').toUpperCase())
-    : [...todosLancamentos];
-  
-  const bancosSet = new Set();
-  dados.forEach(r => { const b=(r.banco||r.banco_digitado||'').toUpperCase(); if(b) bancosSet.add(b); });
-  const bancos = [...bancosSet].sort();
-  
-  if(!bancos.length) {
-    grid.innerHTML = '<div style="text-align:center;color:var(--cinza);font-size:0.78rem;grid-column:1/-1;padding:16px;">Nenhum banco encontrado nos contratos do mês.</div>';
-    return;
-  }
-  
-  grid.innerHTML = bancos.map(banco => {
-    const comissoesBanco = dados.filter(r=>(r.banco||r.banco_digitado||'').toUpperCase()===banco && (r.status||r.status_comissao||'').toUpperCase()==='PAGO').reduce((s,r)=>s+parseFloat(r.comissao||0),0);
-    const saldoAtual = saldos[banco] || 0;
-    return `<div class="saldo-banco-card">
-      <div class="saldo-banco-nome">${banco}</div>
-      <div class="saldo-banco-val" id="saldo-val-${banco.replace(/\s/g,'_')}">${BRL(saldoAtual)}</div>
-      <div class="saldo-banco-com">💰 Comissões pagas: ${fmt(comissoesBanco)}</div>
-      <input class="saldo-inp" type="number" step="0.01" placeholder="Saldo atual (R$)"
-        value="${saldoAtual||''}"
-        id="saldo-inp-${banco.replace(/\s/g,'_')}"
-        data-banco="${banco}"
-        onchange="atualizarSaldoBancoPreview('${banco.replace(/\s/g,'_')}',this.value)">
-    </div>`;
-  }).join('');
-}
 
-function atualizarSaldoBancoPreview(bancoKey, val) {
-  const el = document.getElementById('saldo-val-'+bancoKey);
-  if(el) el.textContent = BRL(parseFloat(val)||0);
-}
 
-function salvarSaldoBanco() {
-  const mesRef = getMesRefAtivo() || 'geral';
-  const saldosKey = 'bs_saldos_' + mesRef;
-  const inputs = document.querySelectorAll('.saldo-inp[data-banco]');
-  const saldos = {};
-  inputs.forEach(inp => { saldos[inp.dataset.banco] = parseFloat(inp.value)||0; });
-  localStorage.setItem(saldosKey, JSON.stringify(saldos));
-  bs_mostrarToast('✅ Saldos salvos!','ok-toast');
-}
-
-/* ══ [12] GRÁFICO 6 MESES ══ */
-let _chart6meses = null;
 function renderGrafico6Meses(todosData) {
   const canvas = document.getElementById('grafico-6meses');
   if(!canvas || typeof Chart === 'undefined') return;
@@ -8269,6 +8259,88 @@ function _initNovosRecursos() {
 function _patchSininho() {
   const el = document.getElementById('btn-follow-up-sininho');
   if(el) el.addEventListener('click', abrirFollowup);
+}
+
+
+/* ══ SALDO POR BANCO — Nova versão com formulário ══ */
+function abrirFormSaldoBanco() {
+  const form = document.getElementById('form-saldo-banco');
+  if (!form) return;
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  if (form.style.display === 'block') {
+    // Preenche data de hoje
+    const hoje = new Date().toISOString().slice(0, 10);
+    const dtEl = document.getElementById('sb-data');
+    if (dtEl && !dtEl.value) dtEl.value = hoje;
+    document.getElementById('sb-banco')?.focus();
+  }
+}
+
+function _getSaldosBanco() {
+  return JSON.parse(localStorage.getItem('bs_saldos_v2') || '[]');
+}
+function _setSaldosBanco(arr) {
+  localStorage.setItem('bs_saldos_v2', JSON.stringify(arr));
+}
+
+function salvarRegistroSaldo() {
+  const banco    = document.getElementById('sb-banco')?.value?.trim();
+  const titular  = document.getElementById('sb-titular')?.value || 'Carol';
+  const valor    = parseFloat(document.getElementById('sb-valor')?.value) || 0;
+  const data     = document.getElementById('sb-data')?.value;
+  const obs      = document.getElementById('sb-obs')?.value?.trim() || '';
+  if (!banco || !valor || !data) {
+    bs_mostrarToast('⚠️ Preencha banco, valor e data', 'erro-toast'); return;
+  }
+  const arr = _getSaldosBanco();
+  arr.unshift({ id: Date.now(), banco, titular, valor, data, obs });
+  _setSaldosBanco(arr);
+  // Limpa form
+  ['sb-banco','sb-valor','sb-data','sb-obs'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('form-saldo-banco').style.display = 'none';
+  renderSaldoBanco();
+  bs_mostrarToast('✅ Saldo salvo!', 'ok-toast');
+}
+
+function removerSaldoBanco(id) {
+  const arr = _getSaldosBanco().filter(s => s.id !== id);
+  _setSaldosBanco(arr);
+  renderSaldoBanco();
+}
+
+// Override da renderSaldoBanco anterior
+function renderSaldoBanco() {
+  const grid = document.getElementById('saldo-banco-grid');
+  if (!grid) return;
+  const arr = _getSaldosBanco();
+  if (!arr.length) {
+    grid.innerHTML = '<div style="text-align:center;color:var(--cinza);font-size:0.78rem;grid-column:1/-1;padding:20px;background:#f8f7ff;border-radius:10px;">Nenhum saldo cadastrado ainda. Clique em "＋ Adicionar Banco".</div>';
+    return;
+  }
+  const totalGeral = arr.reduce((s, r) => s + r.valor, 0);
+  const iconsMap = { Carol:'👩', Thiago:'👨', Empresa:'🏢' };
+  
+  grid.innerHTML = arr.map(s => {
+    const icon = iconsMap[s.titular] || '👤';
+    const dataFmt = s.data ? new Date(s.data + 'T12:00').toLocaleDateString('pt-BR') : '—';
+    return `<div class="saldo-banco-card" style="position:relative;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+        <div class="saldo-banco-nome">${s.banco.toUpperCase()}</div>
+        <button onclick="removerSaldoBanco(${s.id})" style="background:none;border:none;color:#ddd;cursor:pointer;font-size:13px;padding:0;line-height:1;">🗑️</button>
+      </div>
+      <div class="saldo-banco-val">${BRL(s.valor)}</div>
+      <div class="saldo-banco-com" style="margin-top:6px;">
+        <span style="background:#eef;border-radius:5px;padding:2px 7px;font-size:0.65rem;font-weight:700;">${icon} ${s.titular}</span>
+        <span style="margin-left:6px;font-size:0.65rem;color:var(--cinza);">📅 ${dataFmt}</span>
+      </div>
+      ${s.obs ? `<div style="font-size:0.65rem;color:var(--cinza);margin-top:4px;font-style:italic;">${s.obs}</div>` : ''}
+    </div>`;
+  }).join('') + `
+    <div class="saldo-banco-card" style="background:linear-gradient(135deg,#383772,#5C6BC0);border-left-color:#FBAD09;">
+      <div class="saldo-banco-nome" style="color:rgba(255,255,255,.7);">TOTAL GERAL</div>
+      <div class="saldo-banco-val" style="color:#FBAD09;font-size:1.3rem;">${BRL(totalGeral)}</div>
+      <div style="font-size:0.65rem;color:rgba(255,255,255,.6);margin-top:4px;">${arr.length} conta${arr.length!==1?'s':''} cadastrada${arr.length!==1?'s':''}</div>
+    </div>`;
 }
 
 </script>
