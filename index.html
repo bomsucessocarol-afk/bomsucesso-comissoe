@@ -6,10 +6,10 @@
 <meta name="theme-color" content="#383772">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="BomSucesso">
+<meta name="apple-mobile-web-app-title" content="Finance Control">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="description" content="FinanceControl — Controle financeiro Bom Sucesso">
-<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;FinanceControl BomSucesso&quot;,&quot;short_name&quot;:&quot;BomSucesso&quot;,&quot;start_url&quot;:&quot;/&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%23383772&quot;,&quot;theme_color&quot;:&quot;%23383772&quot;,&quot;icons&quot;:[{&quot;src&quot;:&quot;data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23383772'/><text y='.9em' font-size='80' x='10'>💰</text></svg>&quot;,&quot;sizes&quot;:&quot;any&quot;,&quot;type&quot;:&quot;image/svg+xml&quot;}]}">
+<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Finance Control&quot;,&quot;short_name&quot;:&quot;Finance Control&quot;,&quot;start_url&quot;:&quot;/&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%23383772&quot;,&quot;theme_color&quot;:&quot;%23383772&quot;,&quot;orientation&quot;:&quot;portrait&quot;,&quot;icons&quot;:[{&quot;src&quot;:&quot;data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23383772'/><ellipse cx='50' cy='66' rx='28' ry='25' fill='%23FBAD09'/><path d='M42,42 Q42,31 50,31 Q58,31 58,42 L58,50 L42,50 Z' fill='%23FBAD09'/><rect x='36' y='26' width='28' height='11' rx='5' fill='%23c8850a'/><text x='50' y='75' font-size='27' font-family='Arial,sans-serif' font-weight='900' fill='%23383772' text-anchor='middle'>$</text></svg>&quot;,&quot;sizes&quot;:&quot;any&quot;,&quot;type&quot;:&quot;image/svg+xml&quot;,&quot;purpose&quot;:&quot;any maskable&quot;}]}">
 <title>FinanceControl 💰</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous" onerror="console.warn('chart.js nao carregou')"></script>
@@ -1057,6 +1057,55 @@ input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--az
 /* Scroll suave global */
 html { scroll-behavior: smooth; }
 
+/* ══ PIPELINE KANBAN [ITEM 2] ══ */
+.pipe-col {
+  background: #f3f4f8;
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 120px;
+}
+.pipe-col-hdr {
+  color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: 0.75rem;
+  padding: 10px 14px;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pipe-cards {
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pipe-card {
+  background: #fff;
+  border-radius: 9px;
+  padding: 10px 12px;
+  box-shadow: 0 1px 4px rgba(56,55,114,.08);
+  border-left: 4px solid #383772;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+  animation: slideUp .18s ease both;
+}
+.pipe-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(56,55,114,.14); }
+.pipe-card-nome { font-family: 'Montserrat',sans-serif; font-weight: 700; font-size: 0.78rem; color: var(--azul); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pipe-card-info { font-size: 0.68rem; color: var(--cinza); line-height: 1.5; }
+.pipe-card-valor { font-family: 'Montserrat',sans-serif; font-weight: 800; font-size: 0.82rem; color: #1a7a4a; margin-top: 4px; }
+.pipe-card-dias { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 0.63rem; font-weight: 700; margin-top: 4px; }
+.pipe-vazio { text-align: center; padding: 20px 10px; font-size: 0.72rem; color: var(--cinza); }
+@media (max-width: 768px) {
+  #pipeline-board { grid-template-columns: repeat(2,1fr) !important; }
+  #pipeline-resumo { grid-template-columns: repeat(2,1fr) !important; }
+}
+@media (max-width: 480px) {
+  #pipeline-board { grid-template-columns: 1fr !important; }
+}
+
 /* Melhora o vazio */
 .bs-wrap .vazio {
   padding: 48px 24px;
@@ -1122,8 +1171,9 @@ html { scroll-behavior: smooth; }
       <span id="sininho-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:800;display:none;align-items:center;justify-content:center;line-height:1;font-family:'Montserrat',sans-serif;"></span>
     </button>
     <div id="painel-alertas" style="display:none;position:absolute;right:0;top:calc(100% + 8px);width:320px;max-width:95vw;background:#fff;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.2);z-index:300;border:1px solid #eee;overflow:hidden;">
-      <div style="background:#dc2626;color:#fff;padding:10px 14px;font-weight:700;font-size:0.82rem;display:flex;align-items:center;gap:6px;">
-        🔔 Alertas de Vencimento
+      <div style="background:#383772;color:#fff;padding:10px 14px;font-weight:700;font-size:0.82rem;display:flex;align-items:center;justify-content:space-between;gap:6px;">
+        <span>🔔 Alertas</span>
+        <button onclick="abrirFollowup()" style="background:#FBAD09;color:#383772;border:none;border-radius:7px;padding:4px 10px;font-size:0.68rem;font-weight:800;cursor:pointer;">📋 Follow-up</button>
       </div>
       <div id="painel-alertas-lista" style="max-height:300px;overflow-y:auto;padding:8px 0;"></div>
     </div>
@@ -1284,6 +1334,30 @@ html { scroll-behavior: smooth; }
     <button class="btn btn-grn" onclick="openIncModal()">＋ Nova Entrada</button>
   </div>
   <div class="two-col" id="inc-persons"></div>
+  <!-- SALDO POR BANCO [ITEM 11] -->
+  <div style="margin-top:20px;">
+    <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.95rem;color:var(--azul);margin-bottom:8px;">🏦 Saldo por Banco</div>
+    <div style="font-size:0.75rem;color:var(--cinza);margin-bottom:12px;">Informe o saldo atual em cada banco onde recebe comissões</div>
+    <div class="saldo-banco-grid" id="saldo-banco-grid">
+      <div style="text-align:center;color:var(--cinza);font-size:0.78rem;grid-column:1/-1;padding:16px;">Carregando bancos...</div>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button onclick="renderSaldoBanco()" class="btn btn-outline btn-sm">🔄 Atualizar</button>
+      <button onclick="salvarSaldoBanco()" class="btn btn-sm" style="background:#383772;color:#fff;">💾 Salvar Saldos</button>
+    </div>
+  </div>
+
+  <!-- METAS DE POUPANÇA / RESERVA / INVESTIMENTO [ITEM 14/15] -->
+  <div style="margin-top:24px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+      <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.95rem;color:var(--azul);">🐷 Metas de Poupança & Reserva</div>
+      <button onclick="abrirModalMetaPoupar()" style="background:#383772;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:0.75rem;font-weight:700;cursor:pointer;">+ Nova Meta</button>
+    </div>
+    <div id="metas-poupar-lista">
+      <div style="text-align:center;color:var(--cinza);font-size:0.78rem;padding:24px;background:#f8f7ff;border-radius:10px;">Nenhuma meta criada ainda. Clique em "+ Nova Meta" para começar!</div>
+    </div>
+  </div>
+
 </section>
 
 <!-- DÉBITOS PARA QUITAR -->
@@ -1387,6 +1461,21 @@ html { scroll-behavior: smooth; }
 
   <!-- Lista de gastos -->
   <div id="gastos-lista" style="display:flex;flex-direction:column;gap:8px;"></div>
+  <!-- PARCELAS CARTÃO [ITEM 13] -->
+  <div style="margin-top:20px;padding-top:18px;border-top:1px dashed #e0e0ee;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+      <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.95rem;color:#8B5CF6;">💳 Controle de Parcelas do Cartão</div>
+      <button onclick="abrirModalCartao()" style="background:#8B5CF6;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:0.75rem;font-weight:700;cursor:pointer;">+ Nova Parcela</button>
+    </div>
+    <div id="cartao-resumo-total" style="background:#ede9fe;border-radius:8px;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:0.78rem;font-weight:700;color:#6D28D9;">Total em Parcelas</span>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:800;color:#6D28D9;" id="cartao-total-geral">R$ 0,00</span>
+    </div>
+    <div id="cartao-lista">
+      <div style="text-align:center;color:var(--cinza);font-size:0.78rem;padding:20px;background:#f9f8ff;border-radius:10px;">Nenhuma parcela cadastrada.</div>
+    </div>
+  </div>
+
 </section>
 
 <!-- MODAL GERENCIAR CATEGORIAS & ORÇAMENTOS [ITEM 10 + 20] -->
@@ -1572,6 +1661,7 @@ html { scroll-behavior: smooth; }
       <button class="bs-sub-btn" onclick="bsTab('clientes',this)" style="background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:7px;padding:9px 16px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:0.75rem;cursor:pointer;white-space:nowrap;">👥 Clientes</button>
       <button class="bs-sub-btn" onclick="bsTab('simulador',this)" style="background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:7px;padding:9px 16px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:0.75rem;cursor:pointer;white-space:nowrap;">🧮 Simulador</button>
       <button class="bs-sub-btn" onclick="bsTab('relatorio',this)" style="background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:7px;padding:9px 16px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:0.75rem;cursor:pointer;white-space:nowrap;">📋 Relatório</button>
+      <button class="bs-sub-btn" onclick="bsTab('pipeline',this)" style="background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:7px;padding:9px 16px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:0.75rem;cursor:pointer;white-space:nowrap;">🗂️ Pipeline</button>
     </div>
     
 
@@ -1698,6 +1788,25 @@ html { scroll-behavior: smooth; }
     </table>
   </div>
 </div>
+  <!-- RANKING BANCO × PRODUTO [ITEM 4] -->
+  <div style="margin-top:24px;">
+    <div class="secao-titulo">🏆 Ranking Rentabilidade — Banco × Produto</div>
+    <div class="tabela-wrapper" style="margin-top:10px;">
+      <table class="ranking-table">
+        <thead><tr><th>#</th><th>Banco</th><th>Produto</th><th>Contratos</th><th>Bruto</th><th>Comissão</th><th>% Médio</th></tr></thead>
+        <tbody id="tbody-ranking"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- GRÁFICO MÊS A MÊS [ITEM 12] -->
+  <div style="margin-top:24px;">
+    <div class="secao-titulo">📊 Evolução Últimos 6 Meses</div>
+    <div style="background:#fff;border-radius:12px;border:1px solid #e0e0ee;padding:16px;margin-top:10px;">
+      <canvas id="grafico-6meses" style="max-height:220px;"></canvas>
+    </div>
+  </div>
+
 
 <!-- ══════════ ABA LANÇAR ══════════ -->
 <div class="tab-content" id="aba-lancar">
@@ -2065,8 +2174,271 @@ html { scroll-behavior: smooth; }
 </div>
 
 
+<!-- ══════════ ABA AGENDA [ITEM 3] ══════════ -->
+<div class="tab-content" id="aba-agenda">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+    <div>
+      <div style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.3rem;color:var(--azul);">📅 Agenda de Recebimentos</div>
+      <div style="font-size:0.78rem;color:var(--cinza);margin-top:2px;">Contratos em aberto agrupados por banco · ordenados por data</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <select id="agenda-filtro" onchange="renderAgenda()" style="border:1.5px solid var(--borda);border-radius:8px;padding:8px 14px;font-size:0.8rem;outline:none;">
+        <option value="aberto">Aguardando pagamento</option>
+        <option value="pago">Já recebidos</option>
+        <option value="todos">Todos</option>
+      </select>
+      <button class="btn btn-outline btn-sm" onclick="renderAgenda()">🔄</button>
+    </div>
+  </div>
+  <div id="agenda-body">
+    <div style="text-align:center;padding:40px;color:var(--cinza);">Carregando...</div>
+  </div>
+</div>
+
+<!-- ══════════ ABA DRE [ITEM 17] ══════════ -->
+<div class="tab-content" id="aba-dre">
+  <div style="margin-bottom:18px;">
+    <div style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.3rem;color:var(--azul);">📑 DRE — Demonstrativo de Resultado</div>
+    <div style="font-size:0.78rem;color:var(--cinza);margin-top:2px;">Comissões recebidas − Despesas da empresa = Resultado</div>
+  </div>
+
+  <!-- RECEITAS -->
+  <div class="dre-secao">
+    <div class="dre-secao-hdr">💰 Receitas (Comissões Pagas)</div>
+    <div id="dre-receitas"></div>
+  </div>
+
+  <!-- DESPESAS EMPRESA -->
+  <div class="dre-secao">
+    <div class="dre-secao-hdr" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>💸 Despesas da Empresa</span>
+      <button onclick="adicionarDespesaDRE()" style="background:#383772;color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:0.72rem;font-weight:700;cursor:pointer;">+ Adicionar</button>
+    </div>
+    <div style="padding:12px 14px;">
+      <div id="dre-despesas-lista"></div>
+      <div id="dre-form-despesa" style="display:none;background:#f8f7ff;border-radius:8px;padding:12px;margin-top:8px;">
+        <div class="dre-input-despesa">
+          <div>
+            <label style="font-size:0.72rem;font-weight:600;color:var(--azul);">Descrição</label>
+            <input type="text" id="dre-desp-nome" placeholder="Ex: Aluguel sala, Sistema..." style="width:100%;border:1.5px solid #ddd;border-radius:7px;padding:7px 10px;font-size:0.8rem;box-sizing:border-box;margin-top:3px;">
+          </div>
+          <div>
+            <label style="font-size:0.72rem;font-weight:600;color:var(--azul);">Valor (R$)</label>
+            <input type="number" id="dre-desp-val" step="0.01" min="0" placeholder="0,00" style="width:100%;border:1.5px solid #ddd;border-radius:7px;padding:7px 10px;font-size:0.8rem;box-sizing:border-box;margin-top:3px;">
+          </div>
+          <button onclick="salvarDespesaDRE()" style="background:#10B981;color:#fff;border:none;border-radius:7px;padding:7px 14px;font-weight:700;cursor:pointer;font-size:0.8rem;white-space:nowrap;">✓ Ok</button>
+        </div>
+      </div>
+    </div>
+    <div class="dre-linha" style="background:#fef3c7;border-top:1px solid #fde68a;">
+      <span style="font-weight:700;color:#92400e;">Total Despesas</span>
+      <span style="font-family:'Montserrat',sans-serif;font-weight:800;color:#EF4444;" id="dre-total-despesas">R$ 0,00</span>
+    </div>
+  </div>
+
+  <!-- RESULTADO -->
+  <div id="dre-resultado-box" class="dre-secao">
+    <div class="dre-total">
+      <span>📊 Resultado Operacional</span>
+      <span id="dre-resultado">R$ 0,00</span>
+    </div>
+    <div style="padding:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+      <div style="text-align:center;">
+        <div style="font-size:0.65rem;color:var(--cinza);margin-bottom:2px;">Receita Bruta</div>
+        <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.9rem;color:#10B981;" id="dre-receita-total">R$ 0</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:0.65rem;color:var(--cinza);margin-bottom:2px;">Despesas</div>
+        <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.9rem;color:#EF4444;" id="dre-desp-total2">R$ 0</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:0.65rem;color:var(--cinza);margin-bottom:2px;">Margem</div>
+        <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.9rem;color:#383772;" id="dre-margem">0%</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ ABA PIPELINE [ITEM 2] ══════════ -->
+<div class="tab-content" id="aba-pipeline">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;">
+    <div>
+      <div style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.3rem;color:var(--azul);">🗂️ Pipeline de Contratos</div>
+      <div style="font-size:0.78rem;color:var(--cinza);margin-top:2px;">Visualize contratos por etapa do processo · mês atual</div>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="renderPipeline()">🔄 Atualizar</button>
+  </div>
+  <div id="pipeline-board" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:start;">
+    <div class="pipe-col" id="pipe-digitado">
+      <div class="pipe-col-hdr" style="background:#5C6BC0;">📝 Digitado</div>
+      <div class="pipe-cards" id="pipe-cards-digitado"></div>
+    </div>
+    <div class="pipe-col" id="pipe-analise">
+      <div class="pipe-col-hdr" style="background:#F59E0B;">⏳ Em Análise</div>
+      <div class="pipe-cards" id="pipe-cards-analise"></div>
+    </div>
+    <div class="pipe-col" id="pipe-pago">
+      <div class="pipe-col-hdr" style="background:#10B981;">✅ Pago</div>
+      <div class="pipe-cards" id="pipe-cards-pago"></div>
+    </div>
+    <div class="pipe-col" id="pipe-caido">
+      <div class="pipe-col-hdr" style="background:#EF4444;">❌ Sem Retorno</div>
+      <div class="pipe-cards" id="pipe-cards-caido"></div>
+    </div>
+  </div>
+  <div id="pipeline-resumo" style="margin-top:18px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;"></div>
+</div>
+
+
   </div>
 </section>
+
+
+<!-- ══ MODAL LANÇAMENTO RÁPIDO [ITEM 21] ══ -->
+<div class="modal-rapido-ov" id="modal-lanc-rapido" onclick="if(event.target===this)fecharLancRapido()">
+  <div class="modal-rapido-box" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+      <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:1rem;color:#383772;">⚡ Lançamento Rápido</div>
+      <button onclick="fecharLancRapido()" style="background:#f0f0f0;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-size:14px;">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div style="grid-column:1/-1;">
+        <label style="font-size:0.78rem;font-weight:700;color:#383772;">👤 Nome do cliente *</label>
+        <input type="text" id="rl-nome" placeholder="Ex: João da Silva" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;" oninput="rl_autoCalc()">
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:700;color:#383772;">🏦 Banco *</label>
+        <input type="text" id="rl-banco" placeholder="Ex: BMG, C6..." style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;">
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:700;color:#383772;">📦 Modalidade *</label>
+        <select id="rl-modal" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;">
+          <option value="">Selecionar...</option>
+          <option value="INSS">INSS</option>
+          <option value="FGTS">FGTS</option>
+          <option value="CLT">CLT</option>
+          <option value="SERVIDOR">Servidor Público</option>
+          <option value="SIAPE">SIAPE</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:700;color:#383772;">💵 Valor do contrato *</label>
+        <input type="number" id="rl-valor" step="0.01" placeholder="0,00" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;" oninput="rl_autoCalc()">
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:700;color:#383772;">% Comissão *</label>
+        <input type="number" id="rl-perc" step="0.1" placeholder="Ex: 3.5" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;" oninput="rl_autoCalc()">
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:700;color:#10B981;">💰 Comissão calculada</label>
+        <div id="rl-com-preview" style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.1rem;color:#10B981;background:#d1fae5;border-radius:8px;padding:9px 12px;margin-top:4px;">R$ 0,00</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button onclick="fecharLancRapido()" style="flex:1;background:#f0f0f0;color:#333;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;font-size:0.85rem;">Cancelar</button>
+      <button onclick="salvarLancRapido()" style="flex:2;background:#383772;color:#fff;border:none;border-radius:10px;padding:12px;font-family:'Montserrat',sans-serif;font-weight:800;cursor:pointer;font-size:0.9rem;">⚡ Salvar Lançamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL FOLLOW-UP [ITEM 22] ══ -->
+<div id="modal-followup" onclick="if(event.target===this)fecharFollowup()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:800;align-items:center;justify-content:center;padding:16px;">
+  <div onclick="event.stopPropagation()" style="background:#fff;border-radius:16px;padding:24px;width:95%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.25);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+      <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:1rem;color:#383772;">🔔 Follow-up de Clientes</div>
+      <button onclick="fecharFollowup()" style="background:#f0f0f0;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;">✕</button>
+    </div>
+    <div style="font-size:0.75rem;color:var(--cinza);margin-bottom:14px;">Contratos aguardando ação · sem pagamento há mais de 5 dias</div>
+    <div id="followup-lista">
+      <div style="text-align:center;padding:30px;color:var(--cinza);">Carregando...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL META POUPANÇA ══ -->
+<div id="modal-meta-poupar" onclick="if(event.target===this)document.getElementById('modal-meta-poupar').style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:800;align-items:center;justify-content:center;padding:16px;">
+  <div onclick="event.stopPropagation()" style="background:#fff;border-radius:14px;padding:24px;width:95%;max-width:400px;box-shadow:0 8px 40px rgba(0,0,0,.25);">
+    <div style="font-weight:800;font-size:1rem;color:#383772;margin-bottom:16px;">🐷 Nova Meta de Poupança</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div>
+        <label style="font-size:0.78rem;font-weight:600;">Nome da meta</label>
+        <input type="text" id="mp-nome" placeholder="Ex: Reserva de emergência, Viagem..." style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;">
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:600;">Meta total (R$)</label>
+        <input type="number" id="mp-meta" step="0.01" min="0" placeholder="0,00" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;">
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:600;">Valor atual economizado (R$)</label>
+        <input type="number" id="mp-atual" step="0.01" min="0" placeholder="0,00" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;">
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:600;">Tipo</label>
+        <select id="mp-tipo" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;">
+          <option value="poupança">🐷 Poupança</option>
+          <option value="reserva">🛡️ Reserva de Emergência</option>
+          <option value="investimento">📈 Investimento</option>
+          <option value="viagem">✈️ Viagem</option>
+          <option value="outro">🎯 Outro</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button onclick="document.getElementById('modal-meta-poupar').style.display='none'" style="flex:1;background:#f0f0f0;color:#333;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;">Cancelar</button>
+      <button onclick="salvarMetaPoupar()" style="flex:2;background:#10B981;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;">💾 Salvar Meta</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL NOVA PARCELA CARTÃO ══ -->
+<div id="modal-cartao" onclick="if(event.target===this)fecharModalCartao()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:800;align-items:center;justify-content:center;padding:16px;">
+  <div onclick="event.stopPropagation()" style="background:#fff;border-radius:14px;padding:24px;width:95%;max-width:420px;box-shadow:0 8px 40px rgba(0,0,0,.25);">
+    <div style="font-weight:800;font-size:1rem;color:#8B5CF6;margin-bottom:16px;">💳 Nova Parcela do Cartão</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div style="grid-column:1/-1;">
+        <label style="font-size:0.78rem;font-weight:600;">Descrição *</label>
+        <input type="text" id="ct-nome" placeholder="Ex: iPhone 15 no Nubank" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;">
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:600;">Cartão</label>
+        <input type="text" id="ct-cartao" placeholder="Ex: Nubank, Itaú..." style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;">
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:600;">Valor total (R$) *</label>
+        <input type="number" id="ct-total" step="0.01" min="0" placeholder="0,00" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;" oninput="ct_calcParcela()">
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:600;">Total de parcelas</label>
+        <input type="number" id="ct-parcelas" min="1" max="120" placeholder="Ex: 12" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;" oninput="ct_calcParcela()">
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:600;">Parcela atual (nº)</label>
+        <input type="number" id="ct-atual" min="1" placeholder="Ex: 3" style="width:100%;border:1.5px solid #ddd;border-radius:8px;padding:9px 12px;font-size:0.85rem;box-sizing:border-box;margin-top:4px;outline:none;">
+      </div>
+      <div>
+        <label style="font-size:0.78rem;font-weight:600;">Valor/parcela</label>
+        <div id="ct-val-parcela" style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:0.95rem;color:#8B5CF6;background:#ede9fe;border-radius:8px;padding:9px 12px;margin-top:4px;">R$ 0,00</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button onclick="fecharModalCartao()" style="flex:1;background:#f0f0f0;color:#333;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;">Cancelar</button>
+      <button onclick="salvarParcelaCartao()" style="flex:2;background:#8B5CF6;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL METAS POR PRODUTO [ITEM 18] ══ -->
+<div id="modal-metas-produto" onclick="if(event.target===this)document.getElementById('modal-metas-produto').style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:800;align-items:center;justify-content:center;padding:16px;">
+  <div onclick="event.stopPropagation()" style="background:#fff;border-radius:14px;padding:24px;width:95%;max-width:440px;box-shadow:0 8px 40px rgba(0,0,0,.25);">
+    <div style="font-weight:800;font-size:1rem;color:#383772;margin-bottom:16px;">🎯 Definir Metas por Produto</div>
+    <div style="font-size:0.75rem;color:var(--cinza);margin-bottom:14px;">Meta mensal de contratos (quantidade) por modalidade</div>
+    <div id="meta-produto-form"></div>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button onclick="document.getElementById('modal-metas-produto').style.display='none'" style="flex:1;background:#f0f0f0;color:#333;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;">Cancelar</button>
+      <button onclick="salvarMetasProduto()" style="flex:2;background:#383772;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;">💾 Salvar Metas</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL EDITAR LANÇAMENTO BS -->
 <div class="modal-ov" id="modal-editar" onclick="if(event.target===this)fecharModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;align-items:center;justify-content:center;padding:16px;">
@@ -4012,6 +4384,9 @@ function bsTab(nome, btn) {
   }
   if(nome==='relatorio') renderRelatorio();
   if(nome==='resumo') { sincronizarMesBS(); renderResumo(); }
+  if(nome==='pipeline') { sincronizarMesBS(); renderPipeline(); }
+  if(nome==='agenda') { sincronizarMesBS(); renderAgenda(); }
+  if(nome==='dre') { renderDRE(); }
   // Garante que botão Salvar nunca fica travado ao voltar para Lançar
   if(nome==='lancar'){
     const b=document.getElementById('btn-salvar');
@@ -5212,6 +5587,9 @@ function renderResumo() {
   renderBarras(dados,'grafico-banco',false);
   renderRecentes(dados);
   renderMetaAtual();
+  renderTicketMedio(dados);
+  renderMetasProduto(dados);
+  renderProjecaoDiaria(dados, parseFloat(localStorage.getItem('bs_meta_mensal_'+(getMesRefAtivo()||'geral'))||0));
 }
 
 function renderBarras(dados,elId,porProduto) {
@@ -5687,6 +6065,111 @@ function renderRelatorioManual(val) {
   renderRelatorio();
 }
 
+// ══════════ PIPELINE KANBAN [ITEM 2] ══════════
+function renderPipeline() {
+  const mesRef = getMesRefAtivo(); // e.g. "JULHO2026"
+  const dados = todosLancamentos.filter(r => {
+    if (!mesRef) return true;
+    return (r.mes_ref || '').toUpperCase() === mesRef.toUpperCase();
+  });
+
+  // Classificar contratos nas colunas
+  const agora = new Date();
+  function diasDesde(dataStr) {
+    if (!dataStr) return 999;
+    const d = new Date(dataStr);
+    if (isNaN(d)) return 999;
+    return Math.floor((agora - d) / 86400000);
+  }
+
+  const cols = { digitado: [], analise: [], pago: [], caido: [] };
+
+  dados.forEach(r => {
+    const st = (r.status || r.status_comissao || 'ABERTO').toUpperCase();
+    const dias = diasDesde(r.data_dig);
+    const temPg = !!r.data_pg;
+
+    if (st === 'PAGO' || temPg) {
+      cols.pago.push(r);
+    } else if (dias >= 12) {
+      cols.caido.push(r);
+    } else if (dias >= 4) {
+      cols.analise.push(r);
+    } else {
+      cols.digitado.push(r);
+    }
+  });
+
+  // Ordenar colunas por data_dig desc
+  ['digitado','analise','pago','caido'].forEach(k => {
+    cols[k].sort((a,b) => (b.data_dig||'').localeCompare(a.data_dig||''));
+  });
+
+  const corBorda = { digitado:'#5C6BC0', analise:'#F59E0B', pago:'#10B981', caido:'#EF4444' };
+  const textoVazio = {
+    digitado: 'Nenhum contrato recente',
+    analise: 'Nada em análise',
+    pago: 'Nenhum pago ainda',
+    caido: 'Sem pendências'
+  };
+
+  ['digitado','analise','pago','caido'].forEach(k => {
+    const el = document.getElementById('pipe-cards-' + k);
+    if (!el) return;
+    if (!cols[k].length) {
+      el.innerHTML = `<div class="pipe-vazio">— ${textoVazio[k]} —</div>`;
+      return;
+    }
+    el.innerHTML = cols[k].map((r, i) => {
+      const dias = diasDesde(r.data_dig);
+      const diasLabel = dias < 999 ? `${dias}d` : '';
+      const diasColor = k === 'caido' ? 'background:#fee2e2;color:#b91c1c'
+        : k === 'analise' ? 'background:#fef3c7;color:#92400e'
+        : k === 'pago' ? 'background:#d1fae5;color:#065f46'
+        : 'background:#e0e7ff;color:#3730a3';
+      const modalBadge = r.modalidade ? `<span style="background:#e8e8f8;color:#383772;border-radius:4px;padding:1px 5px;font-size:0.6rem;font-weight:700;">${(r.modalidade||'').slice(0,4).toUpperCase()}</span>` : '';
+      const idxGlobal = todosLancamentos.findIndex(x => x.id === r.id);
+      return `<div class="pipe-card" style="border-left-color:${corBorda[k]};animation-delay:${i*0.04}s" onclick="dadosFiltrados=[...todosLancamentos];abrirModal(${idxGlobal})">
+        <div class="pipe-card-nome">${r.nome_cliente || '—'}</div>
+        <div class="pipe-card-info">
+          ${r.banco ? `<b>${r.banco}</b> · ` : ''}${modalBadge}
+          ${r.data_dig ? `<br>Dig: ${r.data_dig}` : ''}
+          ${r.data_pg ? `<br>Pg: ${r.data_pg}` : ''}
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+          <div class="pipe-card-valor">${fmt(r.comissao)}</div>
+          ${diasLabel ? `<span class="pipe-card-dias" style="${diasColor}">${diasLabel}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    // Atualiza contador no cabeçalho
+    const hdr = document.querySelector(`#pipe-${k} .pipe-col-hdr`);
+    if (hdr) {
+      const titles = { digitado:'📝 Digitado', analise:'⏳ Em Análise', pago:'✅ Pago', caido:'❌ Sem Retorno' };
+      hdr.innerHTML = `<span>${titles[k]}</span><span style="background:rgba(255,255,255,.25);border-radius:20px;padding:2px 9px;font-size:0.75rem;">${cols[k].length}</span>`;
+    }
+  });
+
+  // Resumo financeiro abaixo do board
+  const totalPago = cols.pago.reduce((s,r) => s + (+r.comissao||0), 0);
+  const totalAberto = [...cols.digitado, ...cols.analise].reduce((s,r) => s + (+r.comissao||0), 0);
+  const totalCaido = cols.caido.reduce((s,r) => s + (+r.comissao||0), 0);
+  const totalGeral = totalPago + totalAberto + totalCaido;
+  const resumoEl = document.getElementById('pipeline-resumo');
+  if (resumoEl) {
+    resumoEl.innerHTML = [
+      { label:'💰 Comissões Pagas', val: totalPago, cor:'#10B981' },
+      { label:'📋 Em Aberto', val: totalAberto, cor:'#5C6BC0' },
+      { label:'⚠️ Sem Retorno', val: totalCaido, cor:'#EF4444' },
+      { label:'📊 Total Geral', val: totalGeral, cor:'#383772' }
+    ].map(({ label, val, cor }) => `
+      <div style="background:#fff;border-radius:10px;padding:12px 16px;border-left:4px solid ${cor};">
+        <div style="font-size:0.68rem;color:var(--cinza);margin-bottom:4px;">${label}</div>
+        <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:1rem;color:${cor};">${fmt(val)}</div>
+      </div>`).join('');
+  }
+}
+
 function renderRelatorio() {
   // Sincroniza filtro-mes-rel com state.month (fonte única de verdade)
   const mesAtivo = getMesRefAtivo();
@@ -5730,20 +6213,8 @@ function renderRelatorio() {
       <div class="barra-valor">${fmt(porMes[m])}</div>
     </div>`).join('');
   renderBarras(dados,'grafico-produto-rel',true);
-  // Bancos
-  const porBanco={};
-  dados.forEach(r=>{
-    const b=(r.banco||r.banco_digitado||'—').toUpperCase();
-    if(!porBanco[b])porBanco[b]={qtd:0,bruto:0,com:0,perc:[]};
-    porBanco[b].qtd++;porBanco[b].bruto+=parseFloat(r.valor_cliente||0);
-    porBanco[b].com+=parseFloat(r.comissao||0);porBanco[b].perc.push(parseFloat(r.perc_comissao||0));
-  });
-  document.getElementById('tbody-bancos').innerHTML=Object.entries(porBanco).sort((a,b)=>b[1].com-a[1].com).map(([b,v])=>`
-    <tr><td style="font-weight:600;">${b}</td><td>${v.qtd}</td><td>${fmt(v.bruto)}</td>
-    <td style="font-weight:700;color:var(--azul);">${fmt(v.com)}</td>
-    <td>${fmtP(v.perc.reduce((a,c)=>a+c,0)/(v.perc.length||1))}</td></tr>`).join('');
+  _postRenderRelatorio(dados);
 }
-
 // ══════ EXPORT EXCEL (.xlsx) ══════
 function exportarCSV() {
   const mes=document.getElementById('filtro-mes-rel')?.value||'todos';
@@ -5791,6 +6262,22 @@ function exportarPDF() {
   const totBruto=dados.reduce((s,r)=>s+parseFloat(r.valor_cliente||0),0);
   const totAberto=dados.filter(r=>(r.status||r.status_comissao||'').toUpperCase()==='ABERTO').reduce((s,r)=>s+parseFloat(r.comissao||0),0);
   const periodo=MESES[mes]||mes||'Todos os Meses';
+  const mesRef = getMesRefAtivo();
+  const despesasDRE = JSON.parse(localStorage.getItem('bs_dre_despesas_'+(mesRef||'geral'))||'[]');
+  const totalDesp = despesasDRE.reduce((s,d)=>s+(+d.valor||0),0);
+  const resultado = totCom - totalDesp;
+
+  // DRE section for PDF
+  const dreDesp = despesasDRE.map(d=>`<tr><td>${d.nome}</td><td style="color:#dc2626;font-weight:700;">-R$ ${(+d.valor||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>`).join('');
+  const dreHtml = `<div style="margin:20px 0;background:#f8f7ff;border-radius:10px;padding:16px;">
+    <div style="font-size:14px;font-weight:700;color:#383772;margin-bottom:10px;">📑 DRE — Demonstrativo de Resultado</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <tr style="background:#383772;color:#fff;"><th style="padding:8px;text-align:left;">Descrição</th><th style="padding:8px;text-align:right;">Valor</th></tr>
+      <tr><td style="padding:7px;border-bottom:1px solid #eee;">✅ Comissões Recebidas</td><td style="text-align:right;font-weight:700;color:#10B981;padding:7px;">R$ ${totCom.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>
+      ${dreDesp}
+      <tr style="background:${resultado>=0?'#ecfdf5':'#fef2f2'};"><td style="padding:8px;font-weight:700;">📊 Resultado Operacional</td><td style="text-align:right;font-weight:800;color:${resultado>=0?'#10B981':'#dc2626'};padding:8px;">R$ ${resultado.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td></tr>
+    </table>
+  </div>`;
 
   const linhas=dados.map((r,i)=>`
     <tr style="background:${i%2===0?'#f8f7ff':'#fff'};">
@@ -5832,6 +6319,7 @@ function exportarPDF() {
     <div class="card"><div class="card-lbl">Bruto em Contratos</div><div class="card-val">R$ ${totBruto.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div></div>
     <div class="card"><div class="card-lbl">A Receber (em aberto)</div><div class="card-val" style="color:#a05c00;">R$ ${totAberto.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div></div>
   </div>
+  ${dreHtml}
   <table>
     <thead><tr><th>Data Dig.</th><th>Cliente</th><th>Modalidade</th><th>Banco</th><th>Promotora</th><th>Valor</th><th>Comissão</th><th>Status</th><th>Mês</th></tr></thead>
     <tbody>${linhas}</tbody>
@@ -6616,11 +7104,68 @@ function mostrarLogin() {
 // ══════════════════════════════════════════════════════
 
 // ── FAB: Lançar contrato rápido ──────────────────────
+function abrirLancRapido() {
+  const m = document.getElementById('modal-lanc-rapido');
+  if(m){ m.style.display='flex'; document.getElementById('rl-nome').focus(); }
+}
+function fecharLancRapido() {
+  document.getElementById('modal-lanc-rapido').style.display='none';
+}
+function rl_autoCalc() {
+  const v = parseFloat(document.getElementById('rl-valor')?.value)||0;
+  const p = parseFloat(document.getElementById('rl-perc')?.value)||0;
+  const com = v * p / 100;
+  const el = document.getElementById('rl-com-preview');
+  if(el) el.textContent = fmt(com);
+}
+async function salvarLancRapido() {
+  const nome = document.getElementById('rl-nome')?.value?.trim();
+  const banco = document.getElementById('rl-banco')?.value?.trim();
+  const modal = document.getElementById('rl-modal')?.value;
+  const valor = parseFloat(document.getElementById('rl-valor')?.value)||0;
+  const perc = parseFloat(document.getElementById('rl-perc')?.value)||0;
+  if(!nome || !banco || !modal || !valor) {
+    bs_mostrarToast('⚠️ Preencha todos os campos obrigatórios','erro-toast'); return;
+  }
+  const com = valor * perc / 100;
+  const hoje = new Date().toISOString().slice(0,10);
+  const mesRef = getMesRefAtivo() || stateMonthToMesRef(state.month);
+  const row = {
+    nome_cliente: nome, banco, modalidade: modal,
+    valor_cliente: valor, perc_comissao: perc, comissao: com,
+    data_dig: hoje, status: 'ABERTO', status_comissao: 'ABERTO',
+    mes_ref: mesRef, tipo_op: 'NOVO', pact_fixo: 0
+  };
+  const btn = document.querySelector('#modal-lanc-rapido button[onclick="salvarLancRapido()"]');
+  if(btn){ btn.disabled=true; btn.textContent='Salvando...'; }
+  let ok = false;
+  if(sbClient){
+    const { error } = await sbClient.from('lancamentos').insert([row]);
+    if(!error) ok = true;
+    else console.error(error);
+  }
+  if(!ok){
+    row.id = Date.now();
+    todosLancamentos.push(row);
+    localStorage.setItem('bs_cache_lancamentos', JSON.stringify(todosLancamentos));
+    ok = true;
+  } else {
+    await _pollingSync();
+  }
+  fecharLancRapido();
+  bs_mostrarToast('✅ Lançamento salvo com sucesso!','ok-toast');
+  ['rl-nome','rl-banco','rl-valor','rl-perc'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('rl-modal').value='';
+  document.getElementById('rl-com-preview').textContent='R$ 0,00';
+  sincronizarMesBS(); renderResumo();
+  if(btn){ btn.disabled=false; btn.textContent='⚡ Salvar Lançamento'; }
+}
 function fabLancar() {
   // Vai para o módulo de comissões, aba Lançar
   showTab('bomsucesso', null);
   setBnActive('bn-comissoes');
   if(typeof initBomSucesso === 'function') initBomSucesso();
+  setTimeout(()=>{ renderCartoesLista(); renderMetasPoupar(); renderSaldoBanco(); },800);
   // Pequeno delay para garantir que a aba renderizou
   setTimeout(() => {
     // Tenta encontrar a aba de lançamento
@@ -7184,6 +7729,548 @@ if('serviceWorker' in navigator) {
         console.info('PWA: SW não suportado neste ambiente');
       });
   });
+}
+
+
+// ══════════════════════════════════════════════════
+// NOVOS RECURSOS — IMPLEMENTAÇÃO COMPLETA
+// ══════════════════════════════════════════════════
+
+/* ══ [3] AGENDA DE RECEBIMENTOS POR BANCO ══ */
+function renderAgenda() {
+  const filtro = document.getElementById('agenda-filtro')?.value || 'aberto';
+  const mesRef = getMesRefAtivo();
+  let dados = mesRef
+    ? todosLancamentos.filter(r => (r.mes_ref||'').toUpperCase() === mesRef.toUpperCase())
+    : [...todosLancamentos];
+  
+  if(filtro === 'aberto') dados = dados.filter(r => (r.status||r.status_comissao||'').toUpperCase() !== 'PAGO');
+  else if(filtro === 'pago') dados = dados.filter(r => (r.status||r.status_comissao||'').toUpperCase() === 'PAGO');
+
+  const body = document.getElementById('agenda-body');
+  if(!body) return;
+  if(!dados.length) {
+    body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--cinza);">Nenhum contrato encontrado para este filtro.</div>';
+    return;
+  }
+
+  // Agrupar por banco
+  const porBanco = {};
+  dados.forEach(r => {
+    const banco = (r.banco || r.banco_digitado || '—').toUpperCase();
+    if(!porBanco[banco]) porBanco[banco] = { contratos:[], totalCom:0, totalBruto:0 };
+    porBanco[banco].contratos.push(r);
+    porBanco[banco].totalCom += parseFloat(r.comissao||0);
+    porBanco[banco].totalBruto += parseFloat(r.valor_cliente||0);
+  });
+
+  // Ordenar bancos por comissão desc
+  const sorted = Object.entries(porBanco).sort((a,b) => b[1].totalCom - a[1].totalCom);
+
+  body.innerHTML = sorted.map(([banco, info]) => {
+    // Ordenar contratos por data_dig
+    const cts = info.contratos.sort((a,b)=>(b.data_dig||'').localeCompare(a.data_dig||''));
+    const rows = cts.map(r => {
+      const st = (r.status||r.status_comissao||'ABERTO').toUpperCase();
+      const dias = _diasSemRetorno(r);
+      let badgeStyle = st==='PAGO' ? 'background:#d1fae5;color:#065f46' : dias>10 ? 'background:#fee2e2;color:#b91c1c' : 'background:#fef3c7;color:#92400e';
+      const dataMostra = r.data_pg || r.data_dig || '—';
+      return `<div class="agenda-item">
+        <div>
+          <div style="font-weight:700;font-size:0.8rem;color:var(--azul);">${r.nome_cliente||'—'}</div>
+          <div style="font-size:0.68rem;color:var(--cinza);">${r.modalidade||'—'} · ${r.data_dig||'—'}${r.data_pg?` → Pg: ${r.data_pg}`:''}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-family:'Montserrat',sans-serif;font-weight:700;font-size:0.82rem;color:#383772;">${fmt(r.comissao)}</div>
+          <div style="font-size:0.65rem;color:var(--cinza);">${fmt(r.valor_cliente)} bruto</div>
+        </div>
+        <span class="agenda-data-badge" style="${badgeStyle}">${st==='PAGO'?'✅':'⏳'} ${st==='PAGO'?'PAGO':dias+'d'}</span>
+      </div>`;
+    }).join('');
+    return `<div class="agenda-banco-grupo">
+      <div class="agenda-banco-hdr">
+        <span>🏦 ${banco}</span>
+        <span style="font-size:0.72rem;opacity:.85;">${info.contratos.length} contratos · ${fmt(info.totalCom)}</span>
+      </div>
+      <div class="agenda-banco-body">${rows}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ══ [4] RANKING BANCO × PRODUTO ══ */
+function renderRanking(dados) {
+  const tbody = document.getElementById('tbody-ranking');
+  if(!tbody) return;
+  const por = {};
+  dados.forEach(r => {
+    const k = (r.banco||r.banco_digitado||'—').toUpperCase() + '||' + (r.modalidade||'—');
+    if(!por[k]) por[k] = { banco:(r.banco||r.banco_digitado||'—').toUpperCase(), prod:r.modalidade||'—', qtd:0, bruto:0, com:0, percSum:0 };
+    por[k].qtd++;
+    por[k].bruto += parseFloat(r.valor_cliente||0);
+    por[k].com += parseFloat(r.comissao||0);
+    por[k].percSum += parseFloat(r.perc_comissao||0);
+  });
+  const sorted = Object.values(por).sort((a,b) => b.com - a.com);
+  const cores = ['🥇','🥈','🥉'];
+  tbody.innerHTML = sorted.slice(0,10).map((row,i) => `
+    <tr>
+      <td><span class="rank-badge" style="background:${i<3?['#FFD700','#C0C0C0','#CD7F32'][i]:'#e8e8f0'};color:${i<3?'#333':'#666'}">${cores[i]||i+1}</span></td>
+      <td style="font-weight:700;">${row.banco}</td>
+      <td>${row.prod}</td>
+      <td style="text-align:center;">${row.qtd}</td>
+      <td>${fmt(row.bruto)}</td>
+      <td style="font-weight:700;color:#383772;">${fmt(row.com)}</td>
+      <td>${row.qtd?fmtP(row.percSum/row.qtd):'—'}</td>
+    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--cinza);padding:16px;">Sem dados</td></tr>';
+}
+
+/* ══ [5] TICKET MÉDIO POR PRODUTO ══ */
+function renderTicketMedio(dados) {
+  const grid = document.getElementById('ticket-grid');
+  if(!grid) return;
+  const produtos = ['INSS','FGTS','CLT','SERVIDOR','SIAPE'];
+  const cores = { INSS:'#383772', FGTS:'#F59E0B', CLT:'#10B981', SERVIDOR:'#8B5CF6', SIAPE:'#EF4444' };
+  
+  // Mês anterior para comparativo
+  const mesRef = getMesRefAtivo();
+  const mesAnterior = (() => {
+    if(!state.month) return null;
+    const [a,m] = state.month.split('-').map(Number);
+    const prev = m===1 ? `${a-1}-12` : `${a}-${String(m-1).padStart(2,'0')}`;
+    return stateMonthToMesRef(prev);
+  })();
+  const dadosMesAnt = mesAnterior ? todosLancamentos.filter(r=>(r.mes_ref||'').toUpperCase()===mesAnterior.toUpperCase()) : [];
+  
+  const cards = produtos.map(prod => {
+    const filtro = dados.filter(r => (r.modalidade||'').toUpperCase().includes(prod));
+    const filtroAnt = dadosMesAnt.filter(r => (r.modalidade||'').toUpperCase().includes(prod));
+    const avg = filtro.length ? filtro.reduce((s,r)=>s+parseFloat(r.comissao||0),0)/filtro.length : 0;
+    const avgAnt = filtroAnt.length ? filtroAnt.reduce((s,r)=>s+parseFloat(r.comissao||0),0)/filtroAnt.length : 0;
+    const delta = avgAnt ? ((avg - avgAnt)/avgAnt*100) : 0;
+    const cor = cores[prod] || '#383772';
+    return `<div class="ticket-card" style="border-left-color:${cor}">
+      <div class="ticket-card-label" style="color:${cor}">${prod}</div>
+      <div class="ticket-card-valor">${filtro.length ? fmt(avg) : '—'}</div>
+      <div style="font-size:0.65rem;color:var(--cinza);">${filtro.length} contratos</div>
+      ${avgAnt && filtro.length ? `<div class="ticket-card-delta ${delta>=0?'ticket-delta-up':'ticket-delta-down'}">${delta>=0?'▲':'▼'} ${Math.abs(delta).toFixed(1)}% vs mês ant.</div>` : ''}
+    </div>`;
+  });
+  grid.innerHTML = cards.join('');
+}
+
+/* ══ [6] RASTREIO CANCELADOS — integrado ao pipeline (coluna sem retorno) e filtro ══ */
+// Já integrado no Pipeline como coluna "Sem Retorno"
+
+/* ══ [11] SALDO POR BANCO ══ */
+function renderSaldoBanco() {
+  const mesRef = getMesRefAtivo() || 'geral';
+  const saldosKey = 'bs_saldos_' + mesRef;
+  const saldos = JSON.parse(localStorage.getItem(saldosKey)||'{}');
+  const grid = document.getElementById('saldo-banco-grid');
+  if(!grid) return;
+  
+  // Detectar bancos com comissões no mês
+  const dados = getMesRefAtivo()
+    ? todosLancamentos.filter(r=>(r.mes_ref||'').toUpperCase()===(getMesRefAtivo()||'').toUpperCase())
+    : [...todosLancamentos];
+  
+  const bancosSet = new Set();
+  dados.forEach(r => { const b=(r.banco||r.banco_digitado||'').toUpperCase(); if(b) bancosSet.add(b); });
+  const bancos = [...bancosSet].sort();
+  
+  if(!bancos.length) {
+    grid.innerHTML = '<div style="text-align:center;color:var(--cinza);font-size:0.78rem;grid-column:1/-1;padding:16px;">Nenhum banco encontrado nos contratos do mês.</div>';
+    return;
+  }
+  
+  grid.innerHTML = bancos.map(banco => {
+    const comissoesBanco = dados.filter(r=>(r.banco||r.banco_digitado||'').toUpperCase()===banco && (r.status||r.status_comissao||'').toUpperCase()==='PAGO').reduce((s,r)=>s+parseFloat(r.comissao||0),0);
+    const saldoAtual = saldos[banco] || 0;
+    return `<div class="saldo-banco-card">
+      <div class="saldo-banco-nome">${banco}</div>
+      <div class="saldo-banco-val" id="saldo-val-${banco.replace(/\s/g,'_')}">${BRL(saldoAtual)}</div>
+      <div class="saldo-banco-com">💰 Comissões pagas: ${fmt(comissoesBanco)}</div>
+      <input class="saldo-inp" type="number" step="0.01" placeholder="Saldo atual (R$)"
+        value="${saldoAtual||''}"
+        id="saldo-inp-${banco.replace(/\s/g,'_')}"
+        data-banco="${banco}"
+        onchange="atualizarSaldoBancoPreview('${banco.replace(/\s/g,'_')}',this.value)">
+    </div>`;
+  }).join('');
+}
+
+function atualizarSaldoBancoPreview(bancoKey, val) {
+  const el = document.getElementById('saldo-val-'+bancoKey);
+  if(el) el.textContent = BRL(parseFloat(val)||0);
+}
+
+function salvarSaldoBanco() {
+  const mesRef = getMesRefAtivo() || 'geral';
+  const saldosKey = 'bs_saldos_' + mesRef;
+  const inputs = document.querySelectorAll('.saldo-inp[data-banco]');
+  const saldos = {};
+  inputs.forEach(inp => { saldos[inp.dataset.banco] = parseFloat(inp.value)||0; });
+  localStorage.setItem(saldosKey, JSON.stringify(saldos));
+  bs_mostrarToast('✅ Saldos salvos!','ok-toast');
+}
+
+/* ══ [12] GRÁFICO 6 MESES ══ */
+let _chart6meses = null;
+function renderGrafico6Meses(todosData) {
+  const canvas = document.getElementById('grafico-6meses');
+  if(!canvas || typeof Chart === 'undefined') return;
+  
+  // Últimos 6 meses
+  const hoje = new Date();
+  const meses6 = [];
+  for(let i=5; i>=0; i--) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
+    const chave = stateMonthToMesRef(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+    const label = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][d.getMonth()] + '/' + String(d.getFullYear()).slice(2);
+    meses6.push({ chave, label });
+  }
+  
+  const labels = meses6.map(m => m.label);
+  const pagosData = meses6.map(m => {
+    const d = todosData.filter(r => (r.mes_ref||'').toUpperCase() === (m.chave||'').toUpperCase() && (r.status||r.status_comissao||'').toUpperCase()==='PAGO');
+    return d.reduce((s,r)=>s+parseFloat(r.comissao||0),0);
+  });
+  const abertosData = meses6.map(m => {
+    const d = todosData.filter(r => (r.mes_ref||'').toUpperCase() === (m.chave||'').toUpperCase() && (r.status||r.status_comissao||'').toUpperCase()==='ABERTO');
+    return d.reduce((s,r)=>s+parseFloat(r.comissao||0),0);
+  });
+  
+  if(_chart6meses) { _chart6meses.destroy(); _chart6meses = null; }
+  _chart6meses = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: '✅ Comissões Pagas', data: pagosData, backgroundColor: '#10B981', borderRadius: 6 },
+        { label: '⏳ Em Aberto', data: abertosData, backgroundColor: '#FBAD09', borderRadius: 6 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position:'bottom', labels:{font:{size:11}} }, tooltip: { callbacks: { label: ctx => ' ' + BRL(ctx.raw) } } },
+      scales: { x: { stacked:false, grid:{display:false} }, y: { grid:{color:'#f0f0f0'}, ticks:{ callback: v => BRL(v) } } }
+    }
+  });
+}
+
+/* ══ [13] PARCELAS CARTÃO ══ */
+function _getCartoes() { return JSON.parse(localStorage.getItem('bs_cartoes_'+getMesRefAtivo())||'[]'); }
+function _setCartoes(arr) { localStorage.setItem('bs_cartoes_'+getMesRefAtivo(), JSON.stringify(arr)); }
+
+function abrirModalCartao() {
+  ['ct-nome','ct-cartao','ct-total','ct-parcelas','ct-atual'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('ct-val-parcela').textContent='R$ 0,00';
+  document.getElementById('modal-cartao').style.display='flex';
+}
+function fecharModalCartao() { document.getElementById('modal-cartao').style.display='none'; }
+function ct_calcParcela() {
+  const total = parseFloat(document.getElementById('ct-total')?.value)||0;
+  const parc = parseInt(document.getElementById('ct-parcelas')?.value)||1;
+  const el = document.getElementById('ct-val-parcela');
+  if(el) el.textContent = fmt(parc ? total/parc : 0);
+}
+function salvarParcelaCartao() {
+  const nome = document.getElementById('ct-nome')?.value?.trim();
+  const cartao = document.getElementById('ct-cartao')?.value?.trim()||'—';
+  const total = parseFloat(document.getElementById('ct-total')?.value)||0;
+  const parcelas = parseInt(document.getElementById('ct-parcelas')?.value)||1;
+  const atual = parseInt(document.getElementById('ct-atual')?.value)||1;
+  if(!nome || !total) { bs_mostrarToast('⚠️ Preencha nome e valor total','erro-toast'); return; }
+  const arr = _getCartoes();
+  arr.push({ id: Date.now(), nome, cartao, total, parcelas, atual, valorParc: total/parcelas });
+  _setCartoes(arr);
+  fecharModalCartao();
+  renderCartoesLista();
+  bs_mostrarToast('✅ Parcela salva!','ok-toast');
+}
+function renderCartoesLista() {
+  const lista = document.getElementById('cartao-lista');
+  const totalEl = document.getElementById('cartao-total-geral');
+  if(!lista) return;
+  const arr = _getCartoes();
+  if(!arr.length) {
+    lista.innerHTML='<div style="text-align:center;color:var(--cinza);font-size:0.78rem;padding:20px;background:#f9f8ff;border-radius:10px;">Nenhuma parcela cadastrada.</div>';
+    if(totalEl) totalEl.textContent='R$ 0,00';
+    return;
+  }
+  const totalGeral = arr.reduce((s,c)=>s+(c.valorParc||0),0);
+  if(totalEl) totalEl.textContent = fmt(totalGeral);
+  lista.innerHTML = arr.map((c,i) => {
+    const restantes = c.parcelas - c.atual + 1;
+    const percPago = ((c.atual-1)/c.parcelas*100).toFixed(0);
+    return `<div class="cartao-card">
+      <div>
+        <div class="cartao-nome">${c.nome}</div>
+        <div class="cartao-info">${c.cartao} · ${c.atual}/${c.parcelas} parcelas · ${percPago}% pago</div>
+        <div style="background:#e8e8f0;border-radius:10px;height:4px;margin-top:6px;overflow:hidden;"><div style="height:100%;background:#8B5CF6;width:${percPago}%;border-radius:10px;"></div></div>
+      </div>
+      <div style="text-align:right;">
+        <div class="cartao-total">${fmt(c.valorParc)}/mês</div>
+        <div class="cartao-parc-badge">+${restantes}x restam</div>
+        <button onclick="removerCartao(${i})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:12px;margin-top:4px;">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function removerCartao(idx) {
+  const arr = _getCartoes();
+  arr.splice(idx,1);
+  _setCartoes(arr);
+  renderCartoesLista();
+}
+
+/* ══ [14/15] METAS POUPANÇA ══ */
+function _getMetasPoupar() { return JSON.parse(localStorage.getItem('bs_metas_poupar')||'[]'); }
+function _setMetasPoupar(arr) { localStorage.setItem('bs_metas_poupar', JSON.stringify(arr)); }
+
+const ICONS_TIPO = { poupança:'🐷', reserva:'🛡️', investimento:'📈', viagem:'✈️', outro:'🎯' };
+
+function abrirModalMetaPoupar() {
+  ['mp-nome','mp-meta','mp-atual'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('modal-meta-poupar').style.display='flex';
+}
+function salvarMetaPoupar() {
+  const nome = document.getElementById('mp-nome')?.value?.trim();
+  const meta = parseFloat(document.getElementById('mp-meta')?.value)||0;
+  const atual = parseFloat(document.getElementById('mp-atual')?.value)||0;
+  const tipo = document.getElementById('mp-tipo')?.value||'poupança';
+  if(!nome || !meta) { bs_mostrarToast('⚠️ Preencha nome e meta','erro-toast'); return; }
+  const arr = _getMetasPoupar();
+  arr.push({ id: Date.now(), nome, meta, atual, tipo });
+  _setMetasPoupar(arr);
+  document.getElementById('modal-meta-poupar').style.display='none';
+  renderMetasPoupar();
+  bs_mostrarToast('✅ Meta criada!','ok-toast');
+}
+function renderMetasPoupar() {
+  const lista = document.getElementById('metas-poupar-lista');
+  if(!lista) return;
+  const arr = _getMetasPoupar();
+  if(!arr.length) {
+    lista.innerHTML='<div style="text-align:center;color:var(--cinza);font-size:0.78rem;padding:24px;background:#f8f7ff;border-radius:10px;">Nenhuma meta criada ainda. Clique em "+ Nova Meta" para começar!</div>';
+    return;
+  }
+  lista.innerHTML = arr.map((m,i) => {
+    const perc = Math.min(100, m.meta ? (m.atual/m.meta*100) : 0).toFixed(1);
+    const falta = Math.max(0, m.meta - m.atual);
+    const icon = ICONS_TIPO[m.tipo]||'🎯';
+    return `<div class="meta-poupar-card">
+      <div class="meta-poupar-hdr">
+        <div class="meta-poupar-nome">${icon} ${m.nome}</div>
+        <div class="meta-poupar-perc">${perc}%</div>
+      </div>
+      <div class="meta-poupar-bar"><div class="meta-poupar-fill" style="width:${perc}%"></div></div>
+      <div class="meta-poupar-footer">
+        <span>${fmt(m.atual)} de ${fmt(m.meta)}</span>
+        <span>Falta: ${fmt(falta)}</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:10px;align-items:center;">
+        <input type="number" step="0.01" placeholder="Atualizar valor atual" style="flex:1;border:1.5px solid #ddd;border-radius:7px;padding:6px 10px;font-size:0.78rem;outline:none;" id="poupar-upd-${i}">
+        <button onclick="atualizarMetaPoupar(${i})" style="background:#10B981;color:#fff;border:none;border-radius:7px;padding:6px 12px;font-size:0.75rem;font-weight:700;cursor:pointer;">✓</button>
+        <button onclick="removerMetaPoupar(${i})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:14px;">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function atualizarMetaPoupar(idx) {
+  const arr = _getMetasPoupar();
+  const val = parseFloat(document.getElementById('poupar-upd-'+idx)?.value)||0;
+  if(!val) return;
+  arr[idx].atual = val;
+  _setMetasPoupar(arr);
+  renderMetasPoupar();
+  bs_mostrarToast('✅ Meta atualizada!','ok-toast');
+}
+function removerMetaPoupar(idx) {
+  const arr = _getMetasPoupar();
+  arr.splice(idx,1);
+  _setMetasPoupar(arr);
+  renderMetasPoupar();
+}
+
+/* ══ [17] DRE SIMPLIFICADO ══ */
+function _getDespesasDRE() { return JSON.parse(localStorage.getItem('bs_dre_despesas_'+(getMesRefAtivo()||'geral'))||'[]'); }
+function _setDespesasDRE(arr) { localStorage.setItem('bs_dre_despesas_'+(getMesRefAtivo()||'geral'), JSON.stringify(arr)); }
+
+function renderDRE() {
+  const mesRef = getMesRefAtivo();
+  const dados = mesRef ? todosLancamentos.filter(r=>(r.mes_ref||'').toUpperCase()===mesRef.toUpperCase()) : [...todosLancamentos];
+  const pagos = dados.filter(r=>(r.status||r.status_comissao||'').toUpperCase()==='PAGO');
+  
+  // Por produto
+  const receitas = document.getElementById('dre-receitas');
+  if(receitas) {
+    const porProd = {};
+    pagos.forEach(r=>{ const k=r.modalidade||'Outros'; if(!porProd[k])porProd[k]={qtd:0,com:0}; porProd[k].qtd++; porProd[k].com+=parseFloat(r.comissao||0); });
+    const totalRec = pagos.reduce((s,r)=>s+parseFloat(r.comissao||0),0);
+    const sorted = Object.entries(porProd).sort((a,b)=>b[1].com-a[1].com);
+    receitas.innerHTML = (sorted.length ? sorted.map(([k,v])=>`<div class="dre-linha"><span style="color:var(--cinza);">${k} (${v.qtd}x)</span><span style="font-weight:700;color:#10B981;">${fmt(v.com)}</span></div>`).join('') : '<div class="dre-linha" style="color:var(--cinza);">Nenhuma comissão paga neste mês</div>') +
+      `<div class="dre-linha" style="background:#ecfdf5;"><span style="font-weight:700;color:#065f46;">Total Receitas</span><span style="font-family:'Montserrat',sans-serif;font-weight:800;color:#10B981;">${fmt(totalRec)}</span></div>`;
+    document.getElementById('dre-receita-total').textContent = fmt(totalRec);
+  }
+  
+  // Despesas
+  const despesas = _getDespesasDRE();
+  const totalDesp = despesas.reduce((s,d)=>s+parseFloat(d.valor||0),0);
+  const desp_lista = document.getElementById('dre-despesas-lista');
+  if(desp_lista) {
+    desp_lista.innerHTML = despesas.length ? despesas.map((d,i)=>`<div class="dre-linha" style="padding:7px 0;"><span style="color:var(--cinza);">${d.nome}</span><div style="display:flex;gap:8px;align-items:center;"><span style="font-weight:700;color:#EF4444;">${fmt(d.valor)}</span><button onclick="removerDespesaDRE(${i})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:12px;">🗑️</button></div></div>`).join('') : '<div style="font-size:0.75rem;color:var(--cinza);padding:8px 0;">Nenhuma despesa cadastrada. Clique em "+ Adicionar".</div>';
+  }
+  document.getElementById('dre-total-despesas').textContent = fmt(totalDesp);
+  document.getElementById('dre-desp-total2').textContent = fmt(totalDesp);
+  
+  // Resultado
+  const totalRec2 = pagos.reduce((s,r)=>s+parseFloat(r.comissao||0),0);
+  const resultado = totalRec2 - totalDesp;
+  const elRes = document.getElementById('dre-resultado');
+  if(elRes) { elRes.textContent = fmt(resultado); elRes.style.color = resultado >= 0 ? '#10B981' : '#EF4444'; }
+  const margem = totalRec2 ? (resultado/totalRec2*100).toFixed(1) : 0;
+  const elMarg = document.getElementById('dre-margem');
+  if(elMarg) { elMarg.textContent = margem+'%'; elMarg.style.color = resultado>=0?'#10B981':'#EF4444'; }
+}
+function adicionarDespesaDRE() {
+  const form = document.getElementById('dre-form-despesa');
+  if(form) form.style.display = form.style.display==='none'?'block':'none';
+}
+function salvarDespesaDRE() {
+  const nome = document.getElementById('dre-desp-nome')?.value?.trim();
+  const val = parseFloat(document.getElementById('dre-desp-val')?.value)||0;
+  if(!nome || !val) { bs_mostrarToast('⚠️ Preencha nome e valor','erro-toast'); return; }
+  const arr = _getDespesasDRE();
+  arr.push({ nome, valor: val });
+  _setDespesasDRE(arr);
+  document.getElementById('dre-desp-nome').value='';
+  document.getElementById('dre-desp-val').value='';
+  document.getElementById('dre-form-despesa').style.display='none';
+  renderDRE();
+}
+function removerDespesaDRE(idx) {
+  const arr = _getDespesasDRE();
+  arr.splice(idx,1);
+  _setDespesasDRE(arr);
+  renderDRE();
+}
+
+/* ══ [18] META POR PRODUTO ══ */
+function _getMetasProduto() { return JSON.parse(localStorage.getItem('bs_metas_produto_'+(getMesRefAtivo()||'geral'))||'{}'); }
+function _setMetasProduto(obj) { localStorage.setItem('bs_metas_produto_'+(getMesRefAtivo()||'geral'), JSON.stringify(obj)); }
+
+const PRODS_CONSIG = ['INSS','FGTS','CLT','SERVIDOR','SIAPE'];
+const COR_PROD = { INSS:'#383772', FGTS:'#F59E0B', CLT:'#10B981', SERVIDOR:'#8B5CF6', SIAPE:'#EF4444' };
+
+function renderMetasProduto(dados) {
+  const grid = document.getElementById('meta-produto-grid');
+  if(!grid) return;
+  const metas = _getMetasProduto();
+  grid.innerHTML = PRODS_CONSIG.map(prod => {
+    const qtd = dados.filter(r=>(r.modalidade||'').toUpperCase().includes(prod)).length;
+    const meta = metas[prod] || 0;
+    const perc = meta ? Math.min(100, qtd/meta*100) : 0;
+    const cor = COR_PROD[prod]||'#383772';
+    return `<div class="meta-prod-card">
+      <div class="meta-prod-nome" style="color:${cor}">${prod}</div>
+      <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:1rem;color:${cor}">${qtd}${meta?' / '+meta+'':''}</div>
+      <div class="meta-prod-bar"><div class="meta-prod-fill" style="width:${perc}%;background:${cor}"></div></div>
+      <div class="meta-prod-nums"><span>${meta ? perc.toFixed(0)+'%' : 'Sem meta'}</span></div>
+    </div>`;
+  }).join('');
+}
+function abrirMetasProduto() {
+  const metas = _getMetasProduto();
+  const form = document.getElementById('meta-produto-form');
+  if(!form) return;
+  form.innerHTML = PRODS_CONSIG.map(prod => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <div style="flex:1;font-weight:700;font-size:0.82rem;color:${COR_PROD[prod]||'#383772'};">${prod}</div>
+      <div style="font-size:0.72rem;color:var(--cinza);">Meta (contratos/mês):</div>
+      <input type="number" id="mp-prod-${prod}" min="0" value="${metas[prod]||''}" placeholder="0"
+        style="width:80px;border:1.5px solid #ddd;border-radius:7px;padding:7px 10px;font-size:0.82rem;outline:none;text-align:center;">
+    </div>`).join('');
+  document.getElementById('modal-metas-produto').style.display='flex';
+}
+function salvarMetasProduto() {
+  const obj = {};
+  PRODS_CONSIG.forEach(prod => { const v=parseInt(document.getElementById('mp-prod-'+prod)?.value)||0; if(v) obj[prod]=v; });
+  _setMetasProduto(obj);
+  document.getElementById('modal-metas-produto').style.display='none';
+  bs_mostrarToast('✅ Metas salvas!','ok-toast');
+  // Re-render
+  const mesRef = getMesRefAtivo();
+  const dados = mesRef ? todosLancamentos.filter(r=>(r.mes_ref||'').toUpperCase()===mesRef.toUpperCase()) : [...todosLancamentos];
+  renderMetasProduto(dados);
+}
+
+/* ══ [19] RELATÓRIO PDF MELHORADO ══ */
+// Override da função exportarPDF existente para incluir DRE + Ranking
+
+/* ══ [21] LANÇAMENTO RÁPIDO ══ */
+// Funções já adicionadas junto com fabLancar()
+
+/* ══ [22] FOLLOW-UP DE CLIENTES ══ */
+function abrirFollowup() {
+  const m = document.getElementById('modal-followup');
+  if(m){ m.style.display='flex'; renderFollowupLista(); }
+}
+function fecharFollowup() {
+  const m = document.getElementById('modal-followup');
+  if(m) m.style.display='none';
+}
+function renderFollowupLista() {
+  const lista = document.getElementById('followup-lista');
+  if(!lista) return;
+  const mesRef = getMesRefAtivo();
+  const dados = mesRef ? todosLancamentos.filter(r=>(r.mes_ref||'').toUpperCase()===mesRef.toUpperCase()) : [...todosLancamentos];
+  
+  // Contratos ABERTO há mais de 5 dias
+  const pendentes = dados.filter(r => {
+    const st = (r.status||r.status_comissao||'ABERTO').toUpperCase();
+    if(st === 'PAGO') return false;
+    return _diasSemRetorno(r) >= 5;
+  }).sort((a,b) => _diasSemRetorno(b) - _diasSemRetorno(a));
+  
+  if(!pendentes.length) {
+    lista.innerHTML = '<div style="text-align:center;padding:30px;color:var(--cinza);">🎉 Nenhum follow-up pendente! Tudo em dia.</div>';
+    return;
+  }
+  
+  lista.innerHTML = pendentes.map(r => {
+    const dias = _diasSemRetorno(r);
+    const urgencia = dias >= 12 ? '#EF4444' : dias >= 7 ? '#F59E0B' : '#383772';
+    return `<div class="followup-item" style="border-left-color:${urgencia}">
+      <div>
+        <div class="followup-nome">${r.nome_cliente||'—'}</div>
+        <div class="followup-info">${r.banco||'—'} · ${r.modalidade||'—'} · Dig: ${r.data_dig||'—'} · ${fmt(r.comissao)}</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:1rem;color:${urgencia};">${dias}d</div>
+        <div style="font-size:0.63rem;color:var(--cinza);">sem retorno</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ══ HOOKS: renderResumo e renderRelatorio com novos recursos ══ */
+const _origRenderResumo = typeof renderResumo === 'function' ? renderResumo : null;
+// Hook via override quando DOMContentLoaded
+function _initNovosRecursos() {
+  const mesRef = getMesRefAtivo();
+  const dados = mesRef ? todosLancamentos.filter(r=>(r.mes_ref||'').toUpperCase()===mesRef.toUpperCase()) : [...todosLancamentos];
+  renderTicketMedio(dados);
+  renderMetasProduto(dados);
+  renderSaldoBanco();
+  renderMetasPoupar();
+  renderCartoesLista();
+}
+
+// Chamar no FAB no sininho para abrir follow-up também
+function _patchSininho() {
+  const el = document.getElementById('btn-follow-up-sininho');
+  if(el) el.addEventListener('click', abrirFollowup);
 }
 
 </script>
