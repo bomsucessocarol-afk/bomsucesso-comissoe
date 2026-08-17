@@ -3740,6 +3740,8 @@ function generateRecurrentes(month){
 
   recs.forEach(rec=>{
     if(!rec.active||rec.archived) return;
+    // FIX BUG 1: nunca gerar em mês anterior ao startMonth da recorrente
+    if(rec.startMonth && month < rec.startMonth) return;
     if(already.includes(rec.id)) return;
     // Check if already exists in this month
     if(d.expenses.some(e=>e._recId===rec.id)) return;
@@ -3958,11 +3960,35 @@ function saveRecorrente(){
   showToast(editId?'Recorrente atualizada! ✅':'Recorrente criada e parcelas geradas! 🔄');
 }
 
+// FIX BUG 2: limpa entradas futuras ABERTO de uma recorrente cancelada/arquivada
+function _limparRecFuturos(recId, mesAPartirDe) {
+  // Varre os próximos 36 meses a partir do mês indicado
+  const [sy, sm] = mesAPartirDe.split('-').map(Number);
+  for (let i = 0; i < 36; i++) {
+    const d = new Date(sy, sm - 1 + i, 1);
+    const month = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const mdata = DB.get(month);
+    const antes = mdata.expenses.length;
+    // Remove somente entradas ABERTO — preserva as já PAGAS (histórico)
+    mdata.expenses = mdata.expenses.filter(e =>
+      !(e._recId === recId && (e.status === 'ABERTO' || e.status === '' || !e.status))
+    );
+    if (mdata.expenses.length !== antes) {
+      DB.set(month, mdata);
+      // Limpa o cache de "já gerado" para esse mês+rec
+      const genKey = 'fc_gen_' + month;
+      const already = JSON.parse(localStorage.getItem(genKey) || '[]');
+      localStorage.setItem(genKey, JSON.stringify(already.filter(x => x !== recId)));
+    }
+  }
+}
+
 function deleteRec(id){
-  if(!confirm('Excluir esta recorrente? Os lançamentos já gerados não serão afetados.')) return;
+  if(!confirm('Excluir esta recorrente?\n\nEntradas ABERTAS dos próximos meses serão removidas.\nContas já pagas não serão afetadas.')) return;
+  _limparRecFuturos(id, state.month);
   saveRecs(getRecs().filter(r=>r.id!==id));
   renderRecorrentes();
-  showToast('Recorrente excluída 🗑️');
+  showToast('Recorrente excluída e futuros limpos 🗑️');
 }
 
 function toggleRecArchive(id){
@@ -3971,9 +3997,11 @@ function toggleRecArchive(id){
   if(!rec) return;
   rec.archived=!rec.archived;
   rec.active=!rec.archived;
+  // FIX BUG 2: ao arquivar, limpa entradas abertas a partir do mês atual
+  if(rec.archived) _limparRecFuturos(id, state.month);
   saveRecs(recs);
   renderRecorrentes();
-  showToast(rec.archived?'Recorrente arquivada 📦':'Recorrente reativada ▶️');
+  showToast(rec.archived?'Recorrente arquivada e futuros limpos 📦':'Recorrente reativada ▶️');
 }
 
 // ============================================================
