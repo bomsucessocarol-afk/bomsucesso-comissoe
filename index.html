@@ -5653,7 +5653,9 @@ function renderResumo() {
   const totCom=pagos.reduce((s,r)=>s+parseFloat(r.comissao||0),0);
   const totBruto=dados.reduce((s,r)=>s+parseFloat(r.valor_cliente||0),0);
   const totAberto=abertos.reduce((s,r)=>s+parseFloat(r.comissao||0),0);
-  const percMedio=dados.length?dados.reduce((s,r)=>s+parseFloat(r.perc_comissao||0),0)/dados.length:0;
+  // FIX: % médio correto = sum(comissao_total) / sum(valor_cliente) — não média de perc_comissao
+  const totComTotal = totCom + totAberto; // toda comissão do mês (paga + aberta)
+  const percMedio = totBruto > 0 ? (totComTotal / totBruto) * 100 : 0;
   document.getElementById('c-comissao-recebida').textContent=fmt(totCom);
   document.getElementById('c-contratos-pagos').textContent=pagos.length+' contratos pagos';
   document.getElementById('c-bruto').textContent=fmt(totBruto);
@@ -5661,7 +5663,11 @@ function renderResumo() {
   document.getElementById('c-perc-medio').textContent=fmtP(percMedio);
   document.getElementById('c-aberto').textContent=fmt(totAberto);
   document.getElementById('c-contratos-abertos').textContent=abertos.length+' em aberto';
-  document.getElementById('resumo-periodo').textContent=(MESES[mes]||'Todos os meses')+' · '+dados.length+' contratos';
+  // FIX: usava variável 'mes' indefinida — deve ser 'mesFinal'
+  const labelPeriodo = mesFinal === 'todos' || !mesFinal ? 'Todos os meses' : (MESES[mesFinal] || mesFinal);
+  const agora = new Date();
+  const hhmm = agora.getHours().toString().padStart(2,'0')+':'+agora.getMinutes().toString().padStart(2,'0');
+  document.getElementById('resumo-periodo').textContent = labelPeriodo + ' · ' + dados.length + ' contrato' + (dados.length!==1?'s':'') + ' · Atualizado às ' + hhmm;
   renderBarras(dados,'grafico-produto',true);
   renderBarras(dados,'grafico-banco',false);
   renderRecentes(dados);
@@ -5669,6 +5675,10 @@ function renderResumo() {
   renderTicketMedio(dados);
   renderMetasProduto(dados);
   renderProjecaoDiaria(dados, parseFloat(localStorage.getItem('bs_meta_mensal_'+(getMesRefAtivo()||'geral'))||0));
+  // FIX: renderRanking existia mas nunca era chamado
+  renderRanking(dados);
+  // FIX: renderGrafico6Meses existia mas nunca era chamado — passa state.month como referência
+  renderGrafico6Meses(todosLancamentos, state.month);
 }
 
 function renderBarras(dados,elId,porProduto) {
@@ -5681,7 +5691,7 @@ function renderBarras(dados,elId,porProduto) {
   const sorted=Object.entries(por).sort((a,b)=>b[1]-a[1]).slice(0,6);
   const max=sorted[0]?.[1]||1;
   const el=document.getElementById(elId);
-  if(!sorted.length){el.innerHTML='<div class="vazio"><div class="vazio-icon">📭</div><div style="font-size:0.8rem;">Sem dados</div></div>';return;}
+  if(!sorted.length){el.innerHTML='<div class="vazio"><div class="vazio-icon">📭</div><div style="font-size:0.8rem;">Nenhum contrato neste período</div></div>';return;}
   el.innerHTML=sorted.map(([k,v])=>`
     <div class="barra-item">
       <div class="barra-label" style="font-size:0.65rem;">${k.length>10?k.substring(0,10)+'…':k}</div>
@@ -5693,7 +5703,7 @@ function renderBarras(dados,elId,porProduto) {
 function renderRecentes(dados) {
   const rec=[...dados].reverse().slice(0,8);
   const tb=document.getElementById('tbody-recentes');
-  if(!rec.length){tb.innerHTML=`<tr><td colspan="6"><div class="vazio"><div class="vazio-icon">📋</div><div style="font-size:0.8rem;">Nenhum lançamento. Use a aba Lançar.</div></div></td></tr>`;return;}
+  if(!rec.length){tb.innerHTML=`<tr><td colspan="6"><div class="vazio"><div class="vazio-icon">📋</div><div style="font-size:0.8rem;">Nenhum contrato neste período</div></div></td></tr>`;return;}
   tb.innerHTML=rec.map(r=>{
     const mod=normModal(r.modalidade);
     const st=(r.status||r.status_comissao||'').toUpperCase();
@@ -8014,7 +8024,7 @@ function renderRanking(dados) {
       <td>${fmt(row.bruto)}</td>
       <td style="font-weight:700;color:#383772;">${fmt(row.com)}</td>
       <td>${row.qtd?fmtP(row.percSum/row.qtd):'—'}</td>
-    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--cinza);padding:16px;">Sem dados</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--cinza);padding:16px;">Nenhum contrato neste período</td></tr>';
 }
 
 /* ══ [5] TICKET MÉDIO POR PRODUTO ══ */
@@ -8057,17 +8067,30 @@ function renderTicketMedio(dados) {
 /* ══ [11] SALDO POR BANCO ══ */
 
 
-function renderGrafico6Meses(todosData) {
+function renderGrafico6Meses(todosData, refStateMonth) {
   const canvas = document.getElementById('grafico-6meses');
   if(!canvas || typeof Chart === 'undefined') return;
-  
-  // Últimos 6 meses
-  const hoje = new Date();
+
+  // FIX: usar state.month como referência (não new Date()) para que o gráfico mostre
+  // os 6 meses ATÉ o mês selecionado no seletor superior, não até hoje
+  const refMonth = refStateMonth || state.month || '';
+  let refYear, refMon;
+  if(refMonth && refMonth.includes('-')) {
+    const parts = refMonth.split('-');
+    refYear = parseInt(parts[0]);
+    refMon = parseInt(parts[1]) - 1; // 0-indexed
+  } else {
+    const hoje = new Date();
+    refYear = hoje.getFullYear();
+    refMon = hoje.getMonth();
+  }
   const meses6 = [];
   for(let i=5; i>=0; i--) {
-    const d = new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
-    const chave = stateMonthToMesRef(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
-    const label = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][d.getMonth()] + '/' + String(d.getFullYear()).slice(2);
+    let m = refMon - i;
+    let y = refYear;
+    while(m < 0) { m += 12; y--; }
+    const chave = stateMonthToMesRef(`${y}-${String(m+1).padStart(2,'0')}`);
+    const label = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][m] + '/' + String(y).slice(2);
     meses6.push({ chave, label });
   }
   
