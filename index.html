@@ -1940,7 +1940,7 @@ html { scroll-behavior: smooth; }
 
       <div class="form-grupo">
         <label>Data de Digitação *</label>
-        <input type="date" id="f-data-dig">
+        <input type="date" id="f-data-dig" onchange="onDataDigChange()">
       </div>
 
       <!-- DATA PG + COMISSÃO RECEBIDA lado a lado -->
@@ -1955,7 +1955,10 @@ html { scroll-behavior: smooth; }
 
       <div class="form-grupo" style="grid-column:span 2;">
         <label>Nome Completo do Cliente *</label>
-        <input type="text" id="f-nome" placeholder="Ex: MARIA DA SILVA SANTOS">
+        <input type="text" id="f-nome" placeholder="Ex: MARIA DA SILVA SANTOS"
+          list="datalist-clientes" autocomplete="off"
+          oninput="this.value=this.value.toUpperCase().replace(/  +/g,' ');onNomeClienteInput(this.value)">
+        <datalist id="datalist-clientes"></datalist>
       </div>
 
       <!-- MODALIDADE EDITÁVEL -->
@@ -2022,19 +2025,26 @@ html { scroll-behavior: smooth; }
 
       <div class="form-grupo">
         <label>Valor do Contrato (R$) *</label>
-        <input type="number" id="f-valor" placeholder="0,00" step="0.01" min="0" oninput="calcularComissao()">
+        <input type="text" id="f-valor" placeholder="0,00" inputmode="decimal" oninput="mascaraBRL(this);calcularComissao()" onblur="aplicarBRL(this)">
       </div>
       <div class="form-grupo">
-        <label>% de Comissão</label>
-        <input type="number" id="f-perc" placeholder="0,00" step="0.01" min="0" oninput="calcularComissao()">
+        <label>% de Comissão <span id="perc-sugerido-hint" style="font-size:0.65rem;color:var(--azul);font-weight:400;display:none;"> — sugerido do último igual</span></label>
+        <input type="text" id="f-perc" placeholder="0,00" inputmode="decimal" oninput="mascaraDecimal(this);calcularComissao()">
       </div>
-      <div class="form-grupo">
-        <label>Comissão (R$) *</label>
-        <input type="number" id="f-comissao" placeholder="Calculado automaticamente" step="0.01" min="0" readonly style="background:#EEF0FF;color:var(--azul);font-weight:700;cursor:default;">
+      <div class="form-grupo" style="position:relative;">
+        <label>Comissão (R$) *
+          <button type="button" id="btn-comissao-manual" onclick="toggleComissaoManual()"
+            title="Ajustar valor manualmente"
+            style="margin-left:6px;background:none;border:1px solid var(--azul);border-radius:4px;padding:1px 6px;font-size:0.65rem;cursor:pointer;color:var(--azul);font-weight:700;vertical-align:middle;">✏️ Manual</button>
+        </label>
+        <input type="text" id="f-comissao" placeholder="Calculado automaticamente" inputmode="decimal"
+          readonly style="background:#EEF0FF;color:var(--azul);font-weight:700;cursor:default;"
+          oninput="mascaraBRL(this)">
+        <input type="hidden" id="f-comissao-manual-flag" value="0">
       </div>
       <div class="form-grupo">
         <label>Pacote Fixo (R$)</label>
-        <input type="number" id="f-pact-fixo" placeholder="0,00" step="0.01" min="0">
+        <input type="text" id="f-pact-fixo" placeholder="0,00" inputmode="decimal" oninput="mascaraBRL(this);calcularComissao()" onblur="aplicarBRL(this)">
       </div>
       <div class="form-grupo">
         <label>Status da Comissão *</label>
@@ -2062,7 +2072,8 @@ html { scroll-behavior: smooth; }
     </div>
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      <button class="btn btn-amarelo" onclick="salvarLancamento()" id="btn-salvar">💾 Salvar Lançamento</button>
+      <button class="btn btn-amarelo" onclick="salvarLancamento(false)" id="btn-salvar">💾 Salvar Lançamento</button>
+      <button class="btn btn-outline" onclick="salvarLancamento(true)" id="btn-salvar-proximo" title="Salva e mantém Data, Banco, Promotora, Modalidade e Mês preenchidos">➕ Salvar e lançar outro</button>
       <button class="btn btn-outline" onclick="limparFormulario()">🗑️ Limpar</button>
     </div>
   </div>
@@ -2594,19 +2605,26 @@ html { scroll-behavior: smooth; }
       </div>
       <div class="form-grupo">
         <label>Valor do Contrato (R$)</label>
-        <input type="number" id="e-valor" step="0.01" min="0" oninput="calcularComissaoEdit()">
+        <input type="text" id="e-valor" inputmode="decimal" placeholder="0,00" oninput="mascaraBRL(this);calcularComissaoEdit()" onblur="aplicarBRL(this)">
       </div>
       <div class="form-grupo">
         <label>% de Comissão</label>
-        <input type="number" id="e-perc" step="0.01" min="0" oninput="calcularComissaoEdit()">
+        <input type="text" id="e-perc" inputmode="decimal" placeholder="0,00" oninput="mascaraDecimal(this);calcularComissaoEdit()">
       </div>
-      <div class="form-grupo">
-        <label>Comissão (R$)</label>
-        <input type="number" id="e-comissao" step="0.01" min="0" style="background:#EEF0FF;color:var(--azul);font-weight:700;" readonly>
+      <div class="form-grupo" style="position:relative;">
+        <label>Comissão (R$)
+          <button type="button" id="btn-e-comissao-manual" onclick="toggleComissaoManualEdit()"
+            title="Ajustar valor manualmente"
+            style="margin-left:6px;background:none;border:1px solid var(--azul);border-radius:4px;padding:1px 6px;font-size:0.65rem;cursor:pointer;color:var(--azul);font-weight:700;vertical-align:middle;">✏️ Manual</button>
+        </label>
+        <input type="text" id="e-comissao" inputmode="decimal" placeholder="0,00"
+          style="background:#EEF0FF;color:var(--azul);font-weight:700;" readonly
+          oninput="mascaraBRL(this)">
+        <input type="hidden" id="e-comissao-manual-flag" value="0">
       </div>
       <div class="form-grupo">
         <label>Pacote Fixo (R$)</label>
-        <input type="number" id="e-pact-fixo" step="0.01" min="0" oninput="calcularComissaoEdit()">
+        <input type="text" id="e-pact-fixo" inputmode="decimal" placeholder="0,00" oninput="mascaraBRL(this);calcularComissaoEdit()" onblur="aplicarBRL(this)">
       </div>
       <div class="form-grupo">
         <label>Status</label>
@@ -5179,6 +5197,10 @@ function selecionarItem(tipo, valor) {
   const dispEl = document.getElementById('sel-'+tipo+'-display');
   if (dispEl) dispEl.classList.remove('aberto');
   selectAberto=null;
+  // 2.3 — sugere % ao escolher banco ou modalidade
+  if(tipo === 'banco' || tipo === 'modal' || tipo === 'tipoop') {
+    setTimeout(_sugerirPerc, 80);
+  }
 }
 
 function addItemSelect(tipo) {
@@ -5278,6 +5300,7 @@ async function atualizarDados() {
   renderResumo();
   // 1.3 — Verifica pendentes de sync ao carregar
   setTimeout(_atualizarBadgeSync, 500);
+  setTimeout(_atualizarDatalistClientes, 600); // 2.5
 
   // Carrega metas
   if(sbClient) {
@@ -6186,15 +6209,22 @@ function onDataComissaoRecChange() {
 }
 
 function calcularComissao() {
-  const v=parseFloat(document.getElementById('f-valor').value)||0;
-  const p=parseFloat(document.getElementById('f-perc').value)||0;
-  if(v>0&&p>0){
-    const c=(v*p/100).toFixed(2);
-    document.getElementById('f-comissao').value=c;
+  // 2.2 — respeita modo manual
+  if(document.getElementById('f-comissao-manual-flag')?.value === '1') return;
+  const v = parseBRL(document.getElementById('f-valor')?.value);
+  const p = parseBRL(document.getElementById('f-perc')?.value);
+  const pact = parseBRL(document.getElementById('f-pact-fixo')?.value);
+  if(v>0 && p>0){
+    const c = parseFloat(((v*p/100)+pact).toFixed(2));
+    const fc = document.getElementById('f-comissao');
+    if(fc) fc.value = c.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
     document.getElementById('preview-comissao').style.display='block';
     document.getElementById('prev-valor').textContent=fmt(v);
     document.getElementById('prev-perc').textContent=fmtP(p);
     document.getElementById('prev-comissao').textContent=fmt(c);
+  } else {
+    const pv = document.getElementById('preview-comissao');
+    if(pv) pv.style.display='none';
   }
 }
 
@@ -6252,6 +6282,189 @@ function limparFormulario() {
   // Fecha qualquer dropdown aberto
   selectAberto = null;
 }
+
+// ══════════════════════════════════════════════════════
+// FASE 2 — Agilidade no preenchimento
+// ══════════════════════════════════════════════════════
+
+// ── 2.1 — Mês de referência automático ──────────────
+function onDataDigChange() {
+  const fd = document.getElementById('f-data-dig');
+  if(!fd || !fd.value) return;
+  const MESES_L = ['JANEIRO','FEVEREIRO','MARCO','ABRIL','MAIO','JUNHO',
+                   'JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+  const d = new Date(fd.value + 'T12:00:00');
+  const chave = MESES_L[d.getMonth()] + d.getFullYear();
+  const selMes = document.getElementById('f-mes-ref');
+  if(selMes) {
+    // tenta achar a option; se não achar, cria temporariamente
+    let opt = [...selMes.options].find(o => o.value === chave);
+    if(!opt) {
+      opt = new Option(chave, chave);
+      selMes.appendChild(opt);
+    }
+    selMes.value = chave;
+  }
+}
+
+// ── 2.2 — Comissão manual (formulário novo) ──────────
+function toggleComissaoManual() {
+  const inp  = document.getElementById('f-comissao');
+  const flag = document.getElementById('f-comissao-manual-flag');
+  const btn  = document.getElementById('btn-comissao-manual');
+  if(!inp || !flag || !btn) return;
+  const manual = flag.value === '1';
+  if(manual) {
+    // Volta para automático
+    flag.value = '0';
+    inp.readOnly = true;
+    inp.style.background = '#EEF0FF';
+    inp.style.cursor = 'default';
+    btn.textContent = '✏️ Manual';
+    btn.style.background = 'none';
+    btn.style.color = 'var(--azul)';
+    calcularComissao();
+  } else {
+    // Libera edição manual
+    flag.value = '1';
+    inp.readOnly = false;
+    inp.style.background = '#fff9e6';
+    inp.style.cursor = 'text';
+    btn.textContent = '🔒 Automático';
+    btn.style.background = 'var(--amarelo)';
+    btn.style.color = '#222';
+    inp.focus();
+    inp.select();
+  }
+}
+
+// ── 2.2 — Comissão manual (modal edição) ────────────
+function toggleComissaoManualEdit() {
+  const inp  = document.getElementById('e-comissao');
+  const flag = document.getElementById('e-comissao-manual-flag');
+  const btn  = document.getElementById('btn-e-comissao-manual');
+  if(!inp || !flag || !btn) return;
+  const manual = flag.value === '1';
+  if(manual) {
+    flag.value = '0';
+    inp.readOnly = true;
+    inp.style.background = '#EEF0FF';
+    inp.style.cursor = 'default';
+    btn.textContent = '✏️ Manual';
+    btn.style.background = 'none';
+    btn.style.color = 'var(--azul)';
+    calcularComissaoEdit();
+  } else {
+    flag.value = '1';
+    inp.readOnly = false;
+    inp.style.background = '#fff9e6';
+    inp.style.cursor = 'text';
+    btn.textContent = '🔒 Automático';
+    btn.style.background = 'var(--amarelo)';
+    btn.style.color = '#222';
+    inp.focus();
+    inp.select();
+  }
+}
+
+// ── 2.3 — % sugerido do último registro igual ────────
+function _sugerirPerc() {
+  const banco  = document.getElementById('f-banco')?.value || '';
+  const modal  = document.getElementById('f-modalidade')?.value || '';
+  const tipoop = document.getElementById('f-tipo-op')?.value || '';
+  if(!banco && !modal) return;
+  // Pega o registro mais recente com mesma combinação
+  const candidatos = (todosLancamentos || []).filter(r =>
+    r && (!banco  || (r.banco||'') === banco) &&
+         (!modal  || (r.modalidade||'') === modal) &&
+         (!tipoop || (r.tipo_op||r.operacao||'') === tipoop) &&
+    r.perc_comissao > 0
+  );
+  if(!candidatos.length) {
+    document.getElementById('perc-sugerido-hint')?.style && (document.getElementById('perc-sugerido-hint').style.display = 'none');
+    return;
+  }
+  candidatos.sort((a,b) => (b.data_dig||b.id||'').localeCompare(a.data_dig||a.id||''));
+  const ultimo = candidatos[0];
+  const fp = document.getElementById('f-perc');
+  if(fp && !fp.value) {
+    fp.value = String(ultimo.perc_comissao).replace('.',',');
+    calcularComissao();
+    const hint = document.getElementById('perc-sugerido-hint');
+    if(hint) hint.style.display = 'inline';
+  }
+}
+
+// ── 2.4 — Máscaras de valor BRL ──────────────────────
+function parseBRL(v) {
+  if(v === null || v === undefined || v === '') return 0;
+  if(typeof v === 'number') return v;
+  // Remove R$, espaços, pontos de milhar e troca vírgula por ponto
+  return parseFloat(String(v).replace(/R\$\s*/g,'').replace(/\./g,'').replace(',','.')) || 0;
+}
+
+function mascaraBRL(el) {
+  // Permite dígitos, vírgula e um ponto (milhar) — guia o usuário enquanto digita
+  let v = el.value.replace(/[^\d,]/g,'');
+  // Garante no máximo uma vírgula
+  const partes = v.split(',');
+  if(partes.length > 2) v = partes[0] + ',' + partes.slice(1).join('');
+  el.value = v;
+}
+
+function mascaraDecimal(el) {
+  let v = el.value.replace(/[^\d,]/g,'');
+  const partes = v.split(',');
+  if(partes.length > 2) v = partes[0] + ',' + partes.slice(1).join('');
+  el.value = v;
+}
+
+function aplicarBRL(el) {
+  const n = parseBRL(el.value);
+  if(!n && n !== 0) return;
+  if(n > 0) el.value = n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+// ── 2.5 — Autocompletar cliente ──────────────────────
+function _atualizarDatalistClientes() {
+  const dl = document.getElementById('datalist-clientes');
+  if(!dl) return;
+  const nomes = [...new Set((todosLancamentos||[]).map(r => r.nome_cliente).filter(Boolean))].sort();
+  dl.innerHTML = nomes.map(n => `<option value="${n}">`).join('');
+}
+
+function onNomeClienteInput(nome) {
+  // Ao selecionar (match exato), preenche modalidade do último contrato
+  if(!nome || nome.length < 3) return;
+  const nomeUp = nome.toUpperCase().trim();
+  const match = (todosLancamentos||[]).filter(r => (r.nome_cliente||'').toUpperCase() === nomeUp);
+  if(!match.length) return;
+  match.sort((a,b) => (b.data_dig||b.id||'').localeCompare(a.data_dig||a.id||''));
+  const ultimo = match[0];
+  // Preenche modalidade se ainda não escolhida
+  const fModal = document.getElementById('f-modalidade');
+  const fModalDisp = document.getElementById('sel-modal-display');
+  if(fModal && !fModal.value && ultimo.modalidade) {
+    fModal.value = ultimo.modalidade;
+    if(fModalDisp) fModalDisp.innerHTML = ultimo.modalidade + ' <span>▼</span>';
+  }
+}
+
+// ── 2.6 — "Salvar e lançar outro" ────────────────────
+// Chave para preservar campos entre lançamentos
+let _preservarCampos = null;
+
+// ── 2.7 — Ctrl+Enter para salvar ────────────────────
+document.addEventListener('keydown', function(e) {
+  if(e.ctrlKey && e.key === 'Enter') {
+    const abaLancar = document.getElementById('aba-lancar');
+    if(abaLancar && (abaLancar.style.display !== 'none' && abaLancar.classList.contains('active') ||
+       getComputedStyle(abaLancar).display !== 'none')) {
+      e.preventDefault();
+      salvarLancamento(false);
+    }
+  }
+});
 
 // ══════ 1.3 — SYNC STATUS ══════
 function _atualizarBadgeSync() {
@@ -6315,7 +6528,7 @@ async function _fazerBackupDiario() {
   } catch(e) { console.warn('[Backup diário]', e); }
 }
 
-function salvarLancamento() {
+function salvarLancamento(proximoLancamento) {
   // ── 1. Lê e valida campos ──
   const nome  = (document.getElementById('f-nome')?.value || '').trim();
   const modal = document.getElementById('f-modalidade')?.value || '';
@@ -6333,12 +6546,14 @@ function salvarLancamento() {
     if(!ok) return;
   }
 
-  const valor = parseFloat(document.getElementById('f-valor')?.value) || 0;
-  const perc  = parseFloat(document.getElementById('f-perc')?.value)  || 0;
-  const pact  = parseFloat(document.getElementById('f-pact-fixo')?.value) || 0;
-  const comissao = valor > 0 && perc > 0
-    ? parseFloat(((valor * (perc / 100)) + pact).toFixed(2))
-    : pact;
+  const valor = parseBRL(document.getElementById('f-valor')?.value);
+  const perc  = parseBRL(document.getElementById('f-perc')?.value);
+  const pact  = parseBRL(document.getElementById('f-pact-fixo')?.value);
+  // 2.2 — se modo manual, usa o valor digitado diretamente
+  const comissaoManual = document.getElementById('f-comissao-manual-flag')?.value === '1';
+  const comissao = comissaoManual
+    ? parseBRL(document.getElementById('f-comissao')?.value)
+    : (valor > 0 && perc > 0 ? parseFloat(((valor*(perc/100))+pact).toFixed(2)) : pact);
 
   // 1.2 — Aviso de duplicidade (mesmo nome + banco + valor, diferença ≤ 7 dias)
   const dataDigNova = document.getElementById('f-data-dig')?.value || '';
@@ -6387,8 +6602,23 @@ function salvarLancamento() {
     banco:             banco,
     promotora:         document.getElementById('f-promotora')?.value || '',
     pact_fixo:         pact,
-    mes_ref:           document.getElementById('f-mes-ref')?.value || ''
+    mes_ref:           document.getElementById('f-mes-ref')?.value || '',
+    comissao_manual:   comissaoManual  // 2.2
   };
+
+  // ── 2.6 — Preservar campos para "Salvar e lançar outro" ──
+  if(proximoLancamento) {
+    _preservarCampos = {
+      data_dig:   document.getElementById('f-data-dig')?.value || '',
+      banco:      banco,
+      bancoLabel: document.getElementById('sel-banco-display')?.textContent?.replace('▼','').trim() || banco,
+      promotora:  document.getElementById('f-promotora')?.value || '',
+      promotLabel:document.getElementById('sel-promotora-display')?.textContent?.replace('▼','').trim() || '',
+      modal:      modal,
+      modalLabel: document.getElementById('sel-modal-display')?.textContent?.replace('▼','').trim() || modal,
+      mes_ref:    document.getElementById('f-mes-ref')?.value || ''
+    };
+  }
 
   // ── 2. Salva no array e localStorage ──
   todosLancamentos.push(row);
@@ -6401,23 +6631,51 @@ function salvarLancamento() {
   // ── 3. Limpa formulário ──
   limparFormulario();
 
+  // ── 2.6 — Restaura campos preservados ──
+  if(proximoLancamento && _preservarCampos) {
+    const p = _preservarCampos;
+    // Data
+    const fd = document.getElementById('f-data-dig');
+    if(fd && p.data_dig) fd.value = p.data_dig;
+    // Banco
+    const fBanco = document.getElementById('f-banco');
+    const fBancoDisp = document.getElementById('sel-banco-display');
+    if(fBanco && p.banco) { fBanco.value = p.banco; if(fBancoDisp) fBancoDisp.innerHTML = p.bancoLabel + ' <span>▼</span>'; }
+    // Promotora
+    const fProm = document.getElementById('f-promotora');
+    const fPromDisp = document.getElementById('sel-promotora-display');
+    if(fProm && p.promotora) { fProm.value = p.promotora; if(fPromDisp) fPromDisp.innerHTML = (p.promotLabel||p.promotora) + ' <span>▼</span>'; }
+    // Modalidade
+    const fMod = document.getElementById('f-modalidade');
+    const fModDisp = document.getElementById('sel-modal-display');
+    if(fMod && p.modal) { fMod.value = p.modal; if(fModDisp) fModDisp.innerHTML = p.modalLabel + ' <span>▼</span>'; }
+    // Mês
+    const selMes = document.getElementById('f-mes-ref');
+    if(selMes && p.mes_ref) selMes.value = p.mes_ref;
+    // Sugerir % de comissão
+    setTimeout(_sugerirPerc, 100);
+    _preservarCampos = null;
+  }
+
   // ── 4. Atualiza resumo ──
   try { renderResumo(); } catch(e) {}
 
-  // ── 5. Navega para Clientes e mostra mensagem de confirmação ──
-  const btnC = document.querySelector('.bs-sub-btn[onclick*="clientes"]');
-  if(btnC) {
-    bsTab('clientes', btnC);
+  // ── 5. Navega / mensagem ──
+  if(!proximoLancamento) {
+    const btnC = document.querySelector('.bs-sub-btn[onclick*="clientes"]');
+    if(btnC) { bsTab('clientes', btnC); try { renderTabela(); } catch(e) {} }
+    setTimeout(function() {
+      bs_mostrarToast('✅ ' + row.nome_cliente + ' salvo com sucesso na aba Clientes!', null, 4000);
+    }, 300);
+  } else {
     try { renderTabela(); } catch(e) {}
+    setTimeout(function() {
+      bs_mostrarToast('✅ ' + row.nome_cliente + ' salvo! Formulário pronto para o próximo.', null, 3500);
+      // Foco no nome para agilizar
+      const fn = document.getElementById('f-nome');
+      if(fn) fn.focus();
+    }, 300);
   }
-
-  // Mensagem clara de confirmação
-  setTimeout(function() {
-    bs_mostrarToast(
-      '✅ ' + row.nome_cliente + ' salvo com sucesso na aba Clientes!',
-      null, 4000
-    );
-  }, 300);
 
   // ── 6. Sincroniza com Supabase (1.3 — confirmação real) ──
   // Marca como pendente até o Supabase confirmar
@@ -6463,12 +6721,14 @@ function salvarLancamento() {
 
 // ══════ MODAL EDITAR ══════
 function calcularComissaoEdit() {
-  const v=parseFloat(document.getElementById('e-valor')?.value)||0;
-  const p=parseFloat(document.getElementById('e-perc')?.value)||0;
-  const f=parseFloat(document.getElementById('e-pact-fixo')?.value)||0;
-  const c=v>0&&p>0 ? parseFloat(((v*(p/100))+f).toFixed(2)) : f;
-  const el=document.getElementById('e-comissao');
-  if(el) el.value=c;
+  // 2.2 — respeita modo manual
+  if(document.getElementById('e-comissao-manual-flag')?.value === '1') return;
+  const v = parseBRL(document.getElementById('e-valor')?.value);
+  const p = parseBRL(document.getElementById('e-perc')?.value);
+  const f = parseBRL(document.getElementById('e-pact-fixo')?.value);
+  const c = v>0 && p>0 ? parseFloat(((v*(p/100))+f).toFixed(2)) : f;
+  const el = document.getElementById('e-comissao');
+  if(el) el.value = c > 0 ? c.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '';
 }
 
 function abrirModal(idx) {
@@ -6482,12 +6742,20 @@ function abrirModal(idx) {
   document.getElementById('e-tipo-op').value=r.tipo_op||r.operacao||'NOVO';
   document.getElementById('e-banco').value=r.banco||r.banco_digitado||'';
   document.getElementById('e-promotora').value=r.promotora||'';
-  document.getElementById('e-valor').value=r.valor_cliente||0;
-  document.getElementById('e-perc').value=r.perc_comissao||0;
-  document.getElementById('e-comissao').value=r.comissao||0;
-  document.getElementById('e-pact-fixo').value=r.pact_fixo||0;
+  const _brl = n => n ? (+n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '';
+  document.getElementById('e-valor').value=_brl(r.valor_cliente);
+  document.getElementById('e-perc').value=r.perc_comissao ? String(r.perc_comissao).replace('.',',') : '';
+  document.getElementById('e-comissao').value=_brl(r.comissao);
+  document.getElementById('e-pact-fixo').value=_brl(r.pact_fixo);
   document.getElementById('e-status').value=r.status||r.status_comissao||'PAGO';
   document.getElementById('e-mes-ref').value=r.mes_ref||'';
+  // Reset flag manual e visual do botão
+  const eflag = document.getElementById('e-comissao-manual-flag');
+  const ebtn  = document.getElementById('btn-e-comissao-manual');
+  const einp  = document.getElementById('e-comissao');
+  if(eflag) eflag.value = r.comissao_manual ? '1' : '0';
+  if(einp)  { einp.readOnly = !r.comissao_manual; einp.style.background = r.comissao_manual ? '#fff9e6' : '#EEF0FF'; einp.style.cursor = r.comissao_manual ? 'text' : 'default'; }
+  if(ebtn)  { ebtn.textContent = r.comissao_manual ? '🔒 Automático' : '✏️ Manual'; ebtn.style.background = r.comissao_manual ? 'var(--amarelo)' : 'none'; ebtn.style.color = r.comissao_manual ? '#222' : 'var(--azul)'; }
   const m=document.getElementById('modal-editar');
   if(m){ m.style.display='flex'; }
 }
@@ -6504,18 +6772,19 @@ function salvarEdicao() {
     data_dig:document.getElementById('e-data-dig').value,
     data_pg:document.getElementById('e-data-pg').value,
     data_comissao_rec:document.getElementById('e-data-comissao-rec').value,
-    nome_cliente:document.getElementById('e-nome').value.toUpperCase(),
+    nome_cliente:(document.getElementById('e-nome').value||'').toUpperCase(),
     status:document.getElementById('e-status').value,
     modalidade:document.getElementById('e-modalidade').value,
     tipo_op:document.getElementById('e-tipo-op').value,
-    valor_cliente:parseFloat(document.getElementById('e-valor').value)||0,
-    perc_comissao:parseFloat(document.getElementById('e-perc').value)||0,
-    comissao:parseFloat(document.getElementById('e-comissao').value)||0,
+    valor_cliente:parseBRL(document.getElementById('e-valor').value),
+    perc_comissao:parseBRL(document.getElementById('e-perc').value),
+    comissao:parseBRL(document.getElementById('e-comissao').value),
     operacao:document.getElementById('e-tipo-op').value,
     banco:document.getElementById('e-banco').value,
     promotora:document.getElementById('e-promotora').value,
-    pact_fixo:parseFloat(document.getElementById('e-pact-fixo').value)||0,
-    mes_ref:document.getElementById('e-mes-ref').value
+    pact_fixo:parseBRL(document.getElementById('e-pact-fixo').value),
+    mes_ref:document.getElementById('e-mes-ref').value,
+    comissao_manual:document.getElementById('e-comissao-manual-flag')?.value === '1'
   };
   try {
     // Atualiza localmente IMEDIATAMENTE
