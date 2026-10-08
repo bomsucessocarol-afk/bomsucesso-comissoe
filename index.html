@@ -1740,6 +1740,7 @@ html { scroll-behavior: smooth; }
       <button class="bs-sub-btn" onclick="bsTab('simulador',this)" style="background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:7px;padding:9px 16px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:0.75rem;cursor:pointer;white-space:nowrap;">🧮 Simulador</button>
       <button class="bs-sub-btn" onclick="bsTab('relatorio',this)" style="background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:7px;padding:9px 16px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:0.75rem;cursor:pointer;white-space:nowrap;">📋 Relatório</button>
       <button class="bs-sub-btn" onclick="bsTab('pipeline',this)" style="background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:7px;padding:9px 16px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:0.75rem;cursor:pointer;white-space:nowrap;">🗂️ Pipeline</button>
+      <button class="bs-sub-btn" onclick="bsTab('organizar',this);iniciarOrganizarListas()" style="background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:7px;padding:9px 16px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:0.75rem;cursor:pointer;white-space:nowrap;">🧹 Organizar</button>
     </div>
     
 
@@ -2058,6 +2059,47 @@ html { scroll-behavior: smooth; }
         <select id="f-mes-ref">
           <option value="">Carregando...</option>
         </select>
+      </div>
+    </div>
+
+    <!-- ── FASE 3 — Mais detalhes (opcional) ── -->
+    <div style="margin-bottom:12px;">
+      <button type="button" onclick="toggleMaisDetalhes('f')"
+        id="btn-mais-detalhes-f"
+        style="background:none;border:1.5px solid var(--borda);border-radius:8px;padding:7px 14px;font-size:0.82rem;cursor:pointer;color:var(--azul);font-weight:600;display:flex;align-items:center;gap:6px;width:100%;justify-content:space-between;">
+        <span>➕ Mais detalhes (opcional)</span>
+        <span id="icon-mais-det-f" style="font-size:0.75rem;">▼</span>
+      </button>
+      <div id="sec-mais-detalhes-f" style="display:none;margin-top:10px;background:var(--fundo);border:1.5px solid var(--borda);border-radius:10px;padding:14px 14px 8px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;">
+          <div class="form-grupo" style="margin-bottom:0;">
+            <label>CPF do Cliente</label>
+            <input type="text" id="f-cpf" placeholder="000.000.000-00" maxlength="14"
+              oninput="mascaraCPF(this)" inputmode="numeric">
+          </div>
+          <div class="form-grupo" style="margin-bottom:0;">
+            <label>Telefone</label>
+            <input type="text" id="f-telefone" placeholder="(00) 00000-0000" maxlength="15"
+              oninput="mascaraTelefone(this)" inputmode="numeric">
+          </div>
+          <div class="form-grupo" style="margin-bottom:0;">
+            <label>Nº do Contrato</label>
+            <input type="text" id="f-num-contrato" placeholder="Ex: 123456">
+          </div>
+          <div class="form-grupo" style="margin-bottom:0;">
+            <label>Prazo (meses)</label>
+            <input type="number" id="f-prazo" placeholder="Ex: 72" min="1" max="999" inputmode="numeric">
+          </div>
+          <div class="form-grupo" style="margin-bottom:0;">
+            <label>Valor da Parcela (R$)</label>
+            <input type="text" id="f-valor-parcela" placeholder="0,00" inputmode="decimal"
+              oninput="mascaraBRL(this)" onblur="aplicarBRL(this)">
+          </div>
+          <div class="form-grupo" style="margin-bottom:0;">
+            <label>Observação</label>
+            <input type="text" id="f-obs" placeholder="Anotação rápida" maxlength="200">
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2391,6 +2433,40 @@ html { scroll-behavior: smooth; }
   <div id="pipeline-resumo" style="margin-top:18px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;"></div>
 </div>
 
+<!-- ══════════ ABA ORGANIZAR LISTAS ══════════ -->
+<div class="tab-content" id="aba-organizar">
+  <div style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.3rem;color:var(--azul);margin-bottom:6px;">🧹 Organizar Listas</div>
+  <div style="font-size:0.78rem;color:var(--cinza);margin-bottom:20px;">Identifique nomes parecidos de bancos e promotoras · escolha o nome correto antes de unificar</div>
+
+  <!-- Bancos -->
+  <div style="background:var(--fundo);border:1.5px solid var(--borda);border-radius:12px;padding:18px;margin-bottom:16px;">
+    <div style="font-weight:800;font-size:0.95rem;color:var(--azul);margin-bottom:12px;">🏦 Bancos / Financeiras</div>
+    <div id="org-bancos-lista">
+      <div style="text-align:center;color:var(--cinza);padding:20px;font-size:0.82rem;">Carregando...</div>
+    </div>
+  </div>
+
+  <!-- Promotoras -->
+  <div style="background:var(--fundo);border:1.5px solid var(--borda);border-radius:12px;padding:18px;margin-bottom:16px;">
+    <div style="font-weight:800;font-size:0.95rem;color:var(--azul);margin-bottom:12px;">🤝 Promotoras</div>
+    <div id="org-promotoras-lista">
+      <div style="text-align:center;color:var(--cinza);padding:20px;font-size:0.82rem;">Carregando...</div>
+    </div>
+  </div>
+
+  <!-- Área de confirmação (aparece ao selecionar uma unificação) -->
+  <div id="org-confirmacao" style="display:none;background:#fff9e6;border:2px solid var(--amarelo);border-radius:12px;padding:18px;margin-bottom:16px;">
+    <div style="font-weight:800;font-size:0.95rem;color:#7a5200;margin-bottom:10px;">⚠️ Confirmar Unificação</div>
+    <div id="org-confirmacao-texto" style="font-size:0.85rem;color:#333;margin-bottom:14px;line-height:1.6;"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-amarelo" onclick="confirmarUnificacao()">✅ Confirmar e Unificar</button>
+      <button class="btn btn-outline" onclick="cancelarUnificacao()">❌ Cancelar</button>
+    </div>
+  </div>
+
+  <div id="org-resultado" style="display:none;background:#f0fdf4;border:1.5px solid #10B981;border-radius:10px;padding:14px;font-size:0.85rem;color:#065f46;"></div>
+</div>
+
 
   </div>
 </section>
@@ -2638,6 +2714,48 @@ html { scroll-behavior: smooth; }
         <input type="text" id="e-mes-ref" placeholder="Ex: JULHO2026">
       </div>
     </div>
+
+    <!-- ── FASE 3 — Mais detalhes (opcional) no modal de edição ── -->
+    <div style="margin-top:10px;margin-bottom:4px;">
+      <button type="button" onclick="toggleMaisDetalhes('e')"
+        id="btn-mais-detalhes-e"
+        style="background:none;border:1.5px solid var(--borda);border-radius:8px;padding:7px 14px;font-size:0.82rem;cursor:pointer;color:var(--azul);font-weight:600;display:flex;align-items:center;gap:6px;width:100%;justify-content:space-between;">
+        <span>➕ Mais detalhes (opcional)</span>
+        <span id="icon-mais-det-e" style="font-size:0.75rem;">▼</span>
+      </button>
+      <div id="sec-mais-detalhes-e" style="display:none;margin-top:8px;background:var(--fundo);border:1.5px solid var(--borda);border-radius:10px;padding:14px 14px 8px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;">
+          <div class="form-grupo" style="margin-bottom:0;">
+            <label>CPF do Cliente</label>
+            <input type="text" id="e-cpf" placeholder="000.000.000-00" maxlength="14"
+              oninput="mascaraCPF(this)" inputmode="numeric">
+          </div>
+          <div class="form-grupo" style="margin-bottom:0;">
+            <label>Telefone</label>
+            <input type="text" id="e-telefone" placeholder="(00) 00000-0000" maxlength="15"
+              oninput="mascaraTelefone(this)" inputmode="numeric">
+          </div>
+          <div class="form-grupo" style="margin-bottom:0;">
+            <label>Nº do Contrato</label>
+            <input type="text" id="e-num-contrato" placeholder="Ex: 123456">
+          </div>
+          <div class="form-grupo" style="margin-bottom:0;">
+            <label>Prazo (meses)</label>
+            <input type="number" id="e-prazo" placeholder="Ex: 72" min="1" max="999" inputmode="numeric">
+          </div>
+          <div class="form-grupo" style="margin-bottom:0;">
+            <label>Valor da Parcela (R$)</label>
+            <input type="text" id="e-valor-parcela" placeholder="0,00" inputmode="decimal"
+              oninput="mascaraBRL(this)" onblur="aplicarBRL(this)">
+          </div>
+          <div class="form-grupo" style="margin-bottom:0;">
+            <label>Observação</label>
+            <input type="text" id="e-obs" placeholder="Anotação rápida" maxlength="200">
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;">
       <button class="btn btn-amarelo" onclick="salvarEdicao()">💾 Salvar Alterações</button>
       <button class="btn btn-outline" onclick="fecharModal()">Cancelar</button>
@@ -4903,7 +5021,15 @@ async function supabaseSalvar(row) {
       status:           row.status || 'ABERTO',
       status_comissao:  row.status_comissao || row.status || 'ABERTO',
       pact_fixo:        parseFloat(row.pact_fixo)||0,
-      mes_ref:          row.mes_ref || ''
+      mes_ref:          row.mes_ref || '',
+      comissao_manual:  row.comissao_manual === true || row.comissao_manual === 'true' || false,
+      // FASE 3 — campos opcionais
+      cpf:              row.cpf || null,
+      telefone:         row.telefone || null,
+      num_contrato:     row.num_contrato || null,
+      prazo:            row.prazo != null && row.prazo !== '' ? parseInt(row.prazo) : null,
+      valor_parcela:    row.valor_parcela != null && row.valor_parcela !== '' ? parseFloat(row.valor_parcela) : null,
+      obs:              row.obs || null
     };
     const { error } = await sbClient.from('lancamentos').upsert(dados, {onConflict:'id'});
     if(error) { console.warn('Supabase save error:', error); return false; }
@@ -4960,7 +5086,15 @@ async function supabaseSalvarLote(rows) {
       status:           row.status || 'ABERTO',
       status_comissao:  row.status_comissao || row.status || 'ABERTO',
       pact_fixo:        parseFloat(row.pact_fixo)||0,
-      mes_ref:          row.mes_ref || ''
+      mes_ref:          row.mes_ref || '',
+      comissao_manual:  row.comissao_manual === true || row.comissao_manual === 'true' || false,
+      // FASE 3 — campos opcionais
+      cpf:              row.cpf || null,
+      telefone:         row.telefone || null,
+      num_contrato:     row.num_contrato || null,
+      prazo:            row.prazo != null && row.prazo !== '' ? parseInt(row.prazo) : null,
+      valor_parcela:    row.valor_parcela != null && row.valor_parcela !== '' ? parseFloat(row.valor_parcela) : null,
+      obs:              row.obs || null
     }));
     const { error } = await sbClient.from('lancamentos').upsert(dados, {onConflict:'id'});
     if(error) { console.warn('Supabase batch error:', error); return 0; }
@@ -6281,6 +6415,25 @@ function limparFormulario() {
 
   // Fecha qualquer dropdown aberto
   selectAberto = null;
+
+  // FASE 3 — Limpa campos opcionais e fecha seção
+  ['f-cpf','f-telefone','f-num-contrato','f-prazo','f-valor-parcela','f-obs'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  const secF = document.getElementById('sec-mais-detalhes-f');
+  const iconF = document.getElementById('icon-mais-det-f');
+  const btnF  = document.getElementById('btn-mais-detalhes-f');
+  if(secF)  secF.style.display = 'none';
+  if(iconF) iconF.textContent = '▼';
+  if(btnF)  btnF.style.borderColor = 'var(--borda)';
+
+  // Reseta flag manual
+  const fFlag = document.getElementById('f-comissao-manual-flag');
+  const fBtn  = document.getElementById('btn-comissao-manual');
+  const fInp  = document.getElementById('f-comissao');
+  if(fFlag) fFlag.value = '0';
+  if(fInp)  { fInp.readOnly = true; fInp.style.background = '#EEF0FF'; fInp.style.cursor = 'default'; }
+  if(fBtn)  { fBtn.textContent = '✏️ Manual'; fBtn.style.background = 'none'; fBtn.style.color = 'var(--azul)'; }
 }
 
 // ══════════════════════════════════════════════════════
@@ -6425,7 +6578,48 @@ function aplicarBRL(el) {
   if(n > 0) el.value = n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 
-// ── 2.5 — Autocompletar cliente ──────────────────────
+// ── FASE 3 — Máscaras CPF / Telefone e collapsible ──────────────────────
+function mascaraCPF(el) {
+  let v = el.value.replace(/\D/g,'').slice(0,11);
+  if(v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/,'$1.$2.$3-$4');
+  else if(v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{0,3})/,'$1.$2.$3');
+  else if(v.length > 3) v = v.replace(/(\d{3})(\d{0,3})/,'$1.$2');
+  el.value = v;
+  // Aviso se dígitos completos mas inválido
+  if(v.replace(/\D/g,'').length === 11) {
+    const hint = document.getElementById('hint-cpf-' + el.id.replace('f-','').replace('e-',''));
+    if(hint) hint.style.display = validarCPF(v.replace(/\D/g,'')) ? 'none' : 'inline';
+  }
+}
+
+function mascaraTelefone(el) {
+  let v = el.value.replace(/\D/g,'').slice(0,11);
+  if(v.length > 10) v = v.replace(/(\d{2})(\d{5})(\d{4})/,'($1) $2-$3');
+  else if(v.length > 6) v = v.replace(/(\d{2})(\d{4,5})(\d{0,4})/,'($1) $2-$3');
+  else if(v.length > 2) v = v.replace(/(\d{2})(\d{0,5})/,'($1) $2');
+  el.value = v;
+}
+
+function validarCPF(cpf) {
+  if(cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
+  let s=0; for(let i=0;i<9;i++) s+=parseInt(cpf[i])*(10-i);
+  let r=(s*10)%11; if(r===10||r===11) r=0; if(r!==parseInt(cpf[9])) return false;
+  s=0; for(let i=0;i<10;i++) s+=parseInt(cpf[i])*(11-i);
+  r=(s*10)%11; if(r===10||r===11) r=0; return r===parseInt(cpf[10]);
+}
+
+function toggleMaisDetalhes(prefix) {
+  const sec  = document.getElementById('sec-mais-detalhes-' + prefix);
+  const icon = document.getElementById('icon-mais-det-' + prefix);
+  const btn  = document.getElementById('btn-mais-detalhes-' + prefix);
+  if(!sec) return;
+  const aberto = sec.style.display !== 'none';
+  sec.style.display  = aberto ? 'none' : 'block';
+  if(icon) icon.textContent = aberto ? '▼' : '▲';
+  if(btn)  btn.style.borderColor = aberto ? 'var(--borda)' : 'var(--azul)';
+}
+
+// ── FASE 3 — Autocompletar cliente ──────────────────────
 function _atualizarDatalistClientes() {
   const dl = document.getElementById('datalist-clientes');
   if(!dl) return;
@@ -6603,7 +6797,14 @@ function salvarLancamento(proximoLancamento) {
     promotora:         document.getElementById('f-promotora')?.value || '',
     pact_fixo:         pact,
     mes_ref:           document.getElementById('f-mes-ref')?.value || '',
-    comissao_manual:   comissaoManual  // 2.2
+    comissao_manual:   comissaoManual,  // 2.2
+    // FASE 3 — campos opcionais
+    cpf:              (document.getElementById('f-cpf')?.value || '').trim() || null,
+    telefone:         (document.getElementById('f-telefone')?.value || '').trim() || null,
+    num_contrato:     (document.getElementById('f-num-contrato')?.value || '').trim() || null,
+    prazo:            parseInt(document.getElementById('f-prazo')?.value) || null,
+    valor_parcela:    parseBRL(document.getElementById('f-valor-parcela')?.value) || null,
+    obs:              (document.getElementById('f-obs')?.value || '').trim() || null
   };
 
   // ── 2.6 — Preservar campos para "Salvar e lançar outro" ──
@@ -6756,6 +6957,24 @@ function abrirModal(idx) {
   if(eflag) eflag.value = r.comissao_manual ? '1' : '0';
   if(einp)  { einp.readOnly = !r.comissao_manual; einp.style.background = r.comissao_manual ? '#fff9e6' : '#EEF0FF'; einp.style.cursor = r.comissao_manual ? 'text' : 'default'; }
   if(ebtn)  { ebtn.textContent = r.comissao_manual ? '🔒 Automático' : '✏️ Manual'; ebtn.style.background = r.comissao_manual ? 'var(--amarelo)' : 'none'; ebtn.style.color = r.comissao_manual ? '#222' : 'var(--azul)'; }
+  // FASE 3 — campos opcionais
+  const setE = (id, v) => { const el = document.getElementById(id); if(el) el.value = v || ''; };
+  setE('e-cpf',          r.cpf);
+  setE('e-telefone',     r.telefone);
+  setE('e-num-contrato', r.num_contrato);
+  setE('e-prazo',        r.prazo || '');
+  if(document.getElementById('e-valor-parcela'))
+    document.getElementById('e-valor-parcela').value = r.valor_parcela
+      ? (+r.valor_parcela).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '';
+  setE('e-obs', r.obs);
+  // Abre seção de mais detalhes automaticamente se algum campo estiver preenchido
+  const temDetalhes = r.cpf || r.telefone || r.num_contrato || r.prazo || r.valor_parcela || r.obs;
+  const secE  = document.getElementById('sec-mais-detalhes-e');
+  const iconE = document.getElementById('icon-mais-det-e');
+  const btnE  = document.getElementById('btn-mais-detalhes-e');
+  if(secE)  secE.style.display  = temDetalhes ? 'block' : 'none';
+  if(iconE) iconE.textContent = temDetalhes ? '▲' : '▼';
+  if(btnE)  btnE.style.borderColor = temDetalhes ? 'var(--azul)' : 'var(--borda)';
   const m=document.getElementById('modal-editar');
   if(m){ m.style.display='flex'; }
 }
@@ -6784,7 +7003,14 @@ function salvarEdicao() {
     promotora:document.getElementById('e-promotora').value,
     pact_fixo:parseBRL(document.getElementById('e-pact-fixo').value),
     mes_ref:document.getElementById('e-mes-ref').value,
-    comissao_manual:document.getElementById('e-comissao-manual-flag')?.value === '1'
+    comissao_manual:document.getElementById('e-comissao-manual-flag')?.value === '1',
+    // FASE 3 — campos opcionais
+    cpf:          (document.getElementById('e-cpf')?.value || '').trim() || null,
+    telefone:     (document.getElementById('e-telefone')?.value || '').trim() || null,
+    num_contrato: (document.getElementById('e-num-contrato')?.value || '').trim() || null,
+    prazo:        parseInt(document.getElementById('e-prazo')?.value) || null,
+    valor_parcela:parseBRL(document.getElementById('e-valor-parcela')?.value) || null,
+    obs:          (document.getElementById('e-obs')?.value || '').trim() || null
   };
   try {
     // Atualiza localmente IMEDIATAMENTE
@@ -9452,6 +9678,212 @@ function renderSaldoBanco() {
       <div class="saldo-banco-val" style="color:#FBAD09;font-size:1.3rem;">${BRL(totalGeral)}</div>
       <div style="font-size:0.65rem;color:rgba(255,255,255,.6);margin-top:4px;">${arr.length} conta${arr.length!==1?'s':''} cadastrada${arr.length!==1?'s':''}</div>
     </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FASE 4 — Organizar Listas
+// ══════════════════════════════════════════════════════════════════
+
+let _orgUnificacaoPendente = null; // { tipo, manter, substituir: [] }
+
+function iniciarOrganizarListas() {
+  _orgUnificacaoPendente = null;
+  document.getElementById('org-confirmacao').style.display = 'none';
+  document.getElementById('org-resultado').style.display = 'none';
+  _renderOrganizarGrupo('bancos', 'org-bancos-lista');
+  _renderOrganizarGrupo('promotoras', 'org-promotoras-lista');
+}
+
+// Calcula similaridade simples (Jaccard de trigramas)
+function _similaridade(a, b) {
+  const tri = s => { const t = new Set(); for(let i=0; i<s.length-2; i++) t.add(s.slice(i,i+3)); return t; };
+  const tA = tri(a); const tB = tri(b);
+  if(!tA.size || !tB.size) return 0;
+  let inter = 0; tA.forEach(t => { if(tB.has(t)) inter++; });
+  return inter / (tA.size + tB.size - inter);
+}
+
+function _renderOrganizarGrupo(tipo, containerId) {
+  const container = document.getElementById(containerId);
+  if(!container) return;
+
+  // Conta registros por nome
+  const campo = tipo === 'bancos' ? 'banco' : 'promotora';
+  const contagem = {};
+  (todosLancamentos || []).forEach(r => {
+    const v = (r[campo] || '').trim().toUpperCase();
+    if(!v) return;
+    contagem[v] = (contagem[v] || 0) + 1;
+  });
+
+  const nomes = Object.keys(contagem).sort();
+  if(!nomes.length) {
+    container.innerHTML = '<div style="text-align:center;color:var(--cinza);padding:16px;font-size:0.82rem;">Nenhum registro encontrado.</div>';
+    return;
+  }
+
+  // Detecta grupos similares (limiar 0.35)
+  const LIMIAR = 0.35;
+  const grupos = []; // cada grupo: array de nomes parecidos
+  const vistos = new Set();
+  nomes.forEach(n => {
+    if(vistos.has(n)) return;
+    const grupo = [n];
+    vistos.add(n);
+    nomes.forEach(m => {
+      if(vistos.has(m)) return;
+      const a = n.toLowerCase(), b = m.toLowerCase();
+      // Também detecta se um contém o outro
+      const contido = a.includes(b) || b.includes(a);
+      if(contido || _similaridade(a, b) >= LIMIAR) {
+        grupo.push(m);
+        vistos.add(m);
+      }
+    });
+    grupos.push(grupo);
+  });
+
+  // Renderiza: grupos com 1 nome = sem problema; grupos > 1 = destaque
+  let html = '';
+  const comProblema = grupos.filter(g => g.length > 1);
+  const semProblema = grupos.filter(g => g.length === 1);
+
+  if(comProblema.length) {
+    html += `<div style="font-size:0.75rem;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">⚠️ ${comProblema.length} grupo(s) com nomes similares</div>`;
+    comProblema.forEach((grupo, gi) => {
+      html += `<div style="background:#fff9e6;border:1.5px solid #f59e0b;border-radius:10px;padding:12px 14px;margin-bottom:10px;">
+        <div style="font-size:0.75rem;color:#92400e;margin-bottom:8px;font-weight:700;">Escolha qual nome manter:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">`;
+      grupo.sort((a, b) => (contagem[b] || 0) - (contagem[a] || 0)).forEach(nome => {
+        html += `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;background:#fff;border:1.5px solid #ddd;border-radius:8px;padding:6px 12px;font-size:0.82rem;">
+          <input type="radio" name="org-${tipo}-${gi}" value="${encodeURIComponent(nome)}"
+            onclick="orgSelecionarNome('${tipo}', ${gi}, '${encodeURIComponent(nome)}', ${JSON.stringify(grupo.map(n => encodeURIComponent(n)))})">
+          <span><strong>${nome}</strong> <span style="color:var(--cinza);">(${contagem[nome] || 0} registro${(contagem[nome]||0)!==1?'s':''})</span></span>
+        </label>`;
+      });
+      html += `</div></div>`;
+    });
+  }
+
+  if(semProblema.length) {
+    html += `<div style="font-size:0.75rem;color:var(--cinza);margin-top:${comProblema.length?12:0}px;">
+      <span style="color:#10B981;font-weight:700;">✅ ${semProblema.length} nome(s) sem duplicidade:</span>
+      ${semProblema.map(g => `<span style="display:inline-block;background:#f0fdf4;border:1px solid #d1fae5;border-radius:6px;padding:2px 8px;margin:3px;font-size:0.78rem;">${g[0]} <em style="color:var(--cinza);">(${contagem[g[0]]||0})</em></span>`).join('')}
+    </div>`;
+  }
+
+  container.innerHTML = html || '<div style="text-align:center;color:var(--cinza);padding:16px;">Tudo certo — sem nomes similares.</div>';
+}
+
+function orgSelecionarNome(tipo, grupoIdx, nomeManter, todoNomesEnc) {
+  const manter      = decodeURIComponent(nomeManter);
+  const substituir  = todoNomesEnc.map(e => decodeURIComponent(e)).filter(n => n !== manter);
+  const campo       = tipo === 'bancos' ? 'banco' : 'promotora';
+
+  // Conta quantos registros serão alterados
+  const afetados = (todosLancamentos || []).filter(r =>
+    substituir.includes((r[campo] || '').trim().toUpperCase())
+  );
+
+  _orgUnificacaoPendente = { tipo, campo, manter, substituir, afetados: afetados.map(r => r.id) };
+
+  const div  = document.getElementById('org-confirmacao');
+  const txt  = document.getElementById('org-confirmacao-texto');
+  div.style.display = 'block';
+
+  txt.innerHTML = `
+    <strong>Ação:</strong> Renomear <strong>${substituir.length}</strong> nome(s) →
+    manter apenas <strong style="color:var(--azul);">${manter}</strong><br>
+    <strong>Nomes que serão substituídos:</strong><br>
+    ${substituir.map(n => {
+      const qtd = (todosLancamentos||[]).filter(r => (r[campo]||'').trim().toUpperCase() === n).length;
+      return `&nbsp;&nbsp;• <em>${n}</em> (${qtd} registro${qtd!==1?'s':''})`;
+    }).join('<br>')}<br><br>
+    <strong>Total de lançamentos que vão mudar:</strong> ${afetados.length}<br>
+    <span style="color:#b45309;font-size:0.8rem;">⚠️ Um backup dos lançamentos será feito automaticamente antes de alterar.</span>
+  `;
+
+  // Scroll até a confirmação
+  div.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function confirmarUnificacao() {
+  const p = _orgUnificacaoPendente;
+  if(!p) return;
+
+  const btn = document.querySelector('#org-confirmacao .btn-amarelo');
+  if(btn) { btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+
+  try {
+    // 1. Backup dos registros afetados
+    const afetadosRows = (todosLancamentos||[]).filter(r => p.afetados.includes(r.id));
+    const bkpKey = 'bs_backup_org_' + Date.now();
+    try { localStorage.setItem(bkpKey, JSON.stringify(afetadosRows)); } catch(e) {}
+
+    // 2. Aplica renomeação localmente
+    let qtdAlterados = 0;
+    (todosLancamentos || []).forEach(r => {
+      const valAtual = (r[p.campo] || '').trim().toUpperCase();
+      if(p.substituir.includes(valAtual)) {
+        r[p.campo] = p.manter;
+        qtdAlterados++;
+      }
+    });
+    dadosFiltrados = [...todosLancamentos];
+    salvarCacheCompleto();
+
+    // 3. Sincroniza com Supabase em lote
+    const rowsParaSync = (todosLancamentos||[]).filter(r => p.afetados.includes(r.id));
+    let syncOk = 0;
+    if(sbClient && rowsParaSync.length) {
+      syncOk = await supabaseSalvarLote(rowsParaSync);
+    }
+
+    // 4. Feedback
+    document.getElementById('org-confirmacao').style.display = 'none';
+    const res = document.getElementById('org-resultado');
+    res.style.display = 'block';
+    res.innerHTML = `✅ Pronto! <strong>${qtdAlterados}</strong> registro(s) renomeados para <strong>${p.manter}</strong>.
+      ${syncOk > 0 ? `<br>🔄 ${syncOk} sincronizados com o banco.` : '<br>⚠️ Sincronização com o banco pendente — use "Enviar ao banco" quando quiser.'}
+      <br><span style="font-size:0.75rem;color:#065f46;">Backup local salvo (chave: ${bkpKey})</span>`;
+    bs_mostrarToast(`✅ ${qtdAlterados} registros unificados!`);
+
+    // 5. Atualiza também as listas de seleção (banco/promotora)
+    if(p.tipo === 'bancos') {
+      p.substituir.forEach(nome => {
+        const i = listaBancos.indexOf(nome);
+        if(i > -1) listaBancos.splice(i, 1);
+      });
+      if(!listaBancos.includes(p.manter)) listaBancos.push(p.manter);
+      listaBancos.sort();
+      _lsSet('bs_bancos', JSON.stringify(listaBancos));
+    } else {
+      p.substituir.forEach(nome => {
+        const i = listaPromotoras.indexOf(nome);
+        if(i > -1) listaPromotoras.splice(i, 1);
+      });
+      if(!listaPromotoras.includes(p.manter)) listaPromotoras.push(p.manter);
+      listaPromotoras.sort();
+      _lsSet('bs_promotoras', JSON.stringify(listaPromotoras));
+    }
+
+    renderTabela();
+    renderResumo();
+    _orgUnificacaoPendente = null;
+    // Re-renderiza a tela de organizar com dados atualizados
+    setTimeout(iniciarOrganizarListas, 800);
+
+  } catch(err) {
+    bs_mostrarToast('Erro ao unificar: ' + err.message, 'erro-toast');
+    if(btn) { btn.disabled = false; btn.textContent = '✅ Confirmar e Unificar'; }
+  }
+}
+
+function cancelarUnificacao() {
+  _orgUnificacaoPendente = null;
+  document.getElementById('org-confirmacao').style.display = 'none';
+  // Desmarca radios
+  document.querySelectorAll('#aba-organizar input[type="radio"]').forEach(r => r.checked = false);
 }
 
 </script>
