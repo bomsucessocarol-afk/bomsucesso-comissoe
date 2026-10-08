@@ -1210,7 +1210,7 @@ html { scroll-behavior: smooth; }
   </div>
   <!-- SINO + SYNC agrupados à direita -->
   <div style="display:flex;align-items:center;gap:6px;">
-    <button onclick="sincronizarTudo()" title="Sincronizar dados" id="btn-sync-hdr"
+    <button onclick="sincronizarTudo();sincronizarPendentes();" title="Sincronizar dados" id="btn-sync-hdr"
       style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:16px;display:flex;align-items:center;gap:4px;">🔄</button>
     <div style="position:relative;display:inline-block;">
       <button id="btn-sininho" onclick="togglePainelAlertas()" title="Alertas"
@@ -1228,6 +1228,9 @@ html { scroll-behavior: smooth; }
     </div>
   </div>
 </header>
+
+<!-- BADGE SYNC PENDENTE -->
+<div id="badge-sync-pendente" style="display:none;background:#f97316;color:#fff;text-align:center;padding:6px 16px;font-size:0.78rem;font-weight:700;letter-spacing:0.2px;cursor:pointer;" onclick="sincronizarPendentes()" title="Clique para tentar sincronizar agora"></div>
 
 <!-- SIDEBAR OVERLAY -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
@@ -1947,7 +1950,7 @@ html { scroll-behavior: smooth; }
       </div>
       <div class="form-grupo">
         <label>📅 Data Comissão Recebida</label>
-        <input type="date" id="f-data-comissao-rec">
+        <input type="date" id="f-data-comissao-rec" onchange="onDataComissaoRecChange()">
       </div>
 
       <div class="form-grupo" style="grid-column:span 2;">
@@ -2035,9 +2038,9 @@ html { scroll-behavior: smooth; }
       </div>
       <div class="form-grupo">
         <label>Status da Comissão *</label>
-        <select id="f-status">
-          <option value="PAGO">✅ PAGO</option>
+        <select id="f-status" onchange="onStatusComissaoChange()">
           <option value="ABERTO">⏳ ABERTO</option>
+          <option value="PAGO">✅ PAGO</option>
         </select>
       </div>
       <div class="form-grupo">
@@ -5085,7 +5088,7 @@ function bs_mostrarToast(msg, tipo='sucesso', dur=3500){
     }
     const toast = document.getElementById('bs-toast');
     toast.textContent = msg;
-    toast.style.background = tipo === 'erro-toast' ? '#c0392b' : 'var(--azul)';
+    toast.style.background = tipo === 'erro-toast' ? '#c0392b' : (tipo === 'warn-toast' ? '#ea580c' : 'var(--azul)');
     toast.style.transform = 'translateY(0)';
     toast.style.opacity = '1';
     clearTimeout(toast._timer);
@@ -5273,6 +5276,8 @@ async function atualizarDados() {
   dadosFiltrados = [...todosLancamentos];
   preencherFiltrosMeses();
   renderResumo();
+  // 1.3 — Verifica pendentes de sync ao carregar
+  setTimeout(_atualizarBadgeSync, 500);
 
   // Carrega metas
   if(sbClient) {
@@ -6155,6 +6160,31 @@ async function mudarStatus(idx, sel) {
 }
 
 // ══════ FORMULÁRIO ══════
+
+// 1.1 — Ao mudar status: se PAGO e sem data → preenche hoje; se ABERTO → limpa data
+function onStatusComissaoChange() {
+  const fst = document.getElementById('f-status');
+  const fdt = document.getElementById('f-data-comissao-rec');
+  if(!fst || !fdt) return;
+  if(fst.value === 'PAGO') {
+    if(!fdt.value) fdt.value = new Date().toISOString().slice(0,10);
+  } else {
+    fdt.value = '';
+  }
+}
+
+// 1.1 — Ao preencher data de comissão recebida → muda status para PAGO
+function onDataComissaoRecChange() {
+  const fst = document.getElementById('f-status');
+  const fdt = document.getElementById('f-data-comissao-rec');
+  if(!fst || !fdt) return;
+  if(fdt.value) {
+    fst.value = 'PAGO';
+  } else {
+    fst.value = 'ABERTO';
+  }
+}
+
 function calcularComissao() {
   const v=parseFloat(document.getElementById('f-valor').value)||0;
   const p=parseFloat(document.getElementById('f-perc').value)||0;
@@ -6197,9 +6227,9 @@ function limparFormulario() {
     if(opt) selMes.value = chaveAtual;
   }
 
-  // Status padrão = PAGO
+  // Status padrão = ABERTO
   const fst = document.getElementById('f-status');
-  if(fst) fst.value = 'PAGO';
+  if(fst) fst.value = 'ABERTO';
 
   // Reseta selects editáveis (Modalidade, Banco, Tipo Op, Promotora)
   const resetSel = {
@@ -6223,6 +6253,68 @@ function limparFormulario() {
   selectAberto = null;
 }
 
+// ══════ 1.3 — SYNC STATUS ══════
+function _atualizarBadgeSync() {
+  try {
+    const pendentes = (todosLancamentos||[]).filter(r => r && r.sync_status && r.sync_status !== 'ok');
+    const badge = document.getElementById('badge-sync-pendente');
+    if(!badge) return;
+    if(pendentes.length > 0) {
+      badge.style.display = 'block';
+      badge.textContent = '⚠️ ' + pendentes.length + ' lançamento' + (pendentes.length!==1?'s':'') + ' aguardando sincronizar — Clique aqui para tentar agora';
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+async function sincronizarPendentes() {
+  const pendentes = (todosLancamentos||[]).filter(r => r && r.sync_status && r.sync_status !== 'ok');
+  if(pendentes.length === 0) { bs_mostrarToast('✅ Tudo sincronizado!'); return; }
+  bs_mostrarToast('🔄 Sincronizando ' + pendentes.length + ' registro(s)...');
+  if(!sbClient) initSupabase();
+  if(!sbClient) { bs_mostrarToast('⚠️ Sem conexão com o banco.','warn-toast'); return; }
+  try {
+    // Envia sem o campo sync_status para o Supabase
+    const linhas = pendentes.map(r => {
+      const c = {...r}; delete c.sync_status; return c;
+    });
+    await supabaseSalvarLote(linhas);
+    pendentes.forEach(r => {
+      const gi = todosLancamentos.findIndex(x => x.id === r.id);
+      if(gi > -1) todosLancamentos[gi].sync_status = 'ok';
+    });
+    salvarCacheCompleto();
+    _atualizarBadgeSync();
+    bs_mostrarToast('✅ ' + pendentes.length + ' registro(s) sincronizado(s)!');
+  } catch(e) {
+    bs_mostrarToast('⚠️ Falha ao sincronizar. Tente novamente.','warn-toast',5000);
+    console.warn('[sincronizarPendentes]', e);
+  }
+}
+
+// ══════ 1.5 — BACKUP DIÁRIO NO SUPABASE ══════
+async function _fazerBackupDiario() {
+  try {
+    if(!sbClient) initSupabase();
+    if(!sbClient) return;
+    const hoje = new Date().toISOString().slice(0,10);
+    const ultimoBackup = localStorage.getItem('bs_ultimo_backup_data') || '';
+    if(ultimoBackup === hoje) return; // já fez hoje
+    const dadosSemSync = (todosLancamentos||[]).map(r => { const c={...r}; delete c.sync_status; return c; });
+    const { error } = await sbClient
+      .from('backups_lancamentos')
+      .insert({ data_backup: new Date().toISOString(), total_registros: dadosSemSync.length, dados: dadosSemSync });
+    if(!error) {
+      localStorage.setItem('bs_ultimo_backup_data', hoje);
+      console.log('[Backup] Backup diário salvo no Supabase:', hoje, '— total:', dadosSemSync.length);
+      // Remove backups com mais de 30 dias
+      const limite = new Date(); limite.setDate(limite.getDate() - 30);
+      await sbClient.from('backups_lancamentos').delete().lt('data_backup', limite.toISOString());
+    }
+  } catch(e) { console.warn('[Backup diário]', e); }
+}
+
 function salvarLancamento() {
   // ── 1. Lê e valida campos ──
   const nome  = (document.getElementById('f-nome')?.value || '').trim();
@@ -6233,6 +6325,14 @@ function salvarLancamento() {
   if(!modal) { bs_mostrarToast('⚠️ Selecione a Modalidade / Produto!','erro-toast'); return; }
   if(!banco) { bs_mostrarToast('⚠️ Selecione o Banco / Financeira!','erro-toast'); return; }
 
+  // 1.1 — Aviso PAGO sem data
+  const statusVal = document.getElementById('f-status')?.value || 'ABERTO';
+  const dataComissaoVal = document.getElementById('f-data-comissao-rec')?.value || '';
+  if(statusVal === 'PAGO' && !dataComissaoVal) {
+    const ok = confirm('⚠️ Comissão marcada como PAGA sem data de recebimento.\n\nDeseja salvar assim mesmo?');
+    if(!ok) return;
+  }
+
   const valor = parseFloat(document.getElementById('f-valor')?.value) || 0;
   const perc  = parseFloat(document.getElementById('f-perc')?.value)  || 0;
   const pact  = parseFloat(document.getElementById('f-pact-fixo')?.value) || 0;
@@ -6240,14 +6340,44 @@ function salvarLancamento() {
     ? parseFloat(((valor * (perc / 100)) + pact).toFixed(2))
     : pact;
 
+  // 1.2 — Aviso de duplicidade (mesmo nome + banco + valor, diferença ≤ 7 dias)
+  const dataDigNova = document.getElementById('f-data-dig')?.value || '';
+  if(valor > 0 && dataDigNova) {
+    const nomeUp = nome.toUpperCase();
+    const dtNova = new Date(dataDigNova + 'T12:00:00');
+    const duplicado = (todosLancamentos || []).find(r => {
+      if(!r || !r.data_dig) return false;
+      const nomesIguais = (r.nome_cliente||'').toUpperCase() === nomeUp;
+      const bancosIguais = (r.banco||'') === banco;
+      const valoresIguais = Math.abs((+r.valor_cliente||0) - valor) < 0.01;
+      if(!nomesIguais || !bancosIguais || !valoresIguais) return false;
+      const dtR = new Date(r.data_dig + 'T12:00:00');
+      const diffDias = Math.abs((dtNova - dtR) / 86400000);
+      return diffDias <= 7;
+    });
+    if(duplicado) {
+      const dtFmt = duplicado.data_dig ? duplicado.data_dig.split('-').reverse().join('/') : '?';
+      const ok = confirm(
+        '⚠️ POSSÍVEL DUPLICIDADE ENCONTRADA!\n\n' +
+        'Já existe um registro parecido:\n' +
+        '  Cliente: ' + (duplicado.nome_cliente||'') + '\n' +
+        '  Banco: ' + (duplicado.banco||'') + '\n' +
+        '  Valor: R$ ' + (+duplicado.valor_cliente||0).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '\n' +
+        '  Data: ' + dtFmt + '\n\n' +
+        'Deseja salvar mesmo assim? (pode ser um contrato diferente)'
+      );
+      if(!ok) return;
+    }
+  }
+
   const row = {
     id:                'BS_' + Date.now(),
     data_dig:          document.getElementById('f-data-dig')?.value || '',
     data_pg:           document.getElementById('f-data-pg')?.value || '',
     data_comissao_rec: document.getElementById('f-data-comissao-rec')?.value || '',
     nome_cliente:      nome.toUpperCase(),
-    status:            document.getElementById('f-status')?.value || 'PAGO',
-    status_comissao:   document.getElementById('f-status')?.value || 'PAGO',
+    status:            document.getElementById('f-status')?.value || 'ABERTO',
+    status_comissao:   document.getElementById('f-status')?.value || 'ABERTO',
     modalidade:        modal,
     tipo_op:           document.getElementById('f-tipo-op')?.value || 'NOVO',
     operacao:          document.getElementById('f-tipo-op')?.value || 'NOVO',
@@ -6289,31 +6419,44 @@ function salvarLancamento() {
     );
   }, 300);
 
-  // ── 6. Sincroniza com Supabase imediatamente ──
+  // ── 6. Sincroniza com Supabase (1.3 — confirmação real) ──
+  // Marca como pendente até o Supabase confirmar
+  row.sync_status = 'pendente';
+  const idxNovo = todosLancamentos.length - 1;
+  if(idxNovo >= 0) todosLancamentos[idxNovo].sync_status = 'pendente';
+  _atualizarBadgeSync();
+
   setTimeout(function() {
     if(!sbClient) initSupabase();
+    // 1.4 — Apps Script via POST (no-cors)
     try {
-      if(sbClient) {
-        supabaseSalvar(row)
-          .then(() => console.log('✅ Salvo no Supabase:', row.nome_cliente))
-          .catch(e => console.warn('Supa save erro:', e));
-      }
-    } catch(e) { console.warn('Supa save:', e); }
-    try { bsJsonpGet(APPS_URL, {action:'salvarLancamento', payload:encodeURIComponent(JSON.stringify(row)), t:Date.now()}); } catch(e) {}
-    // Auto-backup a cada 5 lançamentos
-    try {
-      const total = todosLancamentos.length;
-      const ultimo = parseInt(localStorage.getItem('bs_ultimo_backup_total')||'0');
-      if(total > 0 && total % 5 === 0 && total !== ultimo) {
-        localStorage.setItem('bs_ultimo_backup_total', String(total));
-        const bk = {versao:'1.0', data_backup:new Date().toISOString(), total, lancamentos:todosLancamentos};
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(new Blob([JSON.stringify(bk,null,2)],{type:'application/json'}));
-        a.download = 'BomSucesso_AutoBackup_'+new Date().toISOString().slice(0,10)+'.json';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        bs_mostrarToast('💾 Backup automático ('+total+' registros)!');
-      }
-    } catch(e) {}
+      fetch(APPS_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action:'salvarLancamento', payload: row})
+      });
+    } catch(e) { console.warn('[Apps Script POST]', e); }
+
+    // Supabase com feedback real
+    if(sbClient) {
+      supabaseSalvar(row)
+        .then(() => {
+          // Marca ok no cache
+          const gi = todosLancamentos.findIndex(x => x.id === row.id);
+          if(gi > -1) { todosLancamentos[gi].sync_status = 'ok'; salvarCacheCompleto(); }
+          _atualizarBadgeSync();
+          console.log('✅ Salvo no Supabase:', row.nome_cliente);
+        })
+        .catch(e => {
+          console.warn('[Supabase] erro ao salvar:', e);
+          bs_mostrarToast('⚠️ Salvo no aparelho, mas não sincronizou. Vou tentar de novo.', 'warn-toast', 5000);
+          _atualizarBadgeSync();
+        });
+    }
+
+    // 1.5 — Backup diário automático na nuvem (Supabase)
+    _fazerBackupDiario();
   }, 200);
 }
 
