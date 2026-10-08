@@ -1792,7 +1792,7 @@ html { scroll-behavior: smooth; }
     <!-- Barra Projeção -->
     <div style="margin-top:8px;">
       <div style="display:flex;justify-content:space-between;font-size:0.68rem;color:var(--cinza);margin-bottom:3px;">
-        <span>📊 Projeção (Pago + Em aberto)</span><span id="meta-perc-projecao">0%</span>
+        <span>📊 Projeção (Pago + Em aberto)</span><span><span id="meta-perc-projecao">0%</span><span id="meta-valor-projecao" style="color:var(--cinza);margin-left:6px;font-size:0.68rem;"></span></span>
       </div>
       <div class="meta-bar-track">
         <div style="height:100%;border-radius:6px;transition:width 1s cubic-bezier(0.4,0,0.2,1);background:#f5b301;" id="meta-bar-proj" style="width:0%"></div>
@@ -1862,17 +1862,11 @@ html { scroll-behavior: smooth; }
       <div class="card-sub" id="c-contratos-abertos">0 em aberto</div>
       <div id="c-var-aberto" style="font-size:0.65rem;margin-top:4px;"></div>
     </div>
-    <div class="card" style="border-left:4px solid #8B5CF6;">
-      <div class="card-label">Ticket Médio</div>
-      <div class="card-valor" id="kpi-ticket-medio" style="color:#8B5CF6;">R$ 0,00</div>
-      <div class="card-sub">valor médio por contrato</div>
-      <div id="var-ticket-medio" style="font-size:0.65rem;margin-top:4px;"></div>
-    </div>
-    <div class="card" style="border-left:4px solid #0891B2;">
-      <div class="card-label">Comissão Média</div>
-      <div class="card-valor" id="kpi-comissao-media" style="color:#0891B2;">R$ 0,00</div>
-      <div class="card-sub">comissão média por contrato</div>
-      <div id="var-comissao-media" style="font-size:0.65rem;margin-top:4px;"></div>
+    <div class="card" style="border-left:4px solid var(--azul); grid-column: span 2;">
+      <div class="card-label">Comissão Total do Mês</div>
+      <div class="card-valor" id="kpi-comissao-total" style="color:var(--azul);">R$ 0,00</div>
+      <div class="card-sub" id="kpi-comissao-total-sub">Pago + Em aberto · 0 contratos</div>
+      <div id="var-comissao-total" style="font-size:0.65rem;margin-top:4px;"></div>
     </div>
   </div>
 
@@ -5623,6 +5617,73 @@ function salvarMeta() {
   }, 0);
   renderMetaAtual();
 }
+// ── FERIADOS E DIAS ÚTEIS ────────────────────────────────────────────────────
+// FERIADOS NACIONAIS fixos (MM-DD). Edite a lista abaixo para adicionar locais.
+const _FERIADOS_FIXOS = [
+  '01-01', // Confraternização Universal
+  '04-21', // Tiradentes
+  '05-01', // Dia do Trabalho
+  '09-07', // Independência
+  '10-12', // Nossa Sra. Aparecida
+  '11-02', // Finados
+  '11-15', // Proclamação da República
+  '11-20', // Consciência Negra
+  '12-25', // Natal
+];
+// FERIADOS LOCAIS (Ji-Paraná / RO) — edite aqui. Formato: 'YYYY-MM-DD' ou 'MM-DD' (recorrente).
+const _FERIADOS_LOCAIS = [
+  // Exemplo: '03-22', // Aniversário de Ji-Paraná
+];
+// Feriados móveis: Carnaval (seg+ter), Sexta-feira Santa, Corpus Christi
+// Calculados automaticamente a partir da data de Páscoa (algoritmo de Butcher).
+function _pascoa(ano) {
+  const a=ano%19, b=Math.floor(ano/100), c=ano%100;
+  const d=Math.floor(b/4), e=b%4, f=Math.floor((b+8)/25);
+  const g=Math.floor((b-f+1)/3), h=(19*a+b-d-g+15)%30;
+  const i=Math.floor(c/4), k=c%4, l=(32+2*e+2*i-h-k)%7;
+  const m=Math.floor((a+11*h+22*l)/451);
+  const mes=Math.floor((h+l-7*m+114)/31);
+  const dia=((h+l-7*m+114)%31)+1;
+  return new Date(ano, mes-1, dia);
+}
+function _feriadosMoveis(ano) {
+  const p = _pascoa(ano);
+  const add = n => { const d=new Date(p); d.setDate(d.getDate()+n); return d; };
+  return [add(-48), add(-47), add(-2), add(60)]; // Seg Carnaval, Ter Carnaval, 6ª Santa, Corpus
+}
+/**
+ * Retorna o número de dias úteis (seg–sex, excluindo feriados) no intervalo [diaInicio, diaFim]
+ * dentro do mês (ano, mes 0-based).
+ */
+function calcDiasUteisNoMes(ano, mes, diaInicio, diaFim) {
+  const moveis = _feriadosMoveis(ano).map(d =>
+    d.getFullYear()===ano && d.getMonth()===mes
+      ? String(d.getDate()).padStart(2,'0')
+      : null
+  ).filter(Boolean);
+  const fixosMes = _FERIADOS_FIXOS.concat(_FERIADOS_LOCAIS)
+    .filter(f => {
+      if(f.length === 5) { // MM-DD recorrente
+        return parseInt(f.split('-')[0])-1 === mes;
+      } else { // YYYY-MM-DD
+        const parts = f.split('-');
+        return parseInt(parts[0])===ano && parseInt(parts[1])-1===mes;
+      }
+    })
+    .map(f => {
+      const parts = f.split('-');
+      return parts.length === 3 ? parts[2] : parts[1];
+    });
+  const feriados = new Set([...moveis, ...fixosMes]);
+  let count = 0;
+  for(let d = diaInicio; d <= diaFim; d++) {
+    const dow = new Date(ano, mes, d).getDay();
+    if(dow !== 0 && dow !== 6 && !feriados.has(String(d).padStart(2,'0'))) count++;
+  }
+  return count;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 function renderMetaAtual() {
   const mesRef = getMesRefAtivo() || 'global';
   const chave = 'bs_meta_'+mesRef;
@@ -5672,16 +5733,17 @@ function renderMetaAtual() {
   if(elBarProj) elBarProj.style.width = percProj+'%';
   const elPercProj = document.getElementById('meta-perc-projecao');
   if(elPercProj) elPercProj.textContent = meta>0?(percProj.toFixed(1)+'%'):'—';
+  const elValProj = document.getElementById('meta-valor-projecao');
+  if(elValProj) elValProj.textContent = meta>0 ? ('= ' + fmt(projecao)) : '';
 
   const elSub = document.getElementById('meta-sub');
   if(elSub) elSub.textContent = meta>0
     ? (percRec>=100 ? '🎉 Meta atingida!' : 'Faltam '+fmt(meta-recebido)+' para a meta')
     : 'Defina uma meta no campo acima';
 
-  // Dias úteis restantes e ritmo necessário
+  // Dias úteis restantes e ritmo necessário (usa calcDiasUteisNoMes com feriados)
   const elDias = document.getElementById('meta-dias-uteis');
   if(elDias && meta>0) {
-    // Calcula dias úteis restantes no mês de referência
     const refMonth = state.month || '';
     let rYear, rMon;
     if(refMonth && refMonth.includes('-')) {
@@ -5692,11 +5754,8 @@ function renderMetaAtual() {
     }
     const hoje = new Date();
     const totalDias = new Date(rYear, rMon+1, 0).getDate();
-    let diasUteis = 0;
-    for(let d=hoje.getDate()+1; d<=totalDias; d++) {
-      const dow = new Date(rYear, rMon, d).getDay();
-      if(dow !== 0 && dow !== 6) diasUteis++;
-    }
+    const diaHoje = (rYear === hoje.getFullYear() && rMon === hoje.getMonth()) ? hoje.getDate() : totalDias;
+    const diasUteis = calcDiasUteisNoMes(rYear, rMon, diaHoje + 1, totalDias);
     const falta = Math.max(meta - recebido, 0);
     const porDia = diasUteis > 0 ? falta / diasUteis : falta;
     if(percRec >= 100) {
@@ -5704,7 +5763,7 @@ function renderMetaAtual() {
     } else if(diasUteis === 0) {
       elDias.textContent = 'Último dia útil do mês · Faltam ' + fmt(falta);
     } else {
-      elDias.textContent = 'Faltam ' + diasUteis + ' dia' + (diasUteis!==1?'s':'') + ' útil' + (diasUteis!==1?'eis':'') + ' · Precisa '+fmt(porDia)+'/dia';
+      elDias.textContent = 'Faltam ' + diasUteis + ' dia' + (diasUteis!==1?'s':'') + ' útil' + (diasUteis!==1?'eis':'') + ' · Precisa ' + fmt(porDia) + '/dia';
     }
   } else if(elDias) { elDias.textContent = ''; }
 }
@@ -5819,12 +5878,11 @@ function renderResumo() {
   document.getElementById('c-aberto').textContent=fmt(totAberto);
   document.getElementById('c-contratos-abertos').textContent=abertos.length+' em aberto';
   // KPI: Ticket Médio e Comissão Média
-  const ticketMedio = dados.length > 0 ? totBruto / dados.length : 0;
-  const comissaoMedia = dados.length > 0 ? totComTotal / dados.length : 0;
-  const elTicket = document.getElementById('kpi-ticket-medio');
-  const elComMedia = document.getElementById('kpi-comissao-media');
-  if(elTicket) elTicket.textContent = fmt(ticketMedio);
-  if(elComMedia) elComMedia.textContent = fmt(comissaoMedia);
+  // Card Comissão Total do Mês (pago + em aberto)
+  const elComTotal = document.getElementById('kpi-comissao-total');
+  if(elComTotal) elComTotal.textContent = fmt(totComTotal);
+  const elComTotalSub = document.getElementById('kpi-comissao-total-sub');
+  if(elComTotalSub) elComTotalSub.textContent = 'Pago ' + fmt(totCom) + ' + Em aberto ' + fmt(totAberto) + ' · ' + dados.length + ' contrato' + (dados.length!==1?'s':'');
   // FIX: usava variável 'mes' indefinida — deve ser 'mesFinal'
   const labelPeriodo = mesFinal === 'todos' || !mesFinal ? 'Todos os meses' : (MESES[mesFinal] || mesFinal);
   const agora = new Date();
@@ -5867,14 +5925,10 @@ function renderResumo() {
       _calcVariacao('c-var-bruto', totBruto, totBrutoAnt);
       _calcVariacao('c-var-perc', percMedio, percMedioAnt);
       _calcVariacao('c-var-aberto', totAberto, totAbertoAnt);
-      // Variação ticket médio e comissão média
-      const ticketMedioAnt = dadosAnt.length > 0 ? totBrutoAnt / dadosAnt.length : 0;
-      const comissaoMediaAnt = dadosAnt.length > 0 ? totComTotalAnt / dadosAnt.length : 0;
-      _calcVariacao('var-ticket-medio', ticketMedio, ticketMedioAnt);
-      _calcVariacao('var-comissao-media', comissaoMedia, comissaoMediaAnt);
+      _calcVariacao('var-comissao-total', totComTotal, totComTotalAnt);
     }
   } else {
-    ['c-var-recebida','c-var-bruto','c-var-perc','c-var-aberto','var-ticket-medio','var-comissao-media'].forEach(id=>{
+    ['c-var-recebida','c-var-bruto','c-var-perc','c-var-aberto','var-comissao-total'].forEach(id=>{
       const el=document.getElementById(id); if(el) el.textContent='';
     });
   }
@@ -7747,28 +7801,39 @@ function renderProjecaoDiaria(dados, meta) {
   // Só mostra quando há meta definida
   if(!meta || meta <= 0) { bloco.style.display = 'none'; return; }
 
+  // Usa mês de referência do state.month (não sempre "hoje")
   const hoje = new Date();
-  const ano = hoje.getFullYear();
-  const mes = hoje.getMonth(); // 0-based
+  const refMonth = state.month || '';
+  let ano, mes;
+  if(refMonth && refMonth.includes('-')) {
+    const parts = refMonth.split('-');
+    ano = parseInt(parts[0]); mes = parseInt(parts[1]) - 1;
+  } else {
+    ano = hoje.getFullYear(); mes = hoje.getMonth();
+  }
 
-  // Total de dias no mês
+  // Dia atual dentro do mês de referência
   const totalDias = new Date(ano, mes + 1, 0).getDate();
-  const diaAtual = hoje.getDate();
-  const diasPassados = diaAtual;
-  const diasRestantes = totalDias - diaAtual;
+  const esMesAtual = (ano === hoje.getFullYear() && mes === hoje.getMonth());
+  const diaAtual = esMesAtual ? hoje.getDate() : totalDias;
+
+  // Dias úteis com feriados (mesma função usada em renderMetaAtual)
+  const diasPassados = calcDiasUteisNoMes(ano, mes, 1, diaAtual);
+  const diasRestantes = calcDiasUteisNoMes(ano, mes, diaAtual + 1, totalDias);
+  const totalDiasUteis = diasPassados + diasRestantes;
 
   // Comissões recebidas (PAGO) no mês ativo
   const recebido = dados
     .filter(r => (r.status||r.status_comissao||'').toUpperCase() === 'PAGO')
     .reduce((s,r) => s + parseFloat(r.comissao||0), 0);
 
-  // Ritmo diário atual
+  // Ritmo diário atual (dias úteis passados)
   const ritmoDia = diasPassados > 0 ? recebido / diasPassados : 0;
 
-  // Projeção de fechamento no ritmo atual
-  const projecaoFechamento = ritmoDia * totalDias;
+  // Projeção de fechamento no ritmo atual (× total dias úteis do mês)
+  const projecaoFechamento = ritmoDia * totalDiasUteis;
 
-  // Quanto precisa por dia para bater a meta
+  // Quanto precisa por dia para bater a meta (dias úteis restantes)
   const faltaMeta = Math.max(meta - recebido, 0);
   const precisaPorDia = diasRestantes > 0 ? faltaMeta / diasRestantes : faltaMeta;
 
@@ -7789,7 +7854,7 @@ function renderProjecaoDiaria(dados, meta) {
   }
 
   const p = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
-  p('proj-dias-passados', diaAtual + '/' + totalDias + ' dias');
+  p('proj-dias-passados', diasPassados + ' de ' + totalDiasUteis + ' dias úteis');
   p('proj-ritmo-dia', fmt(ritmoDia) + '/dia');
   p('proj-precisa-dia', fmt(precisaPorDia) + '/dia');
   p('proj-fechamento', fmt(projecaoFechamento));
