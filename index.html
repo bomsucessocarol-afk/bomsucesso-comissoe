@@ -5008,7 +5008,8 @@ function bs_mostrarToast(msg, tipo='sucesso', dur=3500){
     }, dur);
   } catch(e) { console.log('Toast:', msg); }
 }
-function bs_mostrarLoading(v){ document.getElementById('loading').style.display=v?'flex':'none'; }
+function bs_mostrarLoading(v){ const el=document.getElementById('loading'); if(el) el.style.display=v?'flex':'none'; }
+function bs_esconderLoading(){ bs_mostrarLoading(false); }
 function bs_trocarAba(nome,btn){
   document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(e=>e.classList.remove('active'));
@@ -5674,11 +5675,16 @@ function renderResumo() {
   renderMetaAtual();
   renderTicketMedio(dados);
   renderMetasProduto(dados);
-  renderProjecaoDiaria(dados, parseFloat(localStorage.getItem('bs_meta_mensal_'+(getMesRefAtivo()||'geral'))||0));
-  // FIX: renderRanking existia mas nunca era chamado
+  // Projeção diária — usa meta do localStorage com fallback
+  const metaRaw = parseFloat(_lsGet('bs_meta_mensal_'+(mesFinal!=='todos'?mesFinal:''))||_lsGet('bs_meta_'+(mesFinal!=='todos'?mesFinal:'global'))||_lsGet('bs_meta')||0);
+  renderProjecaoDiaria(dados, metaRaw);
+  // Ranking Banco × Produto
   renderRanking(dados);
-  // FIX: renderGrafico6Meses existia mas nunca era chamado — passa state.month como referência
+  // Evolução 6 meses (usa state.month como mês de referência)
   renderGrafico6Meses(todosLancamentos, state.month);
+  // Contratos sem retorno (follow-up) e sininho
+  renderAlertaSemRetorno(dados);
+  if(typeof atualizarSininho === 'function') atualizarSininho();
 }
 
 function renderBarras(dados,elId,porProduto) {
@@ -6471,6 +6477,10 @@ function renderRelatorio() {
   renderBarras(dados,'grafico-produto-rel',true);
   _postRenderRelatorio(dados);
 }
+// Stub seguro: chamado ao final de renderRelatorio para extensibilidade futura
+// (estava sendo chamada sem definição — causava ReferenceError)
+function _postRenderRelatorio(dados) { /* extensão futura — manter aqui */ }
+
 // ══════ EXPORT EXCEL (.xlsx) ══════
 function exportarCSV() {
   const mes=document.getElementById('filtro-mes-rel')?.value||'todos';
@@ -7674,6 +7684,7 @@ function atualizarSininho() {
 
 // ── [20] GRÁFICO DE GASTOS POR CATEGORIA ─────────────────────────────────────
 let _gastosChartInstance = null;
+let _chart6meses = null; // Chart.js instance do gráfico Evolução 6 meses (Resumo)
 
 function toggleGastosGrafico() {
   const box = document.getElementById('gastos-grafico-box');
@@ -7865,21 +7876,7 @@ function checkAlertasOrcamento(gastos) {
   }).join('');
 }
 
-// ── ATUALIZA renderResumo para chamar novas funções ─────────────────────────
-// Sobrescreve o hook de renderização para incluir projeção + alertas
-const _renderResumoOriginal = renderResumo;
-renderResumo = function() {
-  _renderResumoOriginal();
-  // Projeção diária [Item 1]
-  const mesAtivo = getMesRefAtivo();
-  const dadosMes = mesAtivo ? todosLancamentos.filter(r=>r.mes_ref===mesAtivo) : [...todosLancamentos];
-  const metaRaw = parseFloat(_lsGet('bs_meta_'+(mesAtivo||'global'))||_lsGet('bs_meta')||0);
-  renderProjecaoDiaria(dadosMes, metaRaw);
-  // Contratos sem retorno [Item 9]
-  renderAlertaSemRetorno(dadosMes);
-  // Sininho [Item 16]
-  atualizarSininho();
-};
+// ── renderResumo unificada (hook removido — lógica incorporada na função original) ──
 
 // ── ATUALIZA renderGastos para chamar checkAlertasOrcamento ─────────────────
 const _renderGastosOriginal = renderGastos;
@@ -8567,8 +8564,8 @@ function renderFollowupLista() {
   }).join('');
 }
 
-/* ══ HOOKS: renderResumo e renderRelatorio com novos recursos ══ */
-const _origRenderResumo = typeof renderResumo === 'function' ? renderResumo : null;
+/* ══ INICIALIZAÇÃO DE NOVOS RECURSOS ══ */
+// _origRenderResumo removido: renderResumo unificada na linha ~5621
 // Hook via override quando DOMContentLoaded
 function _initNovosRecursos() {
   const mesRef = getMesRefAtivo();
