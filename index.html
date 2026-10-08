@@ -430,6 +430,12 @@ input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--az
 .meta-bar-fill{height:100%;border-radius:6px;transition:width 1s cubic-bezier(0.4,0,0.2,1);background:linear-gradient(90deg,var(--azul),var(--amarelo))}
 .secao-titulo{font-family:'Montserrat',sans-serif;font-weight:700;font-size:.85rem;letter-spacing:.5px;color:var(--azul);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .secao-titulo::after{content:'';flex:1;height:1px;background:var(--borda)}
+/* ── Ranking 3 abas ── */
+.aba-ranking-btn{border:1.5px solid var(--borda);background:var(--fundo);color:var(--cinza);border-radius:20px;padding:5px 14px;font-size:.72rem;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s;white-space:nowrap}
+.aba-ranking-btn:hover{border-color:var(--azul);color:var(--azul)}
+.aba-ranking-btn.active{background:var(--azul);border-color:var(--azul);color:#fff}
+/* ── Hover linha lançamento ── */
+tr.linha-lancamento:hover{background:rgba(56,55,114,.07)}
 .bs-wrap .grafico-container{background:var(--card);border-radius:16px;padding:20px;box-shadow:var(--sombra);border:1px solid var(--border);margin-bottom:22px}
 .grafico-titulo{font-family:'Montserrat',sans-serif;font-weight:700;font-size:.8rem;color:var(--azul);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px}
 .bs-wrap .barra-grupo{display:flex;flex-direction:column;gap:10px}
@@ -1856,6 +1862,18 @@ html { scroll-behavior: smooth; }
       <div class="card-sub" id="c-contratos-abertos">0 em aberto</div>
       <div id="c-var-aberto" style="font-size:0.65rem;margin-top:4px;"></div>
     </div>
+    <div class="card" style="border-left:4px solid #8B5CF6;">
+      <div class="card-label">Ticket Médio</div>
+      <div class="card-valor" id="kpi-ticket-medio" style="color:#8B5CF6;">R$ 0,00</div>
+      <div class="card-sub">valor médio por contrato</div>
+      <div id="var-ticket-medio" style="font-size:0.65rem;margin-top:4px;"></div>
+    </div>
+    <div class="card" style="border-left:4px solid #0891B2;">
+      <div class="card-label">Comissão Média</div>
+      <div class="card-valor" id="kpi-comissao-media" style="color:#0891B2;">R$ 0,00</div>
+      <div class="card-sub">comissão média por contrato</div>
+      <div id="var-comissao-media" style="font-size:0.65rem;margin-top:4px;"></div>
+    </div>
   </div>
 
   <div class="grid-2">
@@ -1888,19 +1906,21 @@ html { scroll-behavior: smooth; }
   <div class="secao-titulo">Últimos Lançamentos</div>
   <div class="tabela-wrapper">
     <table>
-      <thead><tr><th>Cliente</th><th>Modalidade</th><th>Banco</th><th>Valor</th><th>Comissão</th><th>Status</th></tr></thead>
+      <thead><tr><th>Data</th><th>Produto</th><th>Banco</th><th>Valor</th><th>Comissão</th><th>Status</th></tr></thead>
       <tbody id="tbody-recentes"></tbody>
     </table>
   </div>
 
-  <!-- RANKING BANCO × PRODUTO [ITEM 4] -->
+  <!-- RANKING 3 ABAS [ITEM 12] -->
   <div style="margin-top:24px;">
-    <div class="secao-titulo">🏆 Ranking — Banco × Produto</div>
+    <div class="secao-titulo">🏆 Ranking</div>
+    <div style="display:flex;gap:6px;margin:10px 0 0;flex-wrap:wrap;">
+      <button class="aba-ranking-btn active" onclick="setAbaRanking('banco-produto')">Banco × Produto</button>
+      <button class="aba-ranking-btn" onclick="setAbaRanking('promotora')">Promotora</button>
+      <button class="aba-ranking-btn" onclick="setAbaRanking('tipo-operacao')">Tipo de Operação</button>
+    </div>
     <div class="tabela-wrapper" style="margin-top:10px;">
-      <table class="ranking-table">
-        <thead><tr><th>#</th><th>Banco</th><th>Produto</th><th>Contratos</th><th>Bruto</th><th>Comissão</th><th>% Médio</th></tr></thead>
-        <tbody id="tbody-ranking"></tbody>
-      </table>
+      <div id="ranking-content"></div>
     </div>
   </div>
 
@@ -5798,6 +5818,13 @@ function renderResumo() {
   document.getElementById('c-perc-medio').textContent=fmtP(percMedio);
   document.getElementById('c-aberto').textContent=fmt(totAberto);
   document.getElementById('c-contratos-abertos').textContent=abertos.length+' em aberto';
+  // KPI: Ticket Médio e Comissão Média
+  const ticketMedio = dados.length > 0 ? totBruto / dados.length : 0;
+  const comissaoMedia = dados.length > 0 ? totComTotal / dados.length : 0;
+  const elTicket = document.getElementById('kpi-ticket-medio');
+  const elComMedia = document.getElementById('kpi-comissao-media');
+  if(elTicket) elTicket.textContent = fmt(ticketMedio);
+  if(elComMedia) elComMedia.textContent = fmt(comissaoMedia);
   // FIX: usava variável 'mes' indefinida — deve ser 'mesFinal'
   const labelPeriodo = mesFinal === 'todos' || !mesFinal ? 'Todos os meses' : (MESES[mesFinal] || mesFinal);
   const agora = new Date();
@@ -5840,9 +5867,14 @@ function renderResumo() {
       _calcVariacao('c-var-bruto', totBruto, totBrutoAnt);
       _calcVariacao('c-var-perc', percMedio, percMedioAnt);
       _calcVariacao('c-var-aberto', totAberto, totAbertoAnt);
+      // Variação ticket médio e comissão média
+      const ticketMedioAnt = dadosAnt.length > 0 ? totBrutoAnt / dadosAnt.length : 0;
+      const comissaoMediaAnt = dadosAnt.length > 0 ? totComTotalAnt / dadosAnt.length : 0;
+      _calcVariacao('var-ticket-medio', ticketMedio, ticketMedioAnt);
+      _calcVariacao('var-comissao-media', comissaoMedia, comissaoMediaAnt);
     }
   } else {
-    ['c-var-recebida','c-var-bruto','c-var-perc','c-var-aberto'].forEach(id=>{
+    ['c-var-recebida','c-var-bruto','c-var-perc','c-var-aberto','var-ticket-medio','var-comissao-media'].forEach(id=>{
       const el=document.getElementById(id); if(el) el.textContent='';
     });
   }
@@ -5894,14 +5926,39 @@ function renderBarras(dados,elId,porProduto) {
 }
 
 function renderRecentes(dados) {
-  const rec=[...dados].reverse().slice(0,8);
-  const tb=document.getElementById('tbody-recentes');
-  if(!rec.length){tb.innerHTML=`<tr><td colspan="6"><div class="vazio"><div class="vazio-icon">📋</div><div style="font-size:0.8rem;">Nenhum contrato neste período</div></div></td></tr>`;return;}
-  tb.innerHTML=rec.map(r=>{
-    const mod=normModal(r.modalidade);
-    const st=(r.status||r.status_comissao||'').toUpperCase();
-    return `<tr>
-      <td style="font-weight:600;">${(r.nome_cliente||'—').split(' ').slice(0,2).join(' ')}</td>
+  const tb = document.getElementById('tbody-recentes');
+  if(!tb) return;
+  // Ordena por data desc: data_operacao > created_at > data > ''
+  const sorted = [...dados].sort((a,b) => {
+    const da = a.data_operacao || a.created_at || a.data || '';
+    const db = b.data_operacao || b.created_at || b.data || '';
+    return da < db ? 1 : da > db ? -1 : 0;
+  }).slice(0,10);
+  if(!sorted.length){
+    tb.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--cinza);padding:16px;">Nenhum lançamento neste período</td></tr>`;
+    return;
+  }
+  tb.innerHTML = sorted.map(r => {
+    const mod = normModal(r.modalidade);
+    const st = (r.status||r.status_comissao||'').toUpperCase();
+    // Formata data como DD/MM
+    const rawData = r.data_operacao || r.created_at || r.data || '';
+    let dataFmt = '—';
+    if(rawData) {
+      try {
+        const d = new Date(rawData);
+        if(!isNaN(d.getTime())) {
+          dataFmt = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0');
+        } else {
+          // tenta formato DD/MM/YYYY
+          const partes = rawData.split(/[\/\-]/);
+          if(partes.length >= 2) dataFmt = partes[0].padStart(2,'0') + '/' + partes[1].padStart(2,'0');
+        }
+      } catch(e) { dataFmt = '—'; }
+    }
+    const idVal = r.id != null ? r.id : '';
+    return `<tr class="linha-lancamento" style="cursor:pointer;" onclick="abrirModal('${idVal}')">
+      <td style="font-size:0.75rem;color:var(--cinza);font-weight:600;">${dataFmt}</td>
       <td><span class="pill ${pillClass(mod)}">${mod}</span></td>
       <td style="color:var(--cinza);font-size:0.75rem;">${r.banco||r.banco_digitado||'—'}</td>
       <td style="font-weight:600;">${fmt(r.valor_cliente)}</td>
@@ -7872,6 +7929,7 @@ function atualizarSininho() {
 // ── [20] GRÁFICO DE GASTOS POR CATEGORIA ─────────────────────────────────────
 let _gastosChartInstance = null;
 let _chart6meses = null; // Chart.js instance do gráfico Evolução 6 meses (Resumo)
+let _abaRankingAtiva = 'banco-produto'; // estado persistente da aba de ranking
 
 function toggleGastosGrafico() {
   const box = document.getElementById('gastos-grafico-box');
@@ -8184,31 +8242,98 @@ function renderAgenda() {
   }).join('');
 }
 
-/* ══ [4] RANKING BANCO × PRODUTO ══ */
-function renderRanking(dados) {
-  const tbody = document.getElementById('tbody-ranking');
-  if(!tbody) return;
-  const por = {};
-  dados.forEach(r => {
-    const k = (r.banco||r.banco_digitado||'—').toUpperCase() + '||' + (r.modalidade||'—');
-    if(!por[k]) por[k] = { banco:(r.banco||r.banco_digitado||'—').toUpperCase(), prod:r.modalidade||'—', qtd:0, bruto:0, com:0, percSum:0 };
-    por[k].qtd++;
-    por[k].bruto += parseFloat(r.valor_cliente||0);
-    por[k].com += parseFloat(r.comissao||0);
-    por[k].percSum += parseFloat(r.perc_comissao||0);
+/* ══ [4] RANKING — 3 ABAS ══ */
+let _rankingDadosCache = []; // cache dos dados para re-render sem redesenhar tudo
+
+function setAbaRanking(aba) {
+  _abaRankingAtiva = aba;
+  // Atualiza botões
+  document.querySelectorAll('.aba-ranking-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('onclick') === `setAbaRanking('${aba}')`);
   });
-  const sorted = Object.values(por).sort((a,b) => b.com - a.com);
-  const cores = ['🥇','🥈','🥉'];
-  tbody.innerHTML = sorted.slice(0,10).map((row,i) => `
-    <tr>
-      <td><span class="rank-badge" style="background:${i<3?['#FFD700','#C0C0C0','#CD7F32'][i]:'#e8e8f0'};color:${i<3?'#333':'#666'}">${cores[i]||i+1}</span></td>
-      <td style="font-weight:700;">${row.banco}</td>
-      <td>${row.prod}</td>
-      <td style="text-align:center;">${row.qtd}</td>
-      <td>${fmt(row.bruto)}</td>
-      <td style="font-weight:700;color:#383772;">${fmt(row.com)}</td>
-      <td>${row.qtd?fmtP(row.percSum/row.qtd):'—'}</td>
-    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--cinza);padding:16px;">Nenhum contrato neste período</td></tr>';
+  // Re-renderiza apenas o conteúdo do ranking com o cache
+  _renderRankingContent(_rankingDadosCache, aba);
+}
+
+function _renderRankingContent(dados, aba) {
+  const container = document.getElementById('ranking-content');
+  if(!container) return;
+  const totalCom = dados.reduce((s,r)=>s+parseFloat(r.comissao||0),0);
+  const medalhas = ['🥇','🥈','🥉'];
+  const bgMed = ['#FFD700','#C0C0C0','#CD7F32'];
+
+  if(aba === 'banco-produto') {
+    const por = {};
+    dados.forEach(r => {
+      const banco = (r.banco||r.banco_digitado||'—').toUpperCase();
+      const prod = normalizarProduto(r.modalidade);
+      const k = banco + '||' + prod;
+      if(!por[k]) por[k] = { nome: banco + ' · ' + prod, qtd:0, com:0 };
+      por[k].qtd++;
+      por[k].com += parseFloat(r.comissao||0);
+    });
+    const rows = Object.values(por).sort((a,b)=>b.com-a.com).slice(0,8);
+    container.innerHTML = `<table class="ranking-table"><thead><tr><th>#</th><th>Nome</th><th>Contratos</th><th>Comissão</th><th>% Total</th></tr></thead><tbody>` +
+      (rows.length ? rows.map((row,i)=>`<tr>
+        <td><span class="rank-badge" style="background:${i<3?bgMed[i]:'#e8e8f0'};color:${i<3?'#333':'#666'}">${medalhas[i]||i+1}</span></td>
+        <td style="font-weight:700;">${row.nome}</td>
+        <td style="text-align:center;">${row.qtd}</td>
+        <td style="font-weight:700;color:#383772;">${fmt(row.com)}</td>
+        <td>${totalCom>0?fmtP(row.com/totalCom*100):'—'}</td>
+      </tr>`).join('') :
+      '<tr><td colspan="4" style="text-align:center;color:var(--cinza);padding:12px;">Nenhum dado neste período</td></tr>')
+    + '</tbody></table>';
+
+  } else if(aba === 'promotora') {
+    const por = {};
+    dados.forEach(r => {
+      const k = (r.promotora||'').trim() || '—';
+      if(!por[k]) por[k] = { nome: k, qtd:0, com:0 };
+      por[k].qtd++;
+      por[k].com += parseFloat(r.comissao||0);
+    });
+    const rows = Object.values(por).sort((a,b)=>b.com-a.com).slice(0,8);
+    container.innerHTML = `<table class="ranking-table"><thead><tr><th>#</th><th>Nome</th><th>Contratos</th><th>Comissão</th><th>% Total</th></tr></thead><tbody>` +
+      (rows.length ? rows.map((row,i)=>`<tr>
+        <td><span class="rank-badge" style="background:${i<3?bgMed[i]:'#e8e8f0'};color:${i<3?'#333':'#666'}">${medalhas[i]||i+1}</span></td>
+        <td style="font-weight:700;">${row.nome}</td>
+        <td style="text-align:center;">${row.qtd}</td>
+        <td style="font-weight:700;color:#383772;">${fmt(row.com)}</td>
+        <td>${totalCom>0?fmtP(row.com/totalCom*100):'—'}</td>
+      </tr>`).join('') :
+      '<tr><td colspan="4" style="text-align:center;color:var(--cinza);padding:12px;">Nenhum dado neste período</td></tr>')
+    + '</tbody></table>';
+
+  } else if(aba === 'tipo-operacao') {
+    const por = {};
+    dados.forEach(r => {
+      const k = normalizarProduto(r.modalidade) || '—';
+      if(!por[k]) por[k] = { nome: k, qtd:0, com:0 };
+      por[k].qtd++;
+      por[k].com += parseFloat(r.comissao||0);
+    });
+    const rows = Object.values(por).sort((a,b)=>b.com-a.com).slice(0,8);
+    container.innerHTML = `<table class="ranking-table"><thead><tr><th>#</th><th>Nome</th><th>Contratos</th><th>Comissão</th><th>% Total</th></tr></thead><tbody>` +
+      (rows.length ? rows.map((row,i)=>`<tr>
+        <td><span class="rank-badge" style="background:${i<3?bgMed[i]:'#e8e8f0'};color:${i<3?'#333':'#666'}">${medalhas[i]||i+1}</span></td>
+        <td style="font-weight:700;">${row.nome}</td>
+        <td style="text-align:center;">${row.qtd}</td>
+        <td style="font-weight:700;color:#383772;">${fmt(row.com)}</td>
+        <td>${totalCom>0?fmtP(row.com/totalCom*100):'—'}</td>
+      </tr>`).join('') :
+      '<tr><td colspan="4" style="text-align:center;color:var(--cinza);padding:12px;">Nenhum dado neste período</td></tr>')
+    + '</tbody></table>';
+  }
+}
+
+function renderRanking(dados) {
+  _rankingDadosCache = dados || [];
+  // Mantém a aba ativa sem resetar para aba 0
+  _renderRankingContent(_rankingDadosCache, _abaRankingAtiva);
+  // Sincroniza botões com estado atual
+  document.querySelectorAll('.aba-ranking-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('onclick') === `setAbaRanking('${_abaRankingAtiva}')`);
+  });
 }
 
 /* ══ [5] TICKET MÉDIO POR PRODUTO ══ */
