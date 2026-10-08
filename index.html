@@ -161,6 +161,8 @@ body *{font-family:'DM Sans',sans-serif}
 .bs-wrap .card.vermelho-card{border-left:4px solid var(--vermelho)}
 .bs-wrap .card.amarelo-card{border-left:4px solid var(--amarelo)}
 .card-sub{font-size:.72rem;color:var(--cinza);margin-top:6px}
+.btn-graf-filtro{font-size:.62rem;font-weight:700;padding:3px 9px;border-radius:20px;border:1.5px solid var(--borda);background:var(--fundo);color:var(--cinza);cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn-graf-filtro.active{background:var(--azul);border-color:var(--azul);color:#fff}
 
 /* ── PHRASE ── */
 .phrase{
@@ -991,11 +993,11 @@ input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--az
 @media (min-width: 769px) {
   .wrap { max-width: 1280px; padding: 24px 28px; }
 
-  /* Cards BS em 3 colunas no PC */
+  /* Cards BS em 4 colunas no PC */
   .cards-grid.bs-cards-grid,
   .bs-wrap .cards-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
   }
 
   /* Tabela BS com hover mais suave */
@@ -1008,6 +1010,13 @@ input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--az
 
   /* Gráficos lado a lado */
   .charts { grid-template-columns: 1fr 1fr; gap: 18px; }
+}
+
+@media (min-width: 769px) and (max-width: 1100px) {
+  .cards-grid.bs-cards-grid,
+  .bs-wrap .cards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
 }
 
 /* ── Melhorias gerais (mobile + PC) ── */
@@ -1765,10 +1774,26 @@ html { scroll-behavior: smooth; }
         </div>
       </div>
     </div>
-    <div class="meta-bar-track" style="margin-top:10px;">
-      <div class="meta-bar-fill" id="meta-bar" style="width:0%"></div>
+    <!-- Barra Recebido -->
+    <div style="margin-top:12px;">
+      <div style="display:flex;justify-content:space-between;font-size:0.68rem;color:var(--cinza);margin-bottom:3px;">
+        <span>✅ Recebido (Pago)</span><span id="meta-perc-recebido">0%</span>
+      </div>
+      <div class="meta-bar-track">
+        <div class="meta-bar-fill" id="meta-bar" style="width:0%;background:#383772;"></div>
+      </div>
     </div>
-    <div style="font-size:0.68rem;color:var(--cinza);margin-top:2px;" id="meta-sub">Defina uma meta no campo acima</div>
+    <!-- Barra Projeção -->
+    <div style="margin-top:8px;">
+      <div style="display:flex;justify-content:space-between;font-size:0.68rem;color:var(--cinza);margin-bottom:3px;">
+        <span>📊 Projeção (Pago + Em aberto)</span><span id="meta-perc-projecao">0%</span>
+      </div>
+      <div class="meta-bar-track">
+        <div style="height:100%;border-radius:6px;transition:width 1s cubic-bezier(0.4,0,0.2,1);background:#f5b301;" id="meta-bar-proj" style="width:0%"></div>
+      </div>
+    </div>
+    <div style="font-size:0.68rem;color:var(--cinza);margin-top:6px;" id="meta-sub">Defina uma meta no campo acima</div>
+    <div style="font-size:0.68rem;color:var(--azul);font-weight:600;margin-top:3px;" id="meta-dias-uteis"></div>
   </div>
 
   <!-- PROJEÇÃO DIÁRIA [ITEM 1] -->
@@ -1811,31 +1836,51 @@ html { scroll-behavior: smooth; }
       <div class="card-label">Comissão Recebida</div>
       <div class="card-valor" id="c-comissao-recebida">R$ 0</div>
       <div class="card-sub" id="c-contratos-pagos">0 contratos pagos</div>
+      <div id="c-var-recebida" style="font-size:0.65rem;margin-top:4px;"></div>
     </div>
     <div class="card amarelo-card">
       <div class="card-label">Bruto em Contratos</div>
       <div class="card-valor" id="c-bruto">R$ 0</div>
       <div class="card-sub" id="c-total-contratos">0 contratos</div>
+      <div id="c-var-bruto" style="font-size:0.65rem;margin-top:4px;"></div>
     </div>
     <div class="card verde-card">
       <div class="card-label">% Médio de Comissão</div>
       <div class="card-valor" id="c-perc-medio">0%</div>
       <div class="card-sub">sobre valor dos contratos</div>
+      <div id="c-var-perc" style="font-size:0.65rem;margin-top:4px;"></div>
     </div>
     <div class="card vermelho-card">
       <div class="card-label">A Receber (Em Aberto)</div>
       <div class="card-valor" id="c-aberto">R$ 0</div>
       <div class="card-sub" id="c-contratos-abertos">0 em aberto</div>
+      <div id="c-var-aberto" style="font-size:0.65rem;margin-top:4px;"></div>
     </div>
   </div>
 
   <div class="grid-2">
     <div class="grafico-container">
-      <div class="grafico-titulo">Comissão por Produto</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+        <div class="grafico-titulo" style="margin-bottom:0;">Comissão por Produto</div>
+        <div style="display:flex;gap:4px;">
+          <button class="btn-graf-filtro active" id="btn-prod-todos" onclick="setFiltroGraf('produto','todos',this)">Todos</button>
+          <button class="btn-graf-filtro" id="btn-prod-pago" onclick="setFiltroGraf('produto','PAGO',this)">Pago</button>
+          <button class="btn-graf-filtro" id="btn-prod-aberto" onclick="setFiltroGraf('produto','ABERTO',this)">Em aberto</button>
+        </div>
+      </div>
+      <div style="font-size:0.62rem;color:var(--cinza);margin-bottom:6px;" id="legenda-grafico-produto">Exibindo: todos os contratos</div>
       <div class="barra-grupo" id="grafico-produto"></div>
     </div>
     <div class="grafico-container">
-      <div class="grafico-titulo">Top Bancos</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+        <div class="grafico-titulo" style="margin-bottom:0;">Top Bancos</div>
+        <div style="display:flex;gap:4px;">
+          <button class="btn-graf-filtro active" id="btn-banco-todos" onclick="setFiltroGraf('banco','todos',this)">Todos</button>
+          <button class="btn-graf-filtro" id="btn-banco-pago" onclick="setFiltroGraf('banco','PAGO',this)">Pago</button>
+          <button class="btn-graf-filtro" id="btn-banco-aberto" onclick="setFiltroGraf('banco','ABERTO',this)">Em aberto</button>
+        </div>
+      </div>
+      <div style="font-size:0.62rem;color:var(--cinza);margin-bottom:6px;" id="legenda-grafico-banco">Exibindo: todos os contratos</div>
       <div class="barra-grupo" id="grafico-banco"></div>
     </div>
   </div>
@@ -4969,19 +5014,47 @@ function ordenarMeses(lista) {
 // ══════ UTILS ══════
 function fmt(v){ return 'R$ '+parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtP(v){ return parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%'; }
-function normModal(m){
+// Mapa canônico de normalização de modalidade/produto
+// Edite aqui para mapear novos nomes sem alterar outros blocos
+const PROD_MAP = {
+  'SIAPE — FEDERAL': 'SIAPE',
+  'SIAPE - FEDERAL': 'SIAPE',
+  'SIAPE FEDERAL': 'SIAPE',
+  'GOVERNO DE RONDONIA': 'ESTADO (RO)',
+  'GOVERNO DO ESTADO': 'ESTADO',
+  'GOV RONDONIA': 'ESTADO (RO)',
+  'ESTADO RO': 'ESTADO (RO)',
+  'PREFEITURA': 'MUNICÍPIO',
+  'PREFEITURA MUNICIPAL': 'MUNICÍPIO',
+  'CLT PRIVADO': 'CLT',
+  'CREDITO TRABALHADOR': 'CLT',
+  'ANTECIPACAO FGTS': 'FGTS',
+  'SAQUE ANIVERSARIO': 'FGTS',
+};
+
+function normalizarProduto(m) {
   if(!m) return 'OUTRO';
-  const u=m.toString().toUpperCase().trim();
-  if(u.includes('FGTS')) return 'FGTS';
+  const u = m.toString().toUpperCase().trim();
+  // Verifica mapa exato primeiro
+  if(PROD_MAP[u]) return PROD_MAP[u];
+  // Fallback: lógica de includes (compatível com normModal)
+  if(u.includes('FGTS') || u.includes('SAQUE ANIVERSARIO') || u.includes('ANTECIPACAO')) return 'FGTS';
   if(u.includes('SIAPE')) return 'SIAPE';
   if(u.includes('INSS')) return 'INSS';
-  if(u.includes('ESTADO')||u.includes('EST ')||u.includes('GOV')) return 'ESTADO';
+  if(u.includes('ESTADO')||u.includes('EST ')||u.includes('GOV')) {
+    if(u.includes('RONDONIA')||u.includes('RO')) return 'ESTADO (RO)';
+    return 'ESTADO';
+  }
+  if(u.includes('PREFEITURA')||u.includes('MUNIC')) return 'MUNICÍPIO';
   if(u.includes('FED')||u.includes('FEDERAL')) return 'FED';
   if(u.includes('CLT')) return 'CLT';
   if(u.includes('PORT')) return 'PORTABILIDADE';
   if(u.includes('CART')||u.includes('CESTA')||u.includes('SAQUE')) return 'CART';
   return u.split(' ')[0]||'OUTRO';
 }
+// Alias para compatibilidade com todo o código existente
+// (normModal continua funcionando — aponta para normalizarProduto)
+function normModal(m){ return normalizarProduto(m); }
 function pillClass(m){
   const map={'FGTS':'pill-fgts','INSS':'pill-inss','ESTADO':'pill-estado','SIAPE':'pill-siape','FED':'pill-fed','CLT':'pill-clt','PORTABILIDADE':'pill-inss','CART':'pill-fgts'};
   return map[m]||'pill-outro';
@@ -5538,34 +5611,82 @@ function renderMetaAtual() {
   if(localVal !== null) {
     meta = parseFloat(localVal||0);
   } else {
-    // Tenta legado local
     const legado = parseFloat(_lsGet('bs_meta')||0);
     meta = legado;
     if(legado > 0) _lsSet(chave, String(legado));
   }
-  // Se ainda zero, tenta buscar do Supabase de forma assíncrona
   if(!meta && sbClient) {
     sbClient.from('bs_config').select('valor').eq('chave','meta_'+mesRef).single()
       .then(({data}) => {
-        if(data && data.valor) {
-          _lsSet(chave, data.valor);
-          renderMetaAtual(); // re-render com valor do banco
-        }
+        if(data && data.valor) { _lsSet(chave, data.valor); renderMetaAtual(); }
       }).catch(()=>{});
   }
   const mes = getMesRefAtivo() || 'todos';
   const dados = mes && mes !== 'todos' ? todosLancamentos.filter(r=>r.mes_ref===mes) : todosLancamentos;
   const recebido = dados.filter(r=>(r.status||r.status_comissao||'').toUpperCase()==='PAGO')
     .reduce((s,r)=>s+parseFloat(r.comissao||0),0);
-  document.getElementById('meta-input').value = meta||'';
-  document.getElementById('meta-progresso-txt').textContent = fmt(recebido);
-  document.getElementById('meta-valor-txt').textContent = meta>0?fmt(meta):'Não definida';
-  const perc = meta>0 ? Math.min((recebido/meta*100),100) : 0;
-  document.getElementById('meta-perc-txt').textContent = meta>0?(perc.toFixed(1)+'%'):'—';
-  document.getElementById('meta-bar').style.width = perc+'%';
-  document.getElementById('meta-sub').textContent = meta>0
-    ? (perc>=100 ? '🎉 Meta atingida!' : 'Faltam '+fmt(meta-recebido)+' para a meta')
+  const aberto = dados.filter(r=>(r.status||r.status_comissao||'').toUpperCase()==='ABERTO')
+    .reduce((s,r)=>s+parseFloat(r.comissao||0),0);
+  const projecao = recebido + aberto;
+
+  // Elementos legados
+  const elInput = document.getElementById('meta-input');
+  if(elInput) elInput.value = meta||'';
+  const elProg = document.getElementById('meta-progresso-txt');
+  if(elProg) elProg.textContent = fmt(recebido);
+  const elValor = document.getElementById('meta-valor-txt');
+  if(elValor) elValor.textContent = meta>0?fmt(meta):'Não definida';
+  const percRec = meta>0 ? Math.min((recebido/meta*100),100) : 0;
+  const percProj = meta>0 ? Math.min((projecao/meta*100),100) : 0;
+  const elPercTxt = document.getElementById('meta-perc-txt');
+  if(elPercTxt) elPercTxt.textContent = meta>0?(percRec.toFixed(1)+'%'):'—';
+
+  // Barra recebido (legada — mantém compatibilidade)
+  const elBar = document.getElementById('meta-bar');
+  if(elBar) elBar.style.width = percRec+'%';
+
+  // Novos elementos
+  const elPercRec = document.getElementById('meta-perc-recebido');
+  if(elPercRec) elPercRec.textContent = meta>0?(percRec.toFixed(1)+'%'):'—';
+  const elBarProj = document.getElementById('meta-bar-proj');
+  if(elBarProj) elBarProj.style.width = percProj+'%';
+  const elPercProj = document.getElementById('meta-perc-projecao');
+  if(elPercProj) elPercProj.textContent = meta>0?(percProj.toFixed(1)+'%'):'—';
+
+  const elSub = document.getElementById('meta-sub');
+  if(elSub) elSub.textContent = meta>0
+    ? (percRec>=100 ? '🎉 Meta atingida!' : 'Faltam '+fmt(meta-recebido)+' para a meta')
     : 'Defina uma meta no campo acima';
+
+  // Dias úteis restantes e ritmo necessário
+  const elDias = document.getElementById('meta-dias-uteis');
+  if(elDias && meta>0) {
+    // Calcula dias úteis restantes no mês de referência
+    const refMonth = state.month || '';
+    let rYear, rMon;
+    if(refMonth && refMonth.includes('-')) {
+      const p = refMonth.split('-');
+      rYear = parseInt(p[0]); rMon = parseInt(p[1])-1;
+    } else {
+      const hj = new Date(); rYear = hj.getFullYear(); rMon = hj.getMonth();
+    }
+    const hoje = new Date();
+    const totalDias = new Date(rYear, rMon+1, 0).getDate();
+    let diasUteis = 0;
+    for(let d=hoje.getDate()+1; d<=totalDias; d++) {
+      const dow = new Date(rYear, rMon, d).getDay();
+      if(dow !== 0 && dow !== 6) diasUteis++;
+    }
+    const falta = Math.max(meta - recebido, 0);
+    const porDia = diasUteis > 0 ? falta / diasUteis : falta;
+    if(percRec >= 100) {
+      elDias.textContent = '';
+    } else if(diasUteis === 0) {
+      elDias.textContent = 'Último dia útil do mês · Faltam ' + fmt(falta);
+    } else {
+      elDias.textContent = 'Faltam ' + diasUteis + ' dia' + (diasUteis!==1?'s':'') + ' útil' + (diasUteis!==1?'eis':'') + ' · Precisa '+fmt(porDia)+'/dia';
+    }
+  } else if(elDias) { elDias.textContent = ''; }
 }
 
 // ══════ FILTROS ══════
@@ -5610,9 +5731,22 @@ function preencherFiltrosMeses() {
   mods.forEach(m=>{ const op=document.createElement('option'); op.value=m; op.textContent=m; selModal.appendChild(op); });
 }
 
+// Calcula e exibe variação % de um valor vs mês anterior
+function _calcVariacao(elId, atual, anterior) {
+  const el = document.getElementById(elId);
+  if(!el) return;
+  if(!anterior || anterior === 0) { el.textContent = ''; return; }
+  const diff = ((atual - anterior) / Math.abs(anterior)) * 100;
+  const sinal = diff >= 0 ? '▲' : '▼';
+  const cor = diff >= 0 ? '#16a34a' : '#dc2626';
+  el.innerHTML = `<span style="color:${cor};font-weight:700;">${sinal} ${Math.abs(diff).toFixed(1)}%</span> <span style="color:var(--cinza);">vs mês anterior</span>`;
+}
+
 // ══════ RESUMO ══════
 // Quando usuário escolhe manualmente no dropdown — salva override e renderiza
 let _mesResumoOverride = null;
+let _filtroGrafProduto = 'todos'; // 'todos'|'PAGO'|'ABERTO'
+let _filtroGrafBanco = 'todos';
 function renderResumoManual(val) {
   _mesResumoOverride = val; // null = usa state.month; 'todos' = todos; 'JULHO2026' = filtra
   renderResumo();
@@ -5685,22 +5819,75 @@ function renderResumo() {
   // Contratos sem retorno (follow-up) e sininho
   renderAlertaSemRetorno(dados);
   if(typeof atualizarSininho === 'function') atualizarSininho();
+
+  // Variação vs mês anterior
+  if(mesFinal !== 'todos' && mesFinal) {
+    // Calcula mês anterior
+    const partes = (state.month||'').split('-');
+    if(partes.length === 2) {
+      let yA = parseInt(partes[0]), mA = parseInt(partes[1])-2; // -2 porque 0-indexed e -1 mês
+      if(mA < 0) { mA += 12; yA--; }
+      const mesAnteriorKey = stateMonthToMesRef(`${yA}-${String(mA+1).padStart(2,'0')}`);
+      const dadosAnt = todosLancamentos.filter(r => r.mes_ref === mesAnteriorKey);
+      const pagosAnt = dadosAnt.filter(r=>(r.status||r.status_comissao||'').toUpperCase()==='PAGO');
+      const abertosAnt = dadosAnt.filter(r=>(r.status||r.status_comissao||'').toUpperCase()==='ABERTO');
+      const totComAnt = pagosAnt.reduce((s,r)=>s+parseFloat(r.comissao||0),0);
+      const totBrutoAnt = dadosAnt.reduce((s,r)=>s+parseFloat(r.valor_cliente||0),0);
+      const totAbertoAnt = abertosAnt.reduce((s,r)=>s+parseFloat(r.comissao||0),0);
+      const totComTotalAnt = totComAnt + totAbertoAnt;
+      const percMedioAnt = totBrutoAnt > 0 ? (totComTotalAnt / totBrutoAnt) * 100 : 0;
+      _calcVariacao('c-var-recebida', totCom, totComAnt);
+      _calcVariacao('c-var-bruto', totBruto, totBrutoAnt);
+      _calcVariacao('c-var-perc', percMedio, percMedioAnt);
+      _calcVariacao('c-var-aberto', totAberto, totAbertoAnt);
+    }
+  } else {
+    ['c-var-recebida','c-var-bruto','c-var-perc','c-var-aberto'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.textContent='';
+    });
+  }
+}
+
+function setFiltroGraf(tipo, val, btn) {
+  if(tipo === 'produto') {
+    _filtroGrafProduto = val;
+    ['todos','pago','aberto'].forEach(k => {
+      const el = document.getElementById('btn-prod-'+k);
+      if(el) el.classList.toggle('active', k === val.toLowerCase());
+    });
+    const leg = document.getElementById('legenda-grafico-produto');
+    if(leg) leg.textContent = 'Exibindo: ' + (val==='todos'?'todos os contratos':val==='PAGO'?'somente pagos':'somente em aberto');
+  } else {
+    _filtroGrafBanco = val;
+    ['todos','pago','aberto'].forEach(k => {
+      const el = document.getElementById('btn-banco-'+k);
+      if(el) el.classList.toggle('active', k === val.toLowerCase());
+    });
+    const leg = document.getElementById('legenda-grafico-banco');
+    if(leg) leg.textContent = 'Exibindo: ' + (val==='todos'?'todos os contratos':val==='PAGO'?'somente pagos':'somente em aberto');
+  }
+  renderResumo();
 }
 
 function renderBarras(dados,elId,porProduto) {
+  // Aplica filtro de status (pago/aberto/todos)
+  const filtro = porProduto ? _filtroGrafProduto : _filtroGrafBanco;
+  const dadosFiltrados = filtro === 'todos' ? dados
+    : dados.filter(r => (r.status||r.status_comissao||'').toUpperCase() === filtro);
   const por={};
-  dados.forEach(r=>{
-    const k=porProduto?normModal(r.modalidade):(r.banco||r.banco_digitado||'—').toUpperCase();
+  dadosFiltrados.forEach(r=>{
+    const k=porProduto?normalizarProduto(r.modalidade):(r.banco||r.banco_digitado||'—').toUpperCase();
     if(!por[k])por[k]=0;
     por[k]+=parseFloat(r.comissao||0);
   });
   const sorted=Object.entries(por).sort((a,b)=>b[1]-a[1]).slice(0,6);
   const max=sorted[0]?.[1]||1;
   const el=document.getElementById(elId);
+  if(!el) return;
   if(!sorted.length){el.innerHTML='<div class="vazio"><div class="vazio-icon">📭</div><div style="font-size:0.8rem;">Nenhum contrato neste período</div></div>';return;}
   el.innerHTML=sorted.map(([k,v])=>`
     <div class="barra-item">
-      <div class="barra-label" style="font-size:0.65rem;">${k.length>10?k.substring(0,10)+'…':k}</div>
+      <div class="barra-label" style="font-size:0.65rem;word-break:break-word;white-space:normal;max-width:90px;" title="${k}">${k}</div>
       <div class="barra-track"><div class="barra-fill" style="width:${(v/max*100).toFixed(1)}%;background:${CORES[k]||'var(--azul)'}"></div></div>
       <div class="barra-valor">${fmt(v)}</div>
     </div>`).join('');
