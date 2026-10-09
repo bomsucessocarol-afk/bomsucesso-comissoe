@@ -1159,6 +1159,315 @@ html { scroll-behavior: smooth; }
 /* Header: grupo sino+sync */
 .hdr-actions { display: flex; align-items: center; gap: 6px; }
 
+/* ══════════════════════════════════════════════
+   CLIENTES — REDESIGN (cards limpos)
+   ══════════════════════════════════════════════ */
+
+/* Barra de totais */
+.cl-totais-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 18px;
+  margin-bottom: 14px;
+  align-items: center;
+}
+.cl-totais-bar .cl-tot-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 90px;
+}
+.cl-totais-bar .cl-tot-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--cinza);
+}
+.cl-totais-bar .cl-tot-val {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--azul);
+  margin-top: 1px;
+}
+.cl-totais-bar .cl-tot-sep {
+  width: 1px;
+  height: 32px;
+  background: var(--border);
+  align-self: center;
+}
+@media (max-width: 480px) {
+  .cl-totais-bar { padding: 10px 14px; gap: 8px; }
+  .cl-totais-bar .cl-tot-sep { display: none; }
+  .cl-totais-bar .cl-tot-item { min-width: calc(50% - 16px); }
+}
+
+/* Cabeçalho da aba com busca e botão "Mais filtros" */
+.cl-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.cl-header .cl-busca {
+  flex: 1;
+  min-width: 180px;
+  border: 1.5px solid var(--borda);
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-size: .85rem;
+  outline: none;
+  font-family: 'DM Sans', sans-serif;
+  background: var(--card);
+  color: inherit;
+}
+.cl-header .cl-busca:focus { border-color: var(--azul); }
+.cl-btn-mais-filtros {
+  background: var(--fundo);
+  border: 1.5px solid var(--borda);
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--azul);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: background .15s;
+}
+.cl-btn-mais-filtros:hover { background: #f0eefd; }
+.cl-btn-mais-filtros.ativo { background: var(--azul); color: #fff; border-color: var(--azul); }
+
+/* Painel de filtros avançados */
+.cl-filtros-panel {
+  background: var(--fundo);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  animation: clSlideDown .2s ease;
+}
+.cl-filtros-panel select {
+  border: 1.5px solid var(--borda);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: .78rem;
+  background: var(--card);
+  color: inherit;
+  outline: none;
+  cursor: pointer;
+}
+.cl-filtros-panel select:focus { border-color: var(--azul); }
+@keyframes clSlideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Grade de cards */
+.cl-cards-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* Card individual */
+.cl-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 1px 4px rgba(56,55,114,.06);
+  overflow: hidden;
+  transition: box-shadow .2s, transform .15s;
+}
+.cl-card:hover {
+  box-shadow: 0 4px 18px rgba(56,55,114,.13);
+  transform: translateY(-1px);
+}
+
+/* Cabeçalho do card (faixa colorida) */
+.cl-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 16px 10px;
+  background: linear-gradient(135deg, #383772 0%, #2d2c5e 100%);
+  border-radius: 14px 14px 0 0;
+}
+.cl-card-head-left { flex: 1; min-width: 0; }
+.cl-card-nome {
+  color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  font-size: .9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cl-card-datas {
+  color: rgba(255,255,255,.65);
+  font-size: .67rem;
+  margin-top: 3px;
+}
+.cl-card-head-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+/* Badge de alerta */
+.cl-alerta-retorno {
+  background: rgba(255,248,230,.2);
+  color: #ffe082;
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-size: .63rem;
+  font-weight: 700;
+}
+
+/* Corpo do card */
+.cl-card-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0;
+}
+.cl-card-field {
+  padding: 10px 16px;
+  border-right: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+}
+.cl-card-field:last-child { border-right: none; }
+.cl-card-field-label {
+  font-size: .6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--cinza);
+  margin-bottom: 3px;
+}
+.cl-card-field-val {
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--texto);
+}
+.cl-card-field.destaque .cl-card-field-val {
+  font-family: 'Montserrat', sans-serif;
+  font-size: .95rem;
+  font-weight: 900;
+  color: var(--azul);
+}
+
+/* Rodapé do card (status + ações) */
+.cl-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.cl-card-foot-left { display: flex; align-items: center; gap: 8px; }
+.cl-card-foot-right { display: flex; align-items: center; gap: 6px; }
+
+/* Status select dentro do card */
+.cl-card .status-select {
+  font-size: .73rem;
+  padding: 5px 9px;
+  min-height: unset;
+}
+
+/* Botões de ação leves */
+.cl-btn-action {
+  background: var(--fundo);
+  border: 1.5px solid var(--borda);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: .75rem;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  color: var(--azul);
+  transition: background .15s;
+  white-space: nowrap;
+}
+.cl-btn-action:hover { background: #f0eefd; }
+.cl-btn-action.verde {
+  color: #15803d;
+  border-color: #a3e4c1;
+  background: #f0fdf4;
+}
+.cl-btn-action.verde:hover { background: #dcfce7; }
+
+/* Paginação */
+.cl-paginacao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 4px;
+  font-size: .75rem;
+  color: var(--cinza);
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.cl-pag-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.cl-pag-btn {
+  background: var(--fundo);
+  border: 1.5px solid var(--borda);
+  border-radius: 7px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0 8px;
+  font-size: .78rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--cinza);
+  transition: background .15s, color .15s;
+}
+.cl-pag-btn.ativo {
+  background: var(--azul);
+  color: #fff;
+  border-color: var(--azul);
+}
+.cl-pag-btn:hover:not(.ativo) { background: #ececf9; color: var(--azul); }
+
+/* Pill de mes_ref */
+.cl-mes-pill {
+  background: #eeedf9;
+  color: var(--azul);
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-size: .63rem;
+  font-weight: 700;
+}
+
+/* Vazio state */
+.cl-vazio {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--cinza);
+}
+.cl-vazio-icon { font-size: 2.8rem; margin-bottom: 12px; }
+
+@media (max-width: 600px) {
+  .cl-card-body { grid-template-columns: 1fr 1fr; }
+  .cl-card-body .cl-card-field:nth-child(3) {
+    grid-column: 1 / -1;
+    border-right: none;
+  }
+  .cl-card-nome { font-size: .82rem; }
+}
+
 </style>
 
 </head>
@@ -2123,76 +2432,84 @@ html { scroll-behavior: smooth; }
 
 <!-- ══════════ ABA CLIENTES ══════════ -->
 <div class="tab-content" id="aba-clientes">
-  <div style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.3rem;color:var(--azul);margin-bottom:18px;">Contratos Lançados</div>
-  <div class="tabela-wrapper">
-    <div class="tabela-header">
-      <div class="tabela-titulo">Todos os Registros</div>
-      <!-- Busca rápida sempre visível -->
-      <div style="margin-bottom:8px;">
-        <input type="text" id="busca-cliente" placeholder="🔍 Buscar cliente..." oninput="filtrarTabela()"
-          style="width:100%;max-width:340px;border:1.5px solid var(--borda);border-radius:10px;padding:9px 14px;font-size:.85rem;outline:none;font-family:'DM Sans',sans-serif;">
-      </div>
-      <!-- Toggle de filtros (visível só no mobile via CSS) -->
-      <button class="bs-filtros-toggle" id="btn-toggle-filtros" onclick="toggleFiltrosMobile()">
-        <span>⚙️ Filtros avançados</span>
-        <span id="icon-filtros-toggle">▼</span>
-      </button>
-      <!-- Filtros avançados -->
-      <div class="bs-filtros-wrap fechado" id="bs-filtros-wrap">
-        <div class="filtros" style="flex-wrap:wrap;gap:6px;padding-bottom:8px;">
-          <select id="filtro-status-tab" onchange="filtrarTabela()">
-            <option value="">Todos status</option>
-            <option value="PAGO">✅ Pago</option>
-            <option value="ABERTO">⏳ Aberto</option>
-          </select>
-          <select id="filtro-modal-tab" onchange="filtrarTabela()">
-            <option value="">Todas modalidades</option>
-          </select>
-          <select id="filtro-banco-tab" onchange="filtrarTabela()">
-            <option value="">Todos os bancos</option>
-          </select>
-          <select id="filtro-promotora-tab" onchange="filtrarTabela()">
-            <option value="">Todas promotoras</option>
-          </select>
-          <select id="filtro-tipo-op-tab" onchange="filtrarTabela()">
-            <option value="">Todos tipos op.</option>
-            <option value="NOVO">Novo</option>
-            <option value="PORTABILIDADE">Portabilidade</option>
-            <option value="REFINANCIAMENTO">Refinanciamento</option>
-            <option value="REFIN">Refin</option>
-          </select>
-          <select id="filtro-mes-tab" onchange="filtrarTabela()">
-            <option value="">Todos os meses</option>
-          </select>
-          <button class="btn btn-outline btn-sm" onclick="limparFiltrosTabela()" title="Limpar filtros">✕ Limpar</button>
-        </div>
-      </div>
+  <div style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.3rem;color:var(--azul);margin-bottom:14px;">Contratos Lançados</div>
+
+  <!-- BARRA DE TOTAIS -->
+  <div class="cl-totais-bar" id="cl-totais-bar">
+    <div class="cl-tot-item">
+      <span class="cl-tot-label">Contratos</span>
+      <span class="cl-tot-val" id="cl-tot-qtd">0</span>
     </div>
-    <div style="overflow-x:auto;">
-      <table>
-        <thead>
-          <tr>
-            <th>Data Dig.</th>
-            <th>Data PG</th>
-            <th>Dt. Comissão Rec.</th>
-            <th>Cliente</th>
-            <th>Modalidade</th>
-            <th>Banco</th>
-            <th>Valor</th>
-            <th>Comissão</th>
-            <th>Status</th>
-            <th>Mês</th>
-            <th>Ações</th>
-          </tr>
-        </thead>
-        <tbody id="tbody-clientes"></tbody>
-      </table>
+    <div class="cl-tot-sep"></div>
+    <div class="cl-tot-item">
+      <span class="cl-tot-label">Valor Total</span>
+      <span class="cl-tot-val" id="cl-tot-valor">R$ 0</span>
     </div>
-    <div class="paginacao">
-      <span id="pag-info">0 registros</span>
-      <div class="paginacao-btns" id="pag-btns"></div>
+    <div class="cl-tot-sep"></div>
+    <div class="cl-tot-item">
+      <span class="cl-tot-label">Comissão Total</span>
+      <span class="cl-tot-val" id="cl-tot-comissao">R$ 0</span>
+    </div>
+    <div class="cl-tot-sep"></div>
+    <div class="cl-tot-item">
+      <span class="cl-tot-label">Pagos</span>
+      <span class="cl-tot-val" id="cl-tot-pagos" style="color:#16a34a;">0</span>
+    </div>
+    <div class="cl-tot-sep"></div>
+    <div class="cl-tot-item">
+      <span class="cl-tot-label">Em Aberto</span>
+      <span class="cl-tot-val" id="cl-tot-abertos" style="color:#d97706;">0</span>
     </div>
   </div>
+
+  <!-- LINHA: BUSCA + BOTÃO MAIS FILTROS -->
+  <div class="cl-header">
+    <input type="text" id="busca-cliente" class="cl-busca" placeholder="🔍 Buscar cliente..." oninput="filtrarTabela()">
+    <button class="cl-btn-mais-filtros" id="btn-mais-filtros-cl" onclick="clToggleFiltros()">
+      ⚙️ Mais filtros <span id="cl-filtros-icon">▼</span>
+    </button>
+    <button class="btn btn-outline btn-sm" onclick="limparFiltrosTabela()" title="Limpar filtros" style="white-space:nowrap;">✕ Limpar</button>
+  </div>
+
+  <!-- PAINEL DE FILTROS (oculto por padrão) -->
+  <div class="cl-filtros-panel" id="cl-filtros-panel" style="display:none;">
+    <select id="filtro-status-tab" onchange="filtrarTabela()">
+      <option value="">Todos status</option>
+      <option value="PAGO">✅ Pago</option>
+      <option value="ABERTO">⏳ Aberto</option>
+    </select>
+    <select id="filtro-modal-tab" onchange="filtrarTabela()">
+      <option value="">Todas modalidades</option>
+    </select>
+    <select id="filtro-banco-tab" onchange="filtrarTabela()">
+      <option value="">Todos os bancos</option>
+    </select>
+    <select id="filtro-promotora-tab" onchange="filtrarTabela()">
+      <option value="">Todas promotoras</option>
+    </select>
+    <select id="filtro-tipo-op-tab" onchange="filtrarTabela()">
+      <option value="">Todos tipos op.</option>
+      <option value="NOVO">Novo</option>
+      <option value="PORTABILIDADE">Portabilidade</option>
+      <option value="REFINANCIAMENTO">Refinanciamento</option>
+      <option value="REFIN">Refin</option>
+    </select>
+    <select id="filtro-mes-tab" onchange="filtrarTabela()">
+      <option value="">Todos os meses</option>
+    </select>
+  </div>
+
+  <!-- GRADE DE CARDS -->
+  <div class="cl-cards-grid" id="cl-cards-grid"></div>
+
+  <!-- PAGINAÇÃO -->
+  <div class="cl-paginacao" id="cl-paginacao">
+    <span id="pag-info">0 registros</span>
+    <div class="cl-pag-btns" id="pag-btns"></div>
+  </div>
+
+  <!-- tbody fantasma mantido por compatibilidade com código que faz getElementById('tbody-clientes') -->
+  <table style="display:none;"><tbody id="tbody-clientes"></tbody></table>
 </div>
 
 <!-- ══════════ ABA SIMULADOR ══════════ -->
@@ -2756,9 +3073,10 @@ html { scroll-behavior: smooth; }
       </div>
     </div>
 
-    <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;">
+    <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;align-items:center;">
       <button class="btn btn-amarelo" onclick="salvarEdicao()">💾 Salvar Alterações</button>
       <button class="btn btn-outline" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-perigo btn-sm" style="margin-left:auto;" onclick="deletarDoModal()" title="Excluir este contrato">🗑️ Excluir</button>
     </div>
   </div>
 </div>
@@ -6234,63 +6552,133 @@ function limparFiltrosTabela() {
   filtrarTabela();
 }
 
+/* ── Toggle do painel de filtros avançados ── */
+function clToggleFiltros() {
+  const panel = document.getElementById('cl-filtros-panel');
+  const btn   = document.getElementById('btn-mais-filtros-cl');
+  const icon  = document.getElementById('cl-filtros-icon');
+  if(!panel) return;
+  const aberto = panel.style.display !== 'none';
+  panel.style.display = aberto ? 'none' : 'flex';
+  if(btn)  btn.classList.toggle('ativo', !aberto);
+  if(icon) icon.textContent = aberto ? '▼' : '▲';
+}
+
+/* ── Atualiza barra de totais ── */
+function _clAtualizarTotais() {
+  const qtd      = dadosFiltrados.length;
+  const valor    = dadosFiltrados.reduce((s,r)=>s+(parseFloat(r.valor_cliente)||0), 0);
+  const comissao = dadosFiltrados.reduce((s,r)=>s+(parseFloat(r.comissao)||0), 0);
+  const pagos    = dadosFiltrados.filter(r=>(r.status||r.status_comissao||'').toUpperCase()==='PAGO').length;
+  const abertos  = qtd - pagos;
+  const el = id => document.getElementById(id);
+  if(el('cl-tot-qtd'))      el('cl-tot-qtd').textContent      = qtd;
+  if(el('cl-tot-valor'))    el('cl-tot-valor').textContent    = fmt(valor);
+  if(el('cl-tot-comissao')) el('cl-tot-comissao').textContent = fmt(comissao);
+  if(el('cl-tot-pagos'))    el('cl-tot-pagos').textContent    = pagos;
+  if(el('cl-tot-abertos'))  el('cl-tot-abertos').textContent  = abertos;
+}
+
 function renderTabela() {
-  const inicio=(paginaAtual-1)*ITENS_POR_PAGINA;
-  const pagina=dadosFiltrados.slice(inicio,inicio+ITENS_POR_PAGINA);
-  const tb=document.getElementById('tbody-clientes');
-  if(!pagina.length){
-    tb.innerHTML=`<tr><td colspan="8"><div class="vazio"><div class="vazio-icon">🔍</div><div style="font-size:0.8rem;">Nenhum registro</div></div></td></tr>`;
+  _clAtualizarTotais();
+  const inicio = (paginaAtual-1) * ITENS_POR_PAGINA;
+  const pagina = dadosFiltrados.slice(inicio, inicio + ITENS_POR_PAGINA);
+  const grid   = document.getElementById('cl-cards-grid');
+  if(!grid) return;
+
+  if(!pagina.length) {
+    grid.innerHTML = `<div class="cl-vazio"><div class="cl-vazio-icon">🔍</div><div style="font-size:0.82rem;">Nenhum registro encontrado</div></div>`;
   } else {
-    // [7] LISTA DE CLIENTES RICA — mostra nome, banco, produto, valor, comissão, status num layout claro
-    tb.innerHTML=pagina.map((r,i)=>{
-      const mod=normModal(r.modalidade);
-      const st=(r.status||r.status_comissao||'').toUpperCase();
-      const idx=inicio+i;
-      // Alerta de sem retorno: digitado há mais de 5 dias sem data_pg
+    grid.innerHTML = pagina.map((r, i) => {
+      const mod  = normModal(r.modalidade);
+      const st   = (r.status || r.status_comissao || '').toUpperCase();
+      const idx  = inicio + i;
+      const mesLabel = MESES[r.mes_ref] || r.mes_ref || '';
+      const banco    = r.banco || r.banco_digitado || '—';
+      const tipoOp   = r.tipo_op || r.operacao || '';
+      const promotora = r.promotora || '';
+
+      // Alerta sem retorno
       const diasSemRetorno = _diasSemRetorno(r);
-      const alertaRetorno = diasSemRetorno > 5
-        ? `<span title="⏳ ${diasSemRetorno} dias sem retorno do banco" style="background:#fff8e6;color:#a05c00;border-radius:4px;padding:1px 5px;font-size:0.65rem;font-weight:700;">⏳${diasSemRetorno}d</span>`
+      const alertaHTML = diasSemRetorno > 5
+        ? `<span class="cl-alerta-retorno" title="${diasSemRetorno} dias sem retorno">⏳ ${diasSemRetorno}d</span>`
         : '';
-      return `<tr>
-        <td>
-          <div style="font-weight:700;font-size:0.85rem;">${r.nome_cliente||'—'} ${alertaRetorno}</div>
-          <div style="font-size:0.68rem;color:var(--cinza);margin-top:2px;">
-            Dig: ${r.data_dig||'—'} ${r.data_pg?`· Pg: ${r.data_pg}`:''}
+
+      // Linha de datas
+      let datasHTML = `Dig: ${r.data_dig || '—'}`;
+      if(r.data_pg)          datasHTML += ` · Pg: ${r.data_pg}`;
+      if(r.data_comissao_rec) datasHTML += ` · Com: ${r.data_comissao_rec}`;
+
+      // Segundo campo do body: banco + promotora
+      const bancoProm = promotora && promotora !== banco
+        ? `${banco}<span style="font-size:.65rem;color:var(--cinza);display:block;margin-top:1px;">${promotora}</span>`
+        : banco;
+
+      return `<div class="cl-card">
+        <!-- cabeçalho -->
+        <div class="cl-card-head">
+          <div class="cl-card-head-left">
+            <div class="cl-card-nome">${r.nome_cliente || '—'}</div>
+            <div class="cl-card-datas">${datasHTML}</div>
           </div>
-        </td>
-        <td>
-          <span class="pill ${pillClass(mod)}" style="font-size:0.65rem;padding:3px 8px;">${mod}</span>
-          <div style="font-size:0.65rem;color:var(--cinza);margin-top:3px;">${r.tipo_op||r.operacao||''}</div>
-        </td>
-        <td style="font-size:0.78rem;font-weight:600;">${r.banco||r.banco_digitado||'—'}</td>
-        <td style="font-weight:600;font-size:0.85rem;">${fmt(r.valor_cliente)}</td>
-        <td style="font-weight:800;color:var(--azul);font-size:0.9rem;">${fmt(r.comissao)}</td>
-        <td>
-          <select class="status-select ${st==='PAGO'?'pago':'aberto'}" onchange="mudarStatus(${idx},this)">
-            <option value="PAGO" ${st==='PAGO'?'selected':''}>✅ PAGO</option>
-            <option value="ABERTO" ${st!='PAGO'?'selected':''}>⏳ ABERTO</option>
-          </select>
-        </td>
-        <td style="font-size:0.72rem;color:var(--cinza);">${MESES[r.mes_ref]||r.mes_ref||'—'}</td>
-        <td>
-          <div style="display:flex;gap:4px;flex-wrap:wrap;">
-            <button class="btn btn-outline btn-sm" onclick="abrirModal(${idx})" title="Editar">✏️</button>
-            <button class="btn btn-sm" style="background:#f0fdf4;color:#16a34a;border:1px solid #a3e4c1;" onclick="duplicarLancamento(${idx})" title="Duplicar contrato">📋</button>
-            <button class="btn btn-perigo btn-sm" onclick="deletar(${idx})" title="Excluir">🗑️</button>
+          <div class="cl-card-head-right">
+            ${alertaHTML}
+            ${mesLabel ? `<span class="cl-mes-pill">${mesLabel}</span>` : ''}
           </div>
-        </td>
-      </tr>`;
+        </div>
+        <!-- corpo: 3 campos -->
+        <div class="cl-card-body">
+          <div class="cl-card-field">
+            <div class="cl-card-field-label">Produto</div>
+            <div class="cl-card-field-val">
+              <span class="pill ${pillClass(mod)}" style="font-size:.63rem;padding:2px 7px;">${mod}</span>
+              ${tipoOp ? `<span style="font-size:.65rem;color:var(--cinza);display:block;margin-top:3px;">${tipoOp}</span>` : ''}
+            </div>
+          </div>
+          <div class="cl-card-field">
+            <div class="cl-card-field-label">Banco</div>
+            <div class="cl-card-field-val" style="font-size:.78rem;">${bancoProm}</div>
+          </div>
+          <div class="cl-card-field destaque">
+            <div class="cl-card-field-label" style="color:var(--azul);">Comissão</div>
+            <div class="cl-card-field-val">${fmt(r.comissao)}</div>
+            <div style="font-size:.65rem;color:var(--cinza);margin-top:1px;">Valor: ${fmt(r.valor_cliente)}</div>
+          </div>
+        </div>
+        <!-- rodapé: status + ações -->
+        <div class="cl-card-foot">
+          <div class="cl-card-foot-left">
+            <select class="status-select ${st==='PAGO'?'pago':'aberto'}" onchange="mudarStatus(${idx},this)" style="font-size:.73rem;padding:5px 9px;">
+              <option value="PAGO" ${st==='PAGO'?'selected':''}>✅ PAGO</option>
+              <option value="ABERTO" ${st!=='PAGO'?'selected':''}>⏳ ABERTO</option>
+            </select>
+          </div>
+          <div class="cl-card-foot-right">
+            <button class="cl-btn-action" onclick="abrirModal(${idx})" title="Editar contrato">✏️ Editar</button>
+            <button class="cl-btn-action verde" onclick="duplicarLancamento(${idx})" title="Duplicar contrato">📋 Copiar</button>
+          </div>
+        </div>
+      </div>`;
     }).join('');
   }
-  const total=dadosFiltrados.length;
-  const totalPags=Math.ceil(total/ITENS_POR_PAGINA);
-  document.getElementById('pag-info').textContent=`${Math.min(inicio+1,total)}–${Math.min(inicio+ITENS_POR_PAGINA,total)} de ${total}`;
-  const pb=document.getElementById('pag-btns'); pb.innerHTML='';
-  for(let p=1;p<=Math.min(totalPags,7);p++){
-    const b=document.createElement('button');
-    b.className='pag-btn'+(p===paginaAtual?' ativo':'');
-    b.textContent=p; b.onclick=()=>{paginaAtual=p;renderTabela();};
-    pb.appendChild(b);
+
+  // Paginação
+  const total     = dadosFiltrados.length;
+  const totalPags = Math.ceil(total / ITENS_POR_PAGINA);
+  const pagInfo   = document.getElementById('pag-info');
+  if(pagInfo) pagInfo.textContent = total
+    ? `${Math.min(inicio+1,total)}–${Math.min(inicio+ITENS_POR_PAGINA,total)} de ${total}`
+    : '0 registros';
+  const pb = document.getElementById('pag-btns');
+  if(pb) {
+    pb.innerHTML = '';
+    for(let p = 1; p <= Math.min(totalPags, 7); p++) {
+      const b = document.createElement('button');
+      b.className = 'cl-pag-btn' + (p === paginaAtual ? ' ativo' : '');
+      b.textContent = p;
+      b.onclick = () => { paginaAtual = p; renderTabela(); };
+      pb.appendChild(b);
+    }
   }
 }
 
@@ -6983,6 +7371,13 @@ function fecharModal(){
   const m=document.getElementById('modal-editar');
   if(m){ m.style.display='none'; }
   editandoIdx=-1;
+}
+
+/* Excluir lançamento a partir do modal de edição */
+async function deletarDoModal() {
+  if(editandoIdx < 0) return;
+  fecharModal();
+  await deletar(editandoIdx);
 }
 
 function salvarEdicao() {
