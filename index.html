@@ -10365,6 +10365,7 @@ function cancelarUnificacao() {
   <div class="ia-topo">
     <span style="font-size:1.3rem">🤖</span>
     <b>Assistente Bom Sucesso<small>Lança comissões, despesas e gastos</small></b>
+    <button id="ia-aviso-btn" onclick="iaAvisos()" title="Ligar avisos de contas e lembretes">🔕</button>
     <button onclick="iaLimpar()" title="Nova conversa">🧹</button>
     <button onclick="iaFechar()" title="Fechar">✕</button>
   </div>
@@ -10427,14 +10428,18 @@ function cancelarUnificacao() {
 
   function boasVindas(){
     $('ia-msgs').innerHTML='';
-    msg('Oi, Carol! 👋 Me diga o que lançar que eu preparo o card. Você confere e toca em ✅ Lançar.');
+    msg('Oi, Carol! 👋 Me diga o que lançar, atualizar ou perguntar. Eu preparo o card e você confere antes de salvar. 📎 manda foto/PDF · 🎤 fala · 🔕 liga os avisos.');
     const box=document.createElement('div'); box.className='ia-dicas';
     ['Lança comissão: Maria Souza, INSS, BMG, valor 8.500, 3,5%, hoje',
      'Quanto falta pra bater a meta?',
      'Quais comissões estão em aberto há mais de 30 dias?',
      'Paguei a conta de energia dia 10',
-     'Resumo do dia',
-     'Quem posso oferecer refinanciamento?']
+     'Lança igual o último, só muda o nome pra João e o valor pra 6 mil',
+     'Comprei uma impressora em 10x de 180, começa em novembro',
+     'Me mostra tudo da Maria Souza',
+     'Me lembra de ligar pro João dia 20',
+     'Fecha outubro',
+     'Onde está o dinheiro?']
       .forEach(t=>{ const b=document.createElement('button'); b.className='ia-dica'; b.textContent='💡 '+t;
         b.onclick=()=>{ $('ia-txt').value=t; $('ia-txt').focus(); }; box.appendChild(b); });
     $('ia-msgs').appendChild(box);
@@ -10445,7 +10450,7 @@ function cancelarUnificacao() {
     const logado = !l || l.style.display==='none'; f.style.display = logado ? 'flex' : 'none';
     if(!logado) $('ia-painel').classList.remove('on'); }, 800);
 
-  window.iaAbrir = function(){ const p=$('ia-painel'); p.classList.add('on'); if(!$('ia-msgs').children.length) boasVindas(); resumoAutomatico(); if(window.innerWidth>768) setTimeout(()=>$('ia-txt').focus(),50); };
+  window.iaAbrir = function(){ const p=$('ia-painel'); p.classList.add('on'); if(!$('ia-msgs').children.length) boasVindas(); resumoAutomatico(); raioXAutomatico(); if(window.innerWidth>768) setTimeout(()=>$('ia-txt').focus(),50); };
   window.iaFechar = function(){ $('ia-painel').classList.remove('on'); };
   window.iaLimpar = function(){ iaHistorico=[]; boasVindas(); };
 
@@ -10490,7 +10495,11 @@ function cancelarUnificacao() {
 
   function cardAcao(acao,d){
     if(acao==='atualizar_comissoes_lote'||acao==='atualizar_despesas_lote') return cardLote(acao,d);
-    if(acao==='abrir_painel') return mostrarPainel(d.painel);
+    if(acao==='abrir_painel') return mostrarPainel(d.painel,d.mes);
+    if(acao==='repetir_lancamento') return repetirLancamento(d);
+    if(acao==='lancar_parcelado') return cardParcelado(d);
+    if(acao==='ficha_cliente') return fichaCliente(d);
+    if(acao==='criar_lembrete') return criarLembrete(d);
     if(acao==='lancar_comissoes_lote') return cardLoteLancamentos(d);
     if(String(acao).startsWith('atualizar_')) return cardAtualizacao(acao,d);
     const id='iac'+(++iaCardSeq); const L=listas(); let titulo='', corpo='';
@@ -10870,8 +10879,9 @@ function cancelarUnificacao() {
     let grupos;
     const g=a.agrupar_por&&a.agrupar_por!=='nenhum'?a.agrupar_por:null;
     if(g){ const m={}; L.forEach(r=>{ const k=g==='mes'?String(r.data_dig||'').slice(0,7):(g==='tipo_op'?(r.tipo_op||r.operacao):r[g])||'(vazio)';
-        const o=m[k]=m[k]||{grupo:k,contratos:0,valor:0,comissao:0,recebida:0}; o.contratos++; o.valor+=+r.valor_cliente||0; o.comissao+=+r.comissao||0; if(statusDe(r)==='PAGO') o.recebida+=+r.comissao||0; });
-      grupos=Object.values(m).map(o=>({...o,valor:+o.valor.toFixed(2),comissao:+o.comissao.toFixed(2),recebida:+o.recebida.toFixed(2)})).sort((x,y)=>y.comissao-x.comissao).slice(0,25); }
+        const o=m[k]=m[k]||{grupo:k,contratos:0,valor:0,comissao:0,recebida:0,_p:[]}; o.contratos++; o.valor+=+r.valor_cliente||0; o.comissao+=+r.comissao||0; if(statusDe(r)==='PAGO') o.recebida+=+r.comissao||0; if(+r.perc_comissao>0) o._p.push(+r.perc_comissao); });
+      grupos=Object.values(m).map(o=>({grupo:o.grupo,contratos:o.contratos,valor:+o.valor.toFixed(2),comissao:+o.comissao.toFixed(2),recebida:+o.recebida.toFixed(2),
+        comissao_media_por_contrato:+(o.comissao/o.contratos).toFixed(2), perc_medio:o._p.length?+(somar(o._p,x=>x)/o._p.length).toFixed(2):null})).sort((x,y)=>y.comissao-x.comissao).slice(0,25); }
     const lim=Math.min(+a.limite||20,40);
     const lista=[...L].sort((x,y)=>String(y.data_dig||'').localeCompare(String(x.data_dig||''))).slice(0,lim).map(r=>({cliente:r.nome_cliente,banco:r.banco,modalidade:r.modalidade,
       tipo:r.tipo_op||r.operacao,digitado:r.data_dig,valor:+r.valor_cliente||0,comissao:+r.comissao||0,status:statusDe(r),recebida_em:r.data_comissao_rec||null,
@@ -10911,7 +10921,9 @@ function cancelarUnificacao() {
     return { comissoes_mes: infoMeta(),
       contas: {atrasadas:c.atrasadas.length, valor_atrasadas:+somar(c.atrasadas,x=>x.e.value).toFixed(2), vencem_hoje:c.hoje.length, vencem_amanha:c.amanha.length, proximos_7_dias:c.semana.length},
       comissoes_sem_retorno_10_dias: semRetorno(10).length,
-      lembretes_refinanciamento: refinElegiveis().length };
+      lembretes_refinanciamento: refinElegiveis().length,
+      previsao_entrada_comissoes_7_dias: (()=>{ try{ return +entradasPrevistas(7).total.toFixed(2); }catch(e){ return null; } })(),
+      lembretes_pessoais_hoje: lembPendentes(hojeISO()).map(l=>l.texto+(l.cliente?' ('+l.cliente+')':'')).slice(0,10) };
   }
 
   // ════════ PAINÉIS ════════
@@ -10930,6 +10942,14 @@ function cancelarUnificacao() {
       if(a==='pagar'){ return cardAtualizacao('atualizar_despesa',{busca:{nome:v.nome,mes:v.mes,valor:v.valor},alteracoes:{status:'PAGO'}}); }
       if(a==='recebi'){ return cardAtualizacao('atualizar_comissao',{busca:{nome_cliente:v.nome,banco:v.banco,valor_contrato:v.valor},alteracoes:{status:'PAGO'}}); }
       if(a==='abrir_contrato'){ return abrirContrato(v.id); }
+      if(a==='ficha'){ return fichaCliente({nome_cliente:v.nome}); }
+      if(a==='meta_usar'){ definirMeta(v.mes,v.valor); b.outerHTML='<span style="font-size:.72rem">✅ Meta de '+mesCurto(v.mes)+' definida: R$ '+fmtBR(v.valor)+'</span>'; return; }
+      if(a==='proximo_mes'){ return cardAcao('atualizar_despesas_lote',{filtro:{mes:v.mes,status:'ABERTO'},alteracoes:{status:'PROXIMO'}}); }
+      if(a==='lemb_feito'||a==='lemb_adiar'||a==='lemb_apagar'){
+        if(a==='lemb_apagar'){ lembSalvar(lembretes().filter(l=>l.id!==v.id)); }
+        else lembAlterar(v.id,l=>{ if(a==='lemb_feito') l.feito=true; else l.data=addDias(hojeISO(),7); });
+        const l=b.closest('.ia-lin'); if(l){ l.style.opacity='.45'; l.querySelector('.ia-lin-b').innerHTML='<span style="font-size:.7rem">'+(a==='lemb_feito'?'✓ feito':a==='lemb_adiar'?'⏰ volta em 7 dias':'🗑️ apagado')+'</span>'; }
+        return; }
       if(a==='ofertei'||a==='adiar'){ refinAdiar(v.id,a==='ofertei'?180:30); const l=b.closest('.ia-lin'); if(l){ l.style.opacity='.45'; l.querySelector('.ia-lin-b').innerHTML='<span style="font-size:.7rem">'+(a==='ofertei'?'✓ marcado — volta em 6 meses':'⏰ volto a lembrar em 30 dias')+'</span>'; } return; }
     });
   }
@@ -10944,10 +10964,14 @@ function cancelarUnificacao() {
     }catch(e){ msg('Não consegui abrir o contrato.','erro'); } },350);
   }
 
-  function mostrarPainel(p){
+  function mostrarPainel(p,mes){
     garantirBS();
     if(p==='lembretes_refinanciamento') return painelRefin();
     if(p==='faxina') return painelFaxina();
+    if(p==='fechamento_mes') return painelFechamento(mes);
+    if(p==='raio_x') return painelRaioX(mes);
+    if(p==='ranking') return painelRanking();
+    if(p==='meus_lembretes') return painelLembretes();
     return painelResumo();
   }
 
@@ -10961,8 +10985,15 @@ function cancelarUnificacao() {
       h+='<div class="ia-sec"><b>🎯 Meta do mês</b><div class="ia-barra"><i style="width:'+pct+'%"></i></div>'
         +'Recebido <b>R$ '+fmtBR(m.comissao_recebida)+'</b> de R$ '+fmtBR(m.meta)+' ('+(m.perc_meta||0)+'%)<br>'
         +(m.falta_para_meta>0?'Faltam <b>R$ '+fmtBR(m.falta_para_meta)+'</b> · precisa <b>R$ '+fmtBR(m.precisa_por_dia_util)+'</b> por dia útil ('+m.dias_uteis_restantes+' dias)':'🎉 Meta batida!')
-        +(m.comissao_em_aberto>0?'<br>Em aberto (a receber): R$ '+fmtBR(m.comissao_em_aberto):'')+'</div>';
-    } else h+='<div class="ia-sec"><b>🎯 Meta do mês</b><br>Recebido R$ '+fmtBR(m.comissao_recebida)+' · a receber R$ '+fmtBR(m.comissao_em_aberto)+'<br><span class="ia-cinza">Meta ainda não definida no Resumo.</span></div>';
+        +(m.comissao_em_aberto>0?'<br>Em aberto (a receber): R$ '+fmtBR(m.comissao_em_aberto):'')
+        +(()=>{ const rt=ritmo(); if(!rt||m.falta_para_meta<=0) return ''; return '<br>'+(rt.perc>=100?'🔥':'⚠️')+' No ritmo atual você fecha em <b>R$ '+fmtBR(rt.proj)+'</b> ('+rt.perc.toFixed(0)+'% da meta)'; })()+'</div>';
+    } else { const sg=metaSugerida(m.mes); h+='<div class="ia-sec"><b>🎯 Meta do mês</b><br>Recebido R$ '+fmtBR(m.comissao_recebida)+' · a receber R$ '+fmtBR(m.comissao_em_aberto)+'<br><span class="ia-cinza">Meta ainda não definida.</span>'
+        +(sg?' Sugestão: R$ '+fmtBR(sg)+' '+btn('Usar como meta','meta_usar',{mes:m.mes,valor:sg}):'')+'</div>'; }
+    const lp=lembPendentes(addDias(hojeISO(),1));
+    if(lp.length) h+='<div class="ia-sec"><b>📌 Lembretes</b>'+lp.slice(0,5).map(linhaLembrete).join('')+'</div>';
+    const ep=entradasPrevistas(7);
+    if(ep.lista.length) h+='<div class="ia-sec"><b>💰 Previsão de entrada (próx. 7 dias): R$ '+fmtBR(ep.total)+'</b><br><span class="ia-cinza">'+ep.lista.length+' comissão(ões) pelo prazo que cada banco costuma pagar</span>'
+      +ep.lista.slice(0,3).map(x=>'<br>• '+esc(x.r.nome_cliente)+' · '+esc(x.r.banco||'')+' · R$ '+fmtBR(x.r.comissao)+' <span class="ia-cinza">'+(x.p.data<hojeISO()?'⚠️ era p/ ~'+fmtData(x.p.data):'~'+fmtData(x.p.data))+'</span>').join('')+'</div>';
     // contas
     const lc=(x,quando)=>linha('<b>'+esc(x.e.name)+'</b> · R$ '+fmtBR(x.e.value)+' <span class="ia-cinza">'+quando+'</span>', btn('✅ Paguei','pagar',{nome:x.e.name,mes:x.mes,valor:+x.e.value||0}));
     let contas='';
@@ -10981,6 +11012,7 @@ function cancelarUnificacao() {
     const nFx=fx.dup.length+fx.acima.length+fx.faltando.length+fx.revisar.length;
     h+='<div class="ia-sec"><b>🧹 Faxina</b><br>'+(fx.revisar.length?'❗ <b>'+fx.revisar.length+' para revisar</b> · ':'')+fx.semCpf.length+' contrato(s) sem CPF · '+fx.dup.length+' possível(is) duplicado(s)'
       +'<br>'+fx.acima.length+' despesa(s) acima do normal · '+fx.faltando.length+' conta(s) fixa(s) do mês passado não lançada(s) '+(nFx||fx.semCpf.length?btn('Ver faxina','painel',{p:'faxina'}):'')+'</div>';
+    h+='<div class="ia-sec">'+btn('📅 Fechamento do mês','painel',{p:'fechamento_mes'})+' '+btn('🩻 Raio-X','painel',{p:'raio_x'})+' '+btn('💡 Onde está o dinheiro','painel',{p:'ranking'})+' '+btn('📌 Lembretes','painel',{p:'meus_lembretes'})+'</div>';
     ligarBotoes(cardSimples('☀️ Resumo do dia', esc(dia), h, 'ia-resumo'));
   }
 
@@ -11131,7 +11163,14 @@ function cancelarUnificacao() {
     if(typeof renderListaAlertas==='function'){
       const _origLista=renderListaAlertas;
       window.renderListaAlertas=function(){ _origLista.apply(this,arguments); try{
-        const rf=refinElegiveis(); const lista=$('painel-alertas-lista'); if(!lista||!rf.length) return;
+        const lista=$('painel-alertas-lista'); const lp=lembPendentes(hojeISO());
+        if(lista && lp.length){ if(lista.textContent.includes('Nenhum alerta')) lista.innerHTML='';
+          const bx=document.createElement('div');
+          bx.innerHTML='<div style="padding:8px 12px;font-size:.72rem;font-weight:800;color:#383772;background:#FFF7E6">📌 Lembretes de hoje ('+lp.length+')</div>'
+            +lp.slice(0,4).map(l=>'<div class="ia-alerta-lb" style="padding:9px 12px;border-bottom:1px solid #eee;cursor:pointer"><div style="font-weight:700;font-size:.8rem">'+esc(l.texto)+'</div><div style="font-size:.7rem;color:#6b7280">'+(l.cliente?esc(l.cliente)+' · ':'')+(l.data<hojeISO()?'atrasado desde '+fmtData(l.data):'hoje')+'</div></div>').join('');
+          bx.querySelectorAll('.ia-alerta-lb').forEach(d=>d.onclick=()=>{ const p=$('painel-alertas'); if(p) p.style.display='none'; iaAbrir(); painelLembretes(); });
+          lista.insertBefore(bx,lista.firstChild); }
+        const rf=refinElegiveis(); if(!lista||!rf.length) return;
         const vazio=lista.textContent.includes('Nenhum alerta'); if(vazio) lista.innerHTML='';
         const box=document.createElement('div');
         box.innerHTML='<div style="padding:8px 12px;font-size:.72rem;font-weight:800;color:#383772;background:#EEF0FF">🔁 Possível refinanciamento ('+rf.length+')</div>'
@@ -11144,7 +11183,7 @@ function cancelarUnificacao() {
     if(typeof atualizarSininho==='function'){
       const _origSino=atualizarSininho;
       window.atualizarSininho=function(){ _origSino.apply(this,arguments); try{
-        const n=refinElegiveis().length; const b=$('sininho-badge'); if(!b||!n) return;
+        const n=refinElegiveis().length+lembPendentes(hojeISO()).length; const b=$('sininho-badge'); if(!b||!n) return;
         const atual=b.style.display==='none'?0:(parseInt(b.textContent)||0); const tot=atual+n;
         b.textContent=tot>9?'9+':tot; b.style.display='flex';
       }catch(e){} };
@@ -11154,7 +11193,8 @@ function cancelarUnificacao() {
   // ════════ RESUMO DO DIA automático (1ª vez que abre o assistente no dia) ════════
   function resumoAutomatico(){
     try{ const k='bs_ia_resumo_dia'; if(localStorage.getItem(k)===hojeISO()) return; localStorage.setItem(k,hojeISO()); }catch(e){}
-    setTimeout(()=>{ try{ painelResumo(); }catch(e){ console.warn('[IA] resumo',e); } },150);
+    setTimeout(()=>{ try{ document.querySelectorAll('.ia-dicas').forEach(x=>x.remove()); painelResumo();
+      const r=[...document.querySelectorAll('.ia-resumo')].pop(); if(r) r.scrollIntoView({block:'start'}); }catch(e){ console.warn('[IA] resumo',e); } },150);
   }
   // bolinha do botão 🤖 mostra quando há algo pedindo atenção
   setInterval(()=>{ try{
@@ -11400,6 +11440,257 @@ function cancelarUnificacao() {
     };
   }
 
+  // ════════════════════════════════════════════════════════════════
+  //  FASE 3 — agilidade e gestão (10 ideias)
+  // ════════════════════════════════════════════════════════════════
+  const MESES_NOME=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const mesCurto = m => { const [y,mm]=String(m).split('-').map(Number); return MESES_NOME[mm-1]+'/'+String(y).slice(2); };
+  function mesSeguinte(m){ const [y,mm]=m.split('-').map(Number); const d=new Date(y,mm,1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+  function contratosDoMes(m){ const k=mesRefDe(m); return L_().filter(r=>r && (r.mes_ref ? r.mes_ref===k : String(r.data_dig||'').slice(0,7)===m)); }
+  function nuvemSalvar(chave,obj){ try{ if(typeof sbClient!=='undefined'&&sbClient) sbClient.from('bs_config').upsert({chave,valor:JSON.stringify(obj)},{onConflict:'chave'}).then(()=>{},()=>{}); }catch(e){} }
+
+  // ── 5. Previsão de pagamento por banco (pelo seu histórico) ──
+  function diasPorBanco(){
+    const m={}; const todos=[];
+    L_().forEach(r=>{ if(!r||statusDe(r)!=='PAGO'||!r.data_dig||!r.data_comissao_rec) return; const d=diasEntre(String(r.data_dig).slice(0,10),String(r.data_comissao_rec).slice(0,10));
+      if(d<0||d>120) return; (m[semAcento(r.banco)]=m[semAcento(r.banco)]||[]).push(d); todos.push(d); });
+    const med=a=>{ const s=[...a].sort((x,y)=>x-y); return s.length?s[Math.floor(s.length/2)]:null; };
+    const out={}; Object.keys(m).forEach(k=>{ if(m[k].length>=2) out[k]=med(m[k]); }); out.__geral=med(todos)||10; return out;
+  }
+  function previsao(r,mapa){ mapa=mapa||diasPorBanco(); const d=mapa[semAcento(r.banco)]; const dias=d!=null?d:mapa.__geral; return {dias, data:r.data_dig?addDias(String(r.data_dig).slice(0,10),dias):'', proprio:d!=null}; }
+  function entradasPrevistas(diasFrente){
+    const mapa=diasPorBanco(), lim=addDias(hojeISO(),diasFrente); const lista=[];
+    L_().forEach(r=>{ if(!r||statusDe(r)==='PAGO'||!r.data_dig) return; const p=previsao(r,mapa); if(p.data && p.data<=lim) lista.push({r,p}); });
+    return {lista:lista.sort((a,b)=>a.p.data.localeCompare(b.p.data)), total:somar(lista,x=>x.r.comissao)};
+  }
+
+  // ── 10. Lembretes pessoais ──
+  const LEMB_KEY='bs_ia_lembretes', LEMB_CFG='ia_lembretes';
+  function lembretes(){ try{ return JSON.parse(localStorage.getItem(LEMB_KEY)||'[]')||[]; }catch(e){ return []; } }
+  function lembSalvar(arr){ try{ localStorage.setItem(LEMB_KEY,JSON.stringify(arr)); }catch(e){} nuvemSalvar(LEMB_CFG,arr); try{ atualizarSininho(); }catch(e){} }
+  let lembNuvemLida=false;
+  function lembLerNuvem(){
+    if(lembNuvemLida||typeof sbClient==='undefined'||!sbClient) return; lembNuvemLida=true;
+    try{ sbClient.from('bs_config').select('valor').eq('chave',LEMB_CFG).maybeSingle().then(({data})=>{
+      if(!data||!data.valor) return; let nuvem=[]; try{ nuvem=JSON.parse(data.valor)||[]; }catch(e){ return; }
+      const loc=lembretes(); const porId={}; [...nuvem,...loc].forEach(l=>{ if(!porId[l.id]||String(l.atualizado||'')>String(porId[l.id].atualizado||'')) porId[l.id]=l; });
+      try{ localStorage.setItem(LEMB_KEY,JSON.stringify(Object.values(porId))); }catch(e){}
+    },()=>{ lembNuvemLida=false; }); }catch(e){ lembNuvemLida=false; }
+  }
+  function lembPendentes(ate){ const h=ate||hojeISO(); return lembretes().filter(l=>!l.feito && l.data<=h).sort((a,b)=>a.data.localeCompare(b.data)); }
+  function lembAlterar(id,fn){ const arr=lembretes(); const l=arr.find(x=>x.id===id); if(!l) return; fn(l); l.atualizado=new Date().toISOString(); lembSalvar(arr); }
+  function linhaLembrete(l){
+    const quando=l.data<hojeISO()?'⚠️ era '+fmtData(l.data):l.data===hojeISO()?'🔴 hoje':'📅 '+fmtData(l.data);
+    return linha('📌 <b>'+esc(l.texto)+'</b>'+(l.cliente?' · '+esc(l.cliente):'')+' <span class="ia-cinza">'+quando+'</span>',
+      btn('✓ Feito','lemb_feito',{id:l.id})+btn('⏰ +7 dias','lemb_adiar',{id:l.id})+(l.cliente?btn('🗂️ Ficha','ficha',{nome:l.cliente}):''));
+  }
+
+  // ── 8. Meta ──
+  function definirMeta(mes,valor){
+    const k=mesRefDe(mes); try{ _lsSet('bs_meta_'+k,String(valor)); }catch(e){}
+    try{ if(sbClient) sbClient.from('bs_config').upsert({chave:'meta_'+k,valor:String(valor)},{onConflict:'chave'}).then(()=>{},()=>{}); }catch(e){}
+    try{ renderMetaAtual(); }catch(e){} try{ renderResumo(); }catch(e){}
+  }
+  function metaSugerida(mes){
+    const v=[]; let m=mes; for(let i=0;i<3;i++){ m=mesAnterior(m); const c=contratosDoMes(m); if(c.length) v.push(somar(c,r=>r.comissao)); }
+    if(!v.length) return 0; return Math.ceil((somar(v,x=>x)/v.length)*1.1/100)*100;
+  }
+  function ritmo(){
+    const m=infoMeta(); const hoje=hojeISO(); if(hoje.slice(0,7)!==m.mes) return null;
+    const [ano,mm]=m.mes.split('-').map(Number); const total=new Date(ano,mm,0).getDate();
+    let passados=0, todos=0; try{ passados=calcDiasUteisNoMes(ano,mm-1,1,+hoje.slice(8,10)); todos=calcDiasUteisNoMes(ano,mm-1,1,total); }catch(e){ return null; }
+    if(!passados) return null; const proj=m.comissao_recebida/passados*todos; return {proj, perc:m.meta?proj/m.meta*100:null};
+  }
+
+  // ── 6. Raio-X do mês ──
+  function raioX(mes){
+    const c=contratosDoMes(mes), ca=contratosDoMes(mesAnterior(mes));
+    const tot=somar(c,r=>r.comissao), rec=somar(c.filter(r=>statusDe(r)==='PAGO'),r=>r.comissao), totA=somar(ca,r=>r.comissao);
+    const grupo=k=>{ const g={}; c.forEach(r=>{ const n=(k==='tipo'?(r.tipo_op||r.operacao):r[k])||'(vazio)'; g[n]=(g[n]||0)+(+r.comissao||0); }); return Object.entries(g).sort((a,b)=>b[1]-a[1]); };
+    const desp=despesasDoMes(mes); const despEmp=somar(desp.filter(e=>e.card==='EMPRESA'),e=>e.value);
+    const meta=parseFloat(lsGet('bs_meta_'+mesRefDe(mes))||0)||0;
+    return {mes,qtd:c.length,qtdA:ca.length,tot,rec,totA,var:totA?((tot/totA-1)*100):null,ticket:c.length?somar(c,r=>r.valor_cliente)/c.length:0,
+      comMedia:c.length?tot/c.length:0,bancos:grupo('banco'),produtos:grupo('modalidade'),meta,despEmp,lucro:rec-despEmp};
+  }
+
+  // ── 7. Ranking: onde está o dinheiro ──
+  function ranking(){
+    const ini=addDias(hojeISO(),-183); const g={};
+    L_().forEach(r=>{ if(!r||String(r.data_dig||'')<ini) return; const k=(r.banco||'?')+' · '+(r.modalidade||'?');
+      const o=g[k]=g[k]||{k,qtd:0,com:0,valor:0,percs:[]}; o.qtd++; o.com+=+r.comissao||0; o.valor+=+r.valor_cliente||0; if(+r.perc_comissao>0) o.percs.push(+r.perc_comissao); });
+    return Object.values(g).map(o=>({...o,media:o.com/o.qtd,perc:o.percs.length?somar(o.percs,x=>x)/o.percs.length:(o.valor?o.com/o.valor*100:0)})).sort((a,b)=>b.media-a.media);
+  }
+
+  // ════════ PAINÉIS NOVOS ════════
+  function painelFechamento(mes){
+    mes=mes||(typeof state!=='undefined'?state.month:hojeISO().slice(0,7));
+    const c=contratosDoMes(mes); const abertas=c.filter(r=>statusDe(r)!=='PAGO');
+    const desp=despesasDoMes(mes); const naoPagas=desp.filter(e=>(e.status||'ABERTO')==='ABERTO');
+    const semCpf=c.filter(r=>!soDig(r.cpf)); const fx=faxina(); const rx=raioX(mes);
+    let h='<div class="ia-sec"><b>💰 Resultado de '+mesCurto(mes)+'</b><br>Comissão recebida <b>R$ '+fmtBR(rx.rec)+'</b> de R$ '+fmtBR(rx.tot)
+      +'<br>Despesas da empresa R$ '+fmtBR(rx.despEmp)+'<br>Sobra (recebido − despesas da empresa): <b style="color:'+(rx.lucro>=0?'#15803d':'#b91c1c')+'">R$ '+fmtBR(rx.lucro)+'</b></div>';
+    h+='<div class="ia-sec"><b>⏳ Comissões ainda em aberto: '+abertas.length+'</b> (R$ '+fmtBR(somar(abertas,r=>r.comissao))+')'
+      +abertas.slice(0,5).map(r=>linha(esc(r.nome_cliente)+' · '+esc(r.banco||'')+' · R$ '+fmtBR(r.comissao),btn('✅ Recebi','recebi',{nome:r.nome_cliente,banco:r.banco,valor:+r.valor_cliente||0}))).join('')
+      +(abertas.length>5?'<div class="ia-cinza">+ '+(abertas.length-5)+' outras — diga "marca como pagas..." para baixar em lote</div>':'')+'</div>';
+    h+='<div class="ia-sec"><b>💸 Contas não pagas: '+naoPagas.length+'</b> (R$ '+fmtBR(somar(naoPagas,e=>e.value))+')'
+      +naoPagas.slice(0,6).map(e=>linha(esc(e.name)+' · R$ '+fmtBR(e.value)+' <span class="ia-cinza">vence '+fmtData(e.dueDate)+'</span>',btn('✅ Paguei','pagar',{nome:e.name,mes,valor:+e.value||0}))).join('')
+      +(naoPagas.length?'<div style="margin-top:6px">'+btn('➡️ Passar as não pagas para o próximo mês','proximo_mes',{mes})+'</div>':'')+'</div>';
+    if(mes===fx.mes) h+='<div class="ia-sec"><b>🗓️ Fixas do mês passado não lançadas: '+fx.faltando.length+'</b>'+fx.faltando.slice(0,5).map(e=>linha(esc(e.name)+' · R$ '+fmtBR(e.value))).join('')+'</div>';
+    h+='<div class="ia-sec"><b>🪪 Contratos do mês sem CPF: '+semCpf.length+'</b>'+semCpf.slice(0,5).map(r=>linha(esc(r.nome_cliente)+' · '+esc(r.banco||''),btn('📋 Completar','abrir_contrato',{id:r.id}))).join('')+'</div>';
+    ligarBotoes(cardSimples('📅 Fechamento de '+mesCurto(mes),'checklist',h));
+  }
+
+  function painelRaioX(mes){
+    mes=mes||mesAnterior(hojeISO().slice(0,7)); const rx=raioX(mes); const prox=mesSeguinte(mes);
+    const seta=v=>v==null?'':(v>=0?'<span style="color:#15803d">▲ '+v.toFixed(0)+'%</span>':'<span style="color:#b91c1c">▼ '+Math.abs(v).toFixed(0)+'%</span>');
+    let h='<div class="ia-sec"><b>📈 Comissões</b><br>Total <b>R$ '+fmtBR(rx.tot)+'</b> '+seta(rx.var)+' <span class="ia-cinza">(mês anterior R$ '+fmtBR(rx.totA)+')</span>'
+      +'<br>Recebido R$ '+fmtBR(rx.rec)+(rx.meta?' · Meta R$ '+fmtBR(rx.meta)+' ('+(rx.rec/rx.meta*100).toFixed(0)+'%)':'')
+      +'<br>'+rx.qtd+' contratos (antes '+rx.qtdA+') · ticket médio R$ '+fmtBR(rx.ticket)+' · comissão média R$ '+fmtBR(rx.comMedia)+'</div>';
+    h+='<div class="ia-sec"><b>🏆 Melhores bancos</b>'+rx.bancos.slice(0,3).map((b,i)=>'<br>'+(i+1)+'º '+esc(b[0])+' — R$ '+fmtBR(b[1])).join('')
+      +'<br><b>🏆 Melhores produtos</b>'+rx.produtos.slice(0,3).map((b,i)=>'<br>'+(i+1)+'º '+esc(b[0])+' — R$ '+fmtBR(b[1])).join('')+'</div>';
+    h+='<div class="ia-sec"><b>💰 Resultado</b><br>Despesas da empresa R$ '+fmtBR(rx.despEmp)+' · Sobra <b>R$ '+fmtBR(rx.lucro)+'</b></div>';
+    const sug=metaSugerida(prox); const metaProx=parseFloat(lsGet('bs_meta_'+mesRefDe(prox))||0)||0;
+    if(sug) h+='<div class="ia-sec"><b>🎯 Meta sugerida para '+mesCurto(prox)+'</b><br>R$ '+fmtBR(sug)+' <span class="ia-cinza">(média dos 3 meses anteriores + 10%)</span>'
+      +(metaProx?'<br><span class="ia-cinza">Meta atual: R$ '+fmtBR(metaProx)+'</span>':'')+'<div style="margin-top:5px">'+btn('Usar R$ '+fmtBR(sug)+' como meta','meta_usar',{mes:prox,valor:sug})+'</div></div>';
+    ligarBotoes(cardSimples('🩻 Raio-X de '+mesCurto(mes),'',h));
+  }
+
+  function painelRanking(){
+    const rk=ranking();
+    if(!rk.length){ cardSimples('💡 Onde está o dinheiro','','<div class="ia-sec">Ainda não há contratos suficientes nos últimos 6 meses.</div>'); return; }
+    const h='<div class="ia-sec ia-cinza" style="font-size:.72rem">Últimos 6 meses · ordenado pela comissão média por contrato</div>'
+      +rk.slice(0,10).map((o,i)=>linha('<b>'+(i+1)+'º '+esc(o.k)+'</b><br>R$ '+fmtBR(o.media)+' por contrato · '+o.perc.toFixed(2).replace('.',',')+'% médio · '+o.qtd+' contrato(s) · total R$ '+fmtBR(o.com))).join('');
+    cardSimples('💡 Onde está o dinheiro','banco · produto',h);
+  }
+
+  function painelLembretes(){
+    const pend=lembretes().filter(l=>!l.feito).sort((a,b)=>a.data.localeCompare(b.data));
+    const feitos=lembretes().filter(l=>l.feito).length;
+    const h=pend.length?pend.slice(0,30).map(linhaLembrete).join(''):'<div class="ia-sec">Nenhum lembrete pendente. Diga, por exemplo: <i>"me lembra de ligar pro João dia 20"</i>.</div>';
+    ligarBotoes(cardSimples('📌 Meus lembretes',pend.length+' pendente(s)'+(feitos?' · '+feitos+' feito(s)':''),'<div class="ia-sec">'+h+'</div>'));
+  }
+
+  // ── 9. Ficha do cliente ──
+  function fichaCliente(d){
+    garantirBS(); const cpf=soDig(d.cpf); const pal=palavras(d.nome_cliente);
+    const lista=L_().filter(r=>r && ((cpf && soDig(r.cpf)===cpf) || (pal.length && pal.every(w=>semAcento(r.nome_cliente).includes(w)))))
+      .sort((a,b)=>String(b.data_dig||'').localeCompare(String(a.data_dig||'')));
+    if(!lista.length){ msg('🔎 Não encontrei contratos de "'+(d.nome_cliente||d.cpf||'')+'".'); return; }
+    const nomes=[...new Set(lista.map(r=>r.nome_cliente))];
+    const achar=k=>(lista.find(r=>r[k])||{})[k]||'';
+    const elegiveis=refinElegiveis(true).filter(x=>lista.some(r=>r.id===x.r.id));
+    const lemb=lembretes().filter(l=>!l.feito && l.cliente && pal.length && pal.every(w=>semAcento(l.cliente).includes(w)));
+    let h='<div class="ia-sec"><b>'+esc(nomes.join(' / '))+'</b>'+(achar('cpf')?'<br>CPF '+esc(achar('cpf')):'')+(achar('telefone')?' · 📞 '+esc(achar('telefone')):'')
+      +'<br>'+lista.length+' contrato(s) · R$ '+fmtBR(somar(lista,r=>r.valor_cliente))+' em contratos · R$ '+fmtBR(somar(lista,r=>r.comissao))+' de comissão</div>';
+    if(elegiveis.length) h+='<div class="ia-sec" style="background:#F0FDF4"><b>🔁 Cabe nova oferta</b>'+elegiveis.map(x=>'<br>'+esc(x.r.banco||'')+' · '+esc(x.r.modalidade||'')+' — pago há '+x.meses+' meses').join('')+'</div>';
+    if(lemb.length) h+='<div class="ia-sec">'+lemb.map(linhaLembrete).join('')+'</div>';
+    h+=lista.slice(0,15).map(r=>linha('<b>'+esc(r.banco||'')+'</b> · '+esc(r.modalidade||'')+' · '+esc(r.tipo_op||r.operacao||'')
+      +'<br>Dig. '+fmtData(r.data_dig)+(r.data_pg?' · pago '+fmtData(r.data_pg):'')+' · R$ '+fmtBR(r.valor_cliente)+(r.prazo?' · '+r.prazo+'x':'')+(r.valor_parcela?' de R$ '+fmtBR(r.valor_parcela):'')
+      +'<br>Comissão R$ '+fmtBR(r.comissao)+' · '+(statusDe(r)==='PAGO'?'✅ PAGO':'⏳ ABERTO')+(r.num_contrato?' · Nº '+esc(r.num_contrato):'')+(String(r.obs||'').includes('❗')?' · <span class="cl-revisar">❗ Revisar</span>':''),
+      btn('📋 Abrir','abrir_contrato',{id:r.id}))).join('');
+    ligarBotoes(cardSimples('🗂️ Ficha do cliente','',h));
+  }
+
+  // ── 1. Repete o último ──
+  function repetirLancamento(d){
+    garantirBS(); let base=null;
+    if(d.referencia_cliente){ base=buscarComissoes({nome_cliente:d.referencia_cliente})[0]; }
+    else { const L=L_().filter(Boolean); base=L[L.length-1]; }
+    if(!base){ msg('🔎 Não achei o contrato de referência'+(d.referencia_cliente?' de "'+d.referencia_cliente+'"':'')+'.'); return; }
+    const a=d.alteracoes||{};
+    const novo={ nome_cliente:a.nome_cliente||'', modalidade:a.modalidade||base.modalidade, banco:a.banco||base.banco, tipo_op:a.tipo_op||base.tipo_op||base.operacao,
+      promotora:a.promotora||base.promotora, perc_comissao:a.perc_comissao||(+base.perc_comissao||undefined), comissao_valor:a.comissao_valor,
+      valor_contrato:a.valor_contrato||base.valor_cliente, data_digitacao:a.data_digitacao||hojeISO(), status:'ABERTO',
+      cpf:a.cpf, telefone:a.telefone, num_contrato:a.num_contrato, prazo:a.prazo||(a.valor_contrato?undefined:base.prazo), valor_parcela:a.valor_parcela };
+    msg('📋 Copiei de '+base.nome_cliente+' ('+[base.banco,base.modalidade,base.tipo_op||base.operacao,base.perc_comissao?String(base.perc_comissao).replace('.',',')+'%':''].filter(Boolean).join(' · ')+'). Confira o card:');
+    cardAcao('lancar_comissao',novo);
+  }
+
+  // ── 2. Conta parcelada ──
+  function cardParcelado(d){
+    const L=listas(); const n=Math.max(1,Math.round(+d.parcelas||1));
+    const vp=+d.valor_parcela || (d.valor_total? +(+d.valor_total/n).toFixed(2) : 0);
+    let pv=d.primeiro_vencimento||''; if(!pv){ const p=mesSeguinte(hojeISO().slice(0,7)); pv=p+'-10'; }
+    const cat=casar(d.categoria,L.categorias_despesa);
+    const el=document.createElement('div'); el.className='ia-card';
+    el.innerHTML='<div class="ia-card-h"><span>🧾 Compra parcelada</span><span>confira antes de lançar</span></div><div class="ia-card-g">'
+      +campo('nome','Descrição',d.nome||'',{full:true})+campo('card','Card',d.card||'EMPRESA',{select:['EMPRESA','CASA']})
+      +campo('cat','Categoria',cat.novo?(L.categorias_despesa.includes('Boleto Parcelado')?'Boleto Parcelado':'Outros'):cat.valor,{select:L.categorias_despesa})
+      +campo('vp','Valor da parcela (R$)',vp?fmtBR(vp):'')+campo('n','Nº de parcelas',String(n))
+      +campo('pv','1º vencimento',pv,{type:'date'})+campo('obs','Observação',d.obs||'')
+      +'<div class="ia-total" data-total></div></div><div class="ia-card-a"><button class="ia-ok">✅ Lançar parcelas</button><button class="ia-x">✕</button></div>';
+    $('ia-msgs').appendChild(el); rolar();
+    const resumoP=()=>{ const v=ler(el); const nn=Math.max(1,parseInt(v.n)||1), val=numBR(v.vp); const ini=(v.pv||'').slice(0,7);
+      let fim=ini; for(let i=1;i<nn;i++) fim=mesSeguinte(fim);
+      el.querySelector('[data-total]').textContent='🧮 '+nn+'x de R$ '+fmtBR(val)+' = R$ '+fmtBR(nn*val)+(ini?' · de '+mesCurto(ini)+' a '+mesCurto(fim):''); };
+    el.querySelectorAll('input,select').forEach(i=>i.addEventListener('input',resumoP)); resumoP();
+    el.querySelector('.ia-x').onclick=()=>el.remove();
+    el.querySelector('.ia-ok').onclick=()=>{
+      const v=ler(el); const nn=Math.max(1,parseInt(v.n)||1), val=numBR(v.vp);
+      if(!v.nome||!val||!v.pv){ msg('⚠️ Preencha descrição, valor da parcela e 1º vencimento.','erro'); return; }
+      try{
+        const rec={ id:uid(), name:v.nome, category:v.cat, type:'Fixa', value:val, dueDay:parseInt(v.pv.slice(8,10))||10,
+          isInstallment:true, currentInstallment:1, totalInstallments:nn, startMonth:v.pv.slice(0,7),
+          obs:v.obs||'Parcelado (lançado pelo assistente)', active:true, archived:false, card:v.card };
+        const recs=getRecs(); recs.push(rec); saveRecs(recs);
+        generateRecurrenteAllMonths(rec);
+        // envia cada mês gerado para a nuvem (mesma rotina do Finance Control)
+        let m=rec.startMonth; for(let i=0;i<nn;i++){ try{ if(typeof fcSupaSalvar==='function') fcSupaSalvar(m,DB.get(m)); }catch(e){} m=mesSeguinte(m); }
+        try{ renderAll(); }catch(e){} try{ renderRecorrentes(); }catch(e){}
+        registrarLog('parcelado',v.nome+' '+nn+'x R$'+val);
+        el.classList.add('feito'); el.querySelector('.ia-card-h span:last-child').textContent='✅ lançado';
+        msg('✅ "'+v.nome+'" lançado em '+nn+' parcelas de R$ '+fmtBR(val)+', começando em '+mesCurto(rec.startMonth)+'. Fica também em Recorrentes.');
+      }catch(e){ console.error(e); msg('⚠️ Não consegui criar as parcelas: '+e.message,'erro'); }
+    };
+  }
+
+  // ── 10. criar lembrete ──
+  function criarLembrete(d){
+    if(!d.texto||!d.data){ msg('⚠️ Me diga o que lembrar e quando.','erro'); return; }
+    const l={id:'L'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), texto:d.texto, data:String(d.data).slice(0,10), cliente:d.cliente||'', feito:false, criado:hojeISO(), atualizado:new Date().toISOString()};
+    const arr=lembretes(); arr.push(l); lembSalvar(arr);
+    const el=cardSimples('📌 Lembrete criado','', '<div class="ia-sec">'+linha('<b>'+esc(l.texto)+'</b>'+(l.cliente?' · '+esc(l.cliente):'')+'<br>📅 '+fmtData(l.data)+' <span class="ia-cinza">(aparece no Resumo do dia e no 🔔)</span>',btn('🗑️ Desfazer','lemb_apagar',{id:l.id}))+'</div>');
+    ligarBotoes(el);
+  }
+
+  // ── 4. Avisos no celular/computador (com o site aberto) ──
+  const AVISO_KEY='bs_ia_avisos';
+  window.iaAvisos=async function(){
+    if(!('Notification' in window)){ msg('🔔 Este navegador não permite avisos. No celular, use o Chrome e adicione o site à tela inicial.'); return; }
+    if(localStorage.getItem(AVISO_KEY)==='1'){ localStorage.removeItem(AVISO_KEY); atualizarBotaoAviso(); msg('🔕 Avisos desligados neste aparelho.'); return; }
+    const p=await Notification.requestPermission();
+    if(p!=='granted'){ msg('🔔 Para receber avisos, permita notificações deste site nas configurações do navegador.','erro'); return; }
+    localStorage.setItem(AVISO_KEY,'1'); atualizarBotaoAviso();
+    msg('🔔 Avisos ligados neste aparelho! Vou avisar de contas que vencem hoje/amanhã e dos seus lembretes, sempre que o sistema estiver aberto (pode ficar numa aba ou na tela inicial).');
+    verificarAvisos(true);
+  };
+  function atualizarBotaoAviso(){ const b=$('ia-aviso-btn'); if(b){ const on=localStorage.getItem(AVISO_KEY)==='1'; b.textContent=on?'🔔':'🔕'; b.title=on?'Avisos ligados (toque para desligar)':'Ligar avisos de contas e lembretes'; } }
+  function verificarAvisos(){
+    try{
+      if(localStorage.getItem(AVISO_KEY)!=='1' || !('Notification' in window) || Notification.permission!=='granted') return;
+      const hoje=hojeISO(), k='bs_ia_avisados_'+hoje; let ja=[]; try{ ja=JSON.parse(localStorage.getItem(k)||'[]'); }catch(e){}
+      const c=infoContas(); const itens=[];
+      c.hoje.forEach(x=>itens.push({id:'c'+x.e.id, t:'💸 Vence hoje: '+x.e.name, b:'R$ '+fmtBR(x.e.value)}));
+      c.amanha.forEach(x=>itens.push({id:'a'+x.e.id, t:'📅 Vence amanhã: '+x.e.name, b:'R$ '+fmtBR(x.e.value)}));
+      lembPendentes(hoje).forEach(l=>itens.push({id:'l'+l.id, t:'📌 Lembrete: '+l.texto, b:l.cliente||'Bom Sucesso'}));
+      itens.filter(i=>!ja.includes(i.id)).slice(0,5).forEach(i=>{
+        try{ const n=new Notification(i.t,{body:i.b,tag:i.id}); n.onclick=()=>{ window.focus(); iaAbrir(); painelResumo(); n.close(); }; }catch(e){}
+        ja.push(i.id);
+      });
+      localStorage.setItem(k,JSON.stringify(ja));
+    }catch(e){ console.warn('[IA] avisos',e); }
+  }
+  setTimeout(()=>{ atualizarBotaoAviso(); verificarAvisos(); },4000);
+  setInterval(verificarAvisos,15*60*1000);
+  setInterval(lembLerNuvem,7000);
+
+  // ── Raio-X automático no início do mês (1ª vez que abre, dias 1 a 5) ──
+  function raioXAutomatico(){
+    const h=hojeISO(); if(+h.slice(8,10)>5) return;
+    try{ const k='bs_ia_raiox'; if(localStorage.getItem(k)===h.slice(0,7)) return; localStorage.setItem(k,h.slice(0,7)); }catch(e){}
+    setTimeout(()=>{ try{ painelRaioX(mesAnterior(h.slice(0,7))); }catch(e){} },400);
+  }
+
   function ler(el){ const o={}; el.querySelectorAll('[data-c]').forEach(i=>o[i.dataset.c]=i.value.trim()); return o; }
 
   function totalComissao(el){
@@ -11484,7 +11775,8 @@ function cancelarUnificacao() {
     try{ salvarLancamento(false); }catch(e){ console.warn('[IA] pós-salvar',e); }
     const ok=(todosLancamentos||[]).length>antes;
     if(ok){ const r=todosLancamentos[todosLancamentos.length-1]; registrarLog('comissao',(r.id||'')+' '+r.nome_cliente+' '+r.banco+' R$'+r.comissao);
-      if(!quieto) msg('✅ Comissão de '+r.nome_cliente+' lançada: R$ '+fmtBR(r.comissao)+'.'); }
+      if(!quieto){ let pv=''; try{ const p=previsao(r); if(p.data) pv='\n📅 '+(p.proprio?'O '+r.banco+' costuma pagar em ~'+p.dias+' dias':'Previsão pela média geral (~'+p.dias+' dias)')+' — comissão prevista para '+fmtData(p.data)+'.'; }catch(e){}
+        msg('✅ Comissão de '+r.nome_cliente+' lançada: R$ '+fmtBR(r.comissao)+'.'+pv); } }
     else if(!quieto) msg('Lançamento não foi salvo (cancelado ou faltou campo).');
     return ok;
   }

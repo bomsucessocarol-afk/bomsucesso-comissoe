@@ -343,11 +343,75 @@ const FERRAMENTAS = [
   {
     name: "abrir_painel",
     description:
-      "Mostra um painel pronto do sistema: resumo do dia, lembretes de refinanciamento/nova oferta, ou faxina (cadastros incompletos, duplicados, despesas fora do normal).",
+      "Mostra um painel pronto do sistema: resumo do dia, lembretes de refinanciamento/nova oferta, faxina, fechamento do mês, raio-x do mês, ranking de onde está o dinheiro (bancos/produtos que mais pagam) ou a lista de lembretes pessoais.",
     parameters: {
       type: "object",
-      properties: { painel: { type: "string", enum: ["resumo_do_dia", "lembretes_refinanciamento", "faxina"] } },
+      properties: {
+        painel: { type: "string", enum: ["resumo_do_dia", "lembretes_refinanciamento", "faxina", "fechamento_mes", "raio_x", "ranking", "meus_lembretes"] },
+        mes: { type: "string", description: "AAAA-MM para fechamento_mes e raio_x (se ela disser o mês)" },
+      },
       required: ["painel"],
+    },
+  },
+  {
+    name: "repetir_lancamento",
+    description:
+      "Lança um contrato NOVO copiando os dados de um contrato já lançado (banco, modalidade, tipo, promotora, %), trocando só o que ela disser. Ex: \"lança igual o da Maria, só muda o nome pra João e o valor pra 6 mil\". Sem nome de referência = o último lançado.",
+    parameters: {
+      type: "object",
+      properties: {
+        referencia_cliente: { type: "string", description: "Nome do cliente usado como modelo; vazio = último lançamento" },
+        alteracoes: {
+          type: "object",
+          properties: {
+            nome_cliente: { type: "string" }, cpf: { type: "string" }, telefone: { type: "string" },
+            valor_contrato: { type: "number" }, perc_comissao: { type: "number" }, comissao_valor: { type: "number" },
+            banco: { type: "string" }, modalidade: { type: "string" }, tipo_op: { type: "string" }, promotora: { type: "string" },
+            data_digitacao: { type: "string" }, num_contrato: { type: "string" }, prazo: { type: "number" }, valor_parcela: { type: "number" },
+          },
+        },
+      },
+      required: ["alteracoes"],
+    },
+  },
+  {
+    name: "lancar_parcelado",
+    description:
+      "Cria uma compra/conta PARCELADA (ex: \"comprei uma impressora em 10x de 180 no cartão, começa em novembro\"). O sistema gera uma despesa por mês com (1/10), (2/10)...",
+    parameters: {
+      type: "object",
+      properties: {
+        nome: { type: "string" },
+        card: { type: "string", enum: ["CASA", "EMPRESA"] },
+        categoria: { type: "string", description: "Use uma da lista de categorias de despesas" },
+        valor_parcela: { type: "number" },
+        valor_total: { type: "number", description: "Se ela disser só o total" },
+        parcelas: { type: "number" },
+        primeiro_vencimento: { type: "string", description: "AAAA-MM-DD da 1ª parcela (se disser só o mês, use dia 10)" },
+        obs: { type: "string" },
+      },
+      required: ["nome", "parcelas"],
+    },
+  },
+  {
+    name: "ficha_cliente",
+    description: "Mostra a ficha completa de um cliente: todos os contratos, bancos, valores, datas, contato e se já cabe nova oferta. Ex: \"me mostra tudo da Maria Souza\".",
+    parameters: {
+      type: "object",
+      properties: { nome_cliente: { type: "string" }, cpf: { type: "string" } },
+    },
+  },
+  {
+    name: "criar_lembrete",
+    description: "Cria um lembrete pessoal para a Carol (ex: \"me lembra de ligar pro João dia 20\", \"daqui 3 meses ver portabilidade da Ana\").",
+    parameters: {
+      type: "object",
+      properties: {
+        texto: { type: "string", description: "O que lembrar, curto" },
+        data: { type: "string", description: "AAAA-MM-DD — calcule a partir de hoje" },
+        cliente: { type: "string", description: "Nome do cliente, se houver" },
+      },
+      required: ["texto", "data"],
     },
   },
 ];
@@ -385,7 +449,12 @@ SEU TRABALHO: transformar o pedido da Carol em lançamentos ou atualizações us
   • extrato/relatório de COMISSÕES RECEBIDAS do banco (o banco pagando a você) → atualizar_comissoes_lote com UM item por contrato (nome, CPF, nº contrato, valor, comissão) e alteracoes {status:"PAGO", data_comissao_recebida: data do extrato ou hoje}
   • tela de digitação/proposta/contrato de banco → lancar_comissao com o máximo de campos (CPF, nº contrato, prazo, parcela)
   • leia com cuidado; se algo estiver ilegível, deixe vazio em vez de chutar.
-- "resumo do dia", "como está meu dia", "lembretes", "quem posso refinanciar", "faxina", "cadastros incompletos" → abrir_painel.
+- "resumo do dia", "como está meu dia", "quem posso refinanciar", "faxina", "cadastros incompletos" → abrir_painel.
+  "fecha outubro"/"fechamento do mês" → abrir_painel fechamento_mes; "raio-x", "como foi o mês" → raio_x;
+  "onde está o dinheiro", "qual banco/produto paga melhor" → ranking (ou consultar_comissoes se for algo bem específico);
+  "meus lembretes" → meus_lembretes; "quem posso refinanciar" → lembretes_refinanciamento.
+- "lança igual o da X" / "repete o último" → repetir_lancamento.  Compra ou conta em parcelas → lancar_parcelado.
+- "me mostra tudo da X", "ficha da X" → ficha_cliente.  "me lembra de..." → criar_lembrete (calcule a data).
 
 REGRAS:
 - Nunca invente dados. Se faltar algo obrigatório (nome do cliente, banco, modalidade, valor), pergunte em vez de chamar a função.
