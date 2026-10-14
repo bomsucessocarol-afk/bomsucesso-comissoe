@@ -47,6 +47,7 @@ const FERRAMENTAS = [
         comissao_valor: { type: "number", description: "Valor da comissão em reais SOMENTE se a Carol disser o valor exato em R$" },
         pacote_fixo: { type: "number", description: "Pacote fixo em reais, se mencionado" },
         data_digitacao: { type: "string", description: "Data de digitação no formato AAAA-MM-DD" },
+        mes_referencia: { type: "string", description: "AAAA-MM do mês de referência, só se ela disser em qual mês lançar ou se o documento trouxer Período de Pagamento/Referência" },
         data_pagamento_cliente: { type: "string", description: "Data de pagamento ao cliente AAAA-MM-DD, se mencionada" },
         data_comissao_recebida: { type: "string", description: "Data em que a comissão foi recebida AAAA-MM-DD, se mencionada" },
         status: { type: "string", enum: ["ABERTO", "PAGO"], description: "ABERTO por padrão; PAGO só se ela disser que já recebeu" },
@@ -303,6 +304,10 @@ const FERRAMENTAS = [
     parameters: {
       type: "object",
       properties: {
+        mes_referencia: {
+          type: "string",
+          description: "AAAA-MM em que TODOS os contratos devem ser lançados. Use o mês que a Carol disser (\"lança no mês 02/2026\") ou, se ela não disser, o mês/ano do campo \"Período de Pagamento\" (ou Referência/Competência) do documento.",
+        },
         banco: { type: "string", description: "Banco do relatório, se for um só" },
         modalidade: { type: "string", description: "Modalidade do relatório, se for uma só (use a lista)" },
         tipo_op: { type: "string" },
@@ -446,6 +451,9 @@ SEU TRABALHO: transformar o pedido da Carol em lançamentos ou atualizações us
     Leia TODAS as páginas e TODAS as linhas; não pule nenhum contrato. Datas sempre AAAA-MM-DD. "Data de pagamento"/"averbação" → data_pagamento_cliente.
     Se a data de digitação não aparecer, deixe vazia. Status da comissão ABERTO, a menos que o relatório diga que a comissão foi paga.
     O sistema confere sozinho quais contratos já existem, então mande todos.
+    MÊS DE REFERÊNCIA: procure no documento "Período de Pagamento" (às vezes escrito com acento quebrado, como "PerÃ­odo de Pagamento"),
+    "Referência", "Competência" ou "Mês de pagamento" e coloque o mês/ano em mes_referencia (AAAA-MM). Ex: "Período de Pagamento: 01/02/2026 a 28/02/2026" → "2026-02".
+    Se a Carol disser o mês ("lança no mês 02/2026", "joga em fevereiro"), isso vale mais que o documento.
   • extrato/relatório de COMISSÕES RECEBIDAS do banco (o banco pagando a você) → atualizar_comissoes_lote com UM item por contrato (nome, CPF, nº contrato, valor, comissão) e alteracoes {status:"PAGO", data_comissao_recebida: data do extrato ou hoje}
   • tela de digitação/proposta/contrato de banco → lancar_comissao com o máximo de campos (CPF, nº contrato, prazo, parcela)
   • leia com cuidado; se algo estiver ilegível, deixe vazio em vez de chutar.

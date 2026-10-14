@@ -10517,6 +10517,7 @@ function cancelarUnificacao() {
         + campo('comissao','Comissão R$ (se fixa)',d.comissao_valor?fmtBR(d.comissao_valor):'',{ph:'calcula sozinho'})
         + campo('pact','Pacote fixo (R$)',d.pacote_fixo?fmtBR(d.pacote_fixo):'')
         + campo('data_dig','Data digitação',d.data_digitacao||hojeISO(),{type:'date'})
+        + (d.mes_referencia ? campo('mes_ref','Mês de referência',String(d.mes_referencia).slice(0,7),{type:'month'}) : '')
         + campo('status','Status',d.status||'ABERTO',{select:['ABERTO','PAGO']})
         + campo('data_pg','Pagamento ao cliente',d.data_pagamento_cliente||'',{type:'date'})
         + campo('data_rec','Comissão recebida em',d.data_comissao_recebida||'',{type:'date'})
@@ -11291,9 +11292,9 @@ function cancelarUnificacao() {
 
   // ════════ RELATÓRIO DE CONTRATOS PAGOS → vários lançamentos novos ════════
   // Cliente já lançado? mesmo nome + mesmo mês de referência + valor batendo (ou nº do contrato / CPF + valor)
-  function jaExiste(it){
+  function jaExiste(it,mesForcado){
     const L=L_(); const cpf=soDig(it.cpf), num=semAcento(it.num_contrato), val=+it.valor_contrato||0;
-    const pal=palavras(it.nome_cliente); const dataIt=String(it.data_pagamento_cliente||it.data_digitacao||'');
+    const pal=palavras(it.nome_cliente); const dataIt=mesForcado?String(mesForcado).slice(0,7):String(it.data_pagamento_cliente||it.data_digitacao||'');
     const mref=dataIt?mesRefDe(dataIt.slice(0,7)):'';
     const mesmoNome=r=>{ const n=semAcento(r.nome_cliente); if(!n||!pal.length) return false; if(n===pal.join(' ')) return true;
       const pr=n.split(/\s+/); return pal.length>=2 && pal.every(w=>pr.includes(w)) || pr.length>=2 && pr.every(w=>pal.includes(w)); };
@@ -11328,6 +11329,7 @@ function cancelarUnificacao() {
     cmp('% comissão','perc_comissao',r.perc_comissao,it.perc_comissao?+it.perc_comissao:'',eqNum,v=>String(v).replace('.',',')+'%');
     if(it.comissao_valor && (+r.comissao||0)>0 && Math.abs((+r.comissao)-(+it.comissao_valor))>0.5) dif.push({rot:'Comissão',sis:'R$ '+fmtBR(r.comissao),rel:'R$ '+fmtBR(it.comissao_valor)});
     if(it.valor_contrato && Math.abs((+r.valor_cliente||0)-(+it.valor_contrato))>=0.01) dif.push({rot:'Valor do contrato',sis:'R$ '+fmtBR(r.valor_cliente),rel:'R$ '+fmtBR(it.valor_contrato)});
+    if(it._mesref){ const k=mesRefDe(it._mesref); if(k){ if(!r.mes_ref) pre.push({campo:'mes_ref',rot:'Mês de referência',valor:k,txt:k}); else if(r.mes_ref!==k) dif.push({rot:'Mês de referência',sis:r.mes_ref,rel:k}); } }
     return {pre,dif};
   }
   function aplicarComplementos(lista){
@@ -11359,16 +11361,19 @@ function cancelarUnificacao() {
     const pad={ banco:casar(d.banco||maisComum(itens,'banco'),L.bancos).valor, modalidade:casar(d.modalidade||maisComum(itens,'modalidade'),L.modalidades).valor,
       tipo_op:casar(d.tipo_op||'NOVO',L.tipos_op).valor, promotora:casar(d.promotora||maisComum(itens,'promotora'),L.promotoras).valor,
       status:d.status||'ABERTO', perc:d.perc_comissao?String(d.perc_comissao).replace('.',','):'' };
-    const linhas=itens.map(it=>{ const existe=jaExiste(it); return {it, existe, plano: existe?planoComplemento(existe,it):null}; });
+    const mesRef=d.mes_referencia?String(d.mes_referencia).slice(0,7):'';
+    const linhas=itens.map(it=>{ const existe=jaExiste(it,mesRef); return {it, existe, plano: existe?planoComplemento(existe,Object.assign({},it,{_mesref:mesRef})):null}; });
+    const vaiPara=it=>{ const m=mesRef||String(it.data_digitacao||it.data_pagamento_cliente||hojeISO()).slice(0,7); return mesCurto(m)+(mesRef?'':(it.data_digitacao||it.data_pagamento_cliente?' (pela data)':' (⚠️ sem data — mês atual)')); };
     const nNovos=linhas.filter(l=>!l.existe).length, nCompl=linhas.filter(l=>l.existe && (l.plano.pre.length||l.plano.dif.length)).length;
-    const campos = campo('banco','Banco (padrão)',pad.banco,{select:comOpcao(['',...L.bancos],pad.banco)})
+    const campos = campo('mesref','📅 Mês de referência',mesRef,{type:'month',aviso:mesRef?(d.mes_lido_do_pdf===false?'':'Lido do PDF/mensagem — confira'):'Vazio = usa a data de cada contrato'})
+      + campo('banco','Banco (padrão)',pad.banco,{select:comOpcao(['',...L.bancos],pad.banco)})
       + campo('modalidade','Modalidade (padrão)',pad.modalidade,{select:comOpcao(['',...L.modalidades],pad.modalidade)})
       + campo('tipo_op','Tipo de operação (padrão)',pad.tipo_op,{select:comOpcao(L.tipos_op,pad.tipo_op)})
       + campo('promotora','Promotora',pad.promotora,{select:comOpcao(['',...L.promotoras],pad.promotora)})
       + campo('status','Status da comissão',pad.status,{select:['ABERTO','PAGO']})
       + campo('perc','% comissão (se o relatório não trouxer)',pad.perc,{ph:'sugestão automática'});
     const lis=linhas.map((l,i)=>{ const it=l.it;
-      const linha1='<b>'+esc(String(it.nome_cliente).toUpperCase())+'</b>'+(it.cpf?' · CPF '+esc(it.cpf):'');
+      const linha1='<b>'+esc(String(it.nome_cliente).toUpperCase())+'</b>'+(it.cpf?' · CPF '+esc(it.cpf):'')+'<br><span class="ia-cinza">📅 vai para <b>'+esc(vaiPara(it))+'</b></span>';
       const linha2=[it.banco?esc(it.banco):'', it.modalidade?esc(it.modalidade):'', it.tipo_op?esc(it.tipo_op):''].filter(Boolean).join(' · ');
       const linha3=['Contrato R$ '+fmtBR(it.valor_contrato), it.perc_comissao?String(it.perc_comissao).replace('.',',')+'%':'', it.comissao_valor?'Comissão R$ '+fmtBR(it.comissao_valor):''].filter(Boolean).join(' · ');
       const linha4=[it.num_contrato?'Nº '+esc(it.num_contrato):'', it.prazo?it.prazo+'x':'', it.valor_parcela?'parcela R$ '+fmtBR(it.valor_parcela):'',
@@ -11398,11 +11403,15 @@ function cancelarUnificacao() {
       el.querySelector('.ia-ok').textContent='✅ '+[nv?'Lançar '+nv+' novo(s)':'', nc?'Completar '+nc:''].filter(Boolean).join(' e ')||'✅ Nada selecionado'; };
     el.querySelectorAll('[data-k]').forEach(c=>c.onchange=contar); contar();
     el.querySelector('.ia-x').onclick=()=>el.remove();
+    const campoMes=el.querySelector('[data-c="mesref"]');
+    if(campoMes) campoMes.addEventListener('change',()=>{ const v=ler(el);
+      const nd=Object.assign({},d,{mes_referencia:v.mesref||'',banco:v.banco,modalidade:v.modalidade,tipo_op:v.tipo_op,promotora:v.promotora,status:v.status,perc_comissao:v.perc?numBR(v.perc):d.perc_comissao});
+      el.remove(); cardLoteLancamentos(nd); });
     el.querySelectorAll('[data-edit]').forEach(b=>b.onclick=ev=>{ ev.preventDefault(); ev.stopPropagation();
       const i=+b.dataset.edit; const v=ler(el); const it=linhas[i].it;
       const cb=el.querySelector('[data-k="'+i+'"]'); if(cb){ cb.checked=false; contar(); }
       cardAcao('lancar_comissao',Object.assign({},it,{banco:it.banco||v.banco,modalidade:it.modalidade||v.modalidade,tipo_op:it.tipo_op||v.tipo_op,
-        promotora:it.promotora||v.promotora,status:it.status||v.status,perc_comissao:it.perc_comissao||(v.perc?numBR(v.perc):undefined)}));
+        promotora:it.promotora||v.promotora,status:it.status||v.status,perc_comissao:it.perc_comissao||(v.perc?numBR(v.perc):undefined),mes_referencia:v.mesref||undefined}));
     });
     el.querySelector('.ia-ok').onclick=async()=>{
       if(iaOcupado) return;
@@ -11423,7 +11432,7 @@ function cancelarUnificacao() {
           tipo_op:(it.tipo_op?casar(it.tipo_op,L.tipos_op).valor:'')||v.tipo_op||'NOVO', promotora:(it.promotora?casar(it.promotora,L.promotoras).valor:'')||v.promotora||'',
           valor:it.valor_contrato?fmtBR(it.valor_contrato):'', perc:it.perc_comissao?String(it.perc_comissao).replace('.',','):(v.perc||''),
           comissao:it.comissao_valor?fmtBR(it.comissao_valor):'', pact:it.pacote_fixo?fmtBR(it.pacote_fixo):'',
-          data_dig:it.data_digitacao||it.data_pagamento_cliente||hojeISO(), data_pg:it.data_pagamento_cliente||'',
+          data_dig:it.data_digitacao||it.data_pagamento_cliente||(v.mesref?v.mesref+'-01':hojeISO()), data_pg:it.data_pagamento_cliente||'', mes_ref:v.mesref||'',
           status:it.status||v.status||'ABERTO', data_rec:it.data_comissao_recebida||'' };
         if(it.cpf) r.cpf=it.cpf; if(it.telefone) r.telefone=it.telefone; if(it.num_contrato) r.num_contrato=it.num_contrato;
         if(it.prazo) r.prazo=String(it.prazo); if(it.valor_parcela) r.valor_parcela=String(it.valor_parcela); if(it.obs) r.obs=it.obs;
@@ -11741,6 +11750,8 @@ function cancelarUnificacao() {
     limparFormulario();
     const set=(fid,val)=>{ const e=$(fid); if(e) e.value=val??''; };
     set('f-data-dig',v.data_dig||hojeISO()); if(typeof onDataDigChange==='function') onDataDigChange();
+    if(v.mes_ref){ const k=mesRefDe(String(v.mes_ref).slice(0,7)); const sel=$('f-mes-ref');
+      if(sel&&k){ if(![...sel.options].some(o=>o.value===k)) sel.appendChild(new Option(k,k)); sel.value=k; } }
     set('f-data-pg',v.data_pg);
     set('f-nome',v.nome.toUpperCase());
     // listas editáveis: se o item é novo, adiciona na lista igual ao "+ Add"
