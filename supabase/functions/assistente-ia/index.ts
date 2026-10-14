@@ -13,12 +13,15 @@ const CORS = {
 };
 
 // Ordem de tentativa: se um estiver sobrecarregado, passa para o próximo
-const MODELOS = [
+// (out/2026: 2.5 e 3.5 Flash foram descontinuados pelo Google; os atuais são 3.8/3.6 Flash e 3.5 Flash-Lite)
+const MODELOS = [...new Set([
   Deno.env.get("GEMINI_MODEL") || "gemini-flash-latest",
-  "gemini-2.5-flash",
+  "gemini-3.8-flash",
+  "gemini-3.6-flash",
+  "gemini-flash-latest",
+  "gemini-3.5-flash-lite",
   "gemini-flash-lite-latest",
-  "gemini-2.5-flash-lite",
-];
+])];
 const ERROS_TEMPORARIOS = [404, 429, 500, 503, 504];
 
 function json(body: unknown, status = 200) {
@@ -500,6 +503,9 @@ SEU TRABALHO: transformar o pedido da Carol em lançamentos ou atualizações us
   "muda para fevereiro o mês de referência dos digitados em 31/01" → filtro {data_inicio:"2026-01-31", data_fim:"2026-01-31"}, alteracoes {mes_referencia:"2026-02"}
   "todos do INSS de janeiro sem data de pagamento ficam com 10/02" → filtro {modalidade:"INSS", mes_ref:"2026-01", sem_data_pagamento:true}
   "paguei todas as fixas da empresa" → atualizar_despesas_lote.
+  No filtro coloque SOMENTE os critérios que ela falou. NÃO acrescente status, banco ou outro critério por conta própria
+  (ex: "atualiza todos os clientes de janeiro de 2026 com data de comissão recebida 20/01" → filtro só {mes_ref:"2026-01"}).
+  "local"/"campo" Dt. Comissão Recebida = data_comissao_recebida; Dt. Pagamento/Pago = data_pagamento_cliente; Dt. Digitação = data_digitacao.
 - IMAGENS/PDF anexados:
   • boleto, conta ou comprovante de pagamento → lancar_despesa (ou atualizar_despesa se for comprovante de uma conta que provavelmente já existe; na dúvida use lancar_despesa e explique)
   • relatório de CONTRATOS PAGOS / produção / propostas digitadas (lista de clientes com valores) → lancar_comissoes_lote com UM item por contrato,
@@ -554,6 +560,7 @@ function semAssinatura(conteudos: { role: string; parts: Parte[] }[]) {
 
 async function chamarGemini(chave: string, corpo: Record<string, unknown>, preferido?: string) {
   let ultimoErro = "";
+  let sobrecarga = false;
   const ordem = preferido ? [preferido, ...MODELOS.filter((m) => m !== preferido)] : MODELOS;
   for (const modelo of ordem) {
     const corpoModelo = preferido && modelo !== preferido
@@ -569,10 +576,11 @@ async function chamarGemini(chave: string, corpo: Record<string, unknown>, prefe
     if (r.ok) return { ...JSON.parse(txt), _modelo: modelo };
     ultimoErro = `Gemini (${modelo}) respondeu ${r.status}: ${txt.slice(0, 300)}`;
     console.warn(ultimoErro);
+    if (r.status === 429 || r.status >= 500) sobrecarga = true;
     if (!ERROS_TEMPORARIOS.includes(r.status)) break; // erro de chave/pedido: não adianta trocar
     await new Promise((ok) => setTimeout(ok, 600));
   }
-  if (/\b(429|503|504|500)\b/.test(ultimoErro)) {
+  if (sobrecarga || /\b(429|503|504|500)\b/.test(ultimoErro)) {
     throw new Error("O Gemini está sobrecarregado agora 😕 Tente de novo em 1 minuto.");
   }
   throw new Error(ultimoErro);

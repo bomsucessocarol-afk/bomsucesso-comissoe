@@ -10877,7 +10877,7 @@ function cancelarUnificacao() {
     if(a.nome_cliente){ const p=palavras(a.nome_cliente); L=L.filter(r=>p.every(w=>semAcento(r.nome_cliente).includes(w))); }
     if(a.data_inicio) L=L.filter(r=>String(r.data_dig||'')>=a.data_inicio);
     if(a.data_fim) L=L.filter(r=>String(r.data_dig||'')<=a.data_fim);
-    if(a.mes_ref){ const k=mesRefDe(a.mes_ref); L=L.filter(r=>r.mes_ref===k || String(r.data_dig||'').slice(0,7)===a.mes_ref); }
+    if(a.mes_ref){ L=L.filter(r=>doMes(r,a.mes_ref)); }
     if(a.aberto_ha_mais_de_dias) L=L.filter(r=>statusDe(r)!=='PAGO' && (typeof _diasSemRetorno==='function'?_diasSemRetorno(r):0)>a.aberto_ha_mais_de_dias);
     if(a.sem_cpf) L=L.filter(r=>!soDig(r.cpf));
     const tot={contratos:L.length, valor_contratos:+somar(L,r=>r.valor_cliente).toFixed(2), comissao_total:+somar(L,r=>r.comissao).toFixed(2),
@@ -11049,13 +11049,18 @@ function cancelarUnificacao() {
   }
 
   // ════════ LOTE ════════
+  // mês: aceita o mês de referência (com ou sem acento/espaço) ou, se faltar, o mês da digitação
+  const chaveMes = x => semAcento(x).replace(/[^A-Z0-9]/g,'');
+  function doMes(r,m){ const k=chaveMes(mesRefDe(String(m).slice(0,7))); const mr=chaveMes(r.mes_ref);
+    if(mr) return mr===k || (mr.length<=7 && k.startsWith(mr.slice(0,3)) && mr.endsWith(String(m).slice(2,4)));
+    return String(r.data_dig||'').slice(0,7)===String(m).slice(0,7); }
   function filtraComissoes(f){
     let L=L_().filter(Boolean);
     if(f.banco) L=L.filter(r=>contem(r.banco,f.banco));
     if(f.modalidade) L=L.filter(r=>contem(r.modalidade,f.modalidade));
     if(f.tipo_op) L=L.filter(r=>contem(r.tipo_op||r.operacao,f.tipo_op));
     if(f.status) L=L.filter(r=>statusDe(r)===f.status);
-    if(f.mes_ref){ const k=mesRefDe(f.mes_ref); L=L.filter(r=>r.mes_ref===k || String(r.data_dig||'').slice(0,7)===f.mes_ref); }
+    if(f.mes_ref){ L=L.filter(r=>doMes(r,f.mes_ref)); }
     if(f.data_inicio) L=L.filter(r=>String(r.data_dig||'')>=f.data_inicio);
     if(f.data_fim) L=L.filter(r=>String(r.data_dig||'')<=f.data_fim);
     return L;
@@ -11135,7 +11140,21 @@ function cancelarUnificacao() {
       itens.forEach(it=>{ const c=buscarComissoes({nome_cliente:it.nome_cliente,cpf:it.cpf,num_contrato:it.num_contrato,valor_contrato:it.valor_contrato,banco:d.banco||f.banco}).filter(r=>!usados.has(r.id));
         if(!c.length){ naoAchados.push(it.nome_cliente||it.cpf||it.num_contrato||'?'); return; } usados.add(c[0].id); linhas.push({r:c[0],it,duvida:c.length>1}); });
     } else filtraComissoes2(f).sort((a,b)=>String(a.data_dig||'').localeCompare(String(b.data_dig||''))).forEach(r=>linhas.push({r}));
-    if(!linhas.length){ msg('🔎 Não encontrei contratos com esse critério.'+(naoAchados.length?' Não achei: '+naoAchados.join(', '):'')); return; }
+    const NOMES_F={banco:'Banco',modalidade:'Produto',tipo_op:'Tipo',promotora:'Promotora',status:'Status',mes_ref:'Mês',data_inicio:'Digitado de',data_fim:'até',nome_contem:'Nome',valor_min:'Valor ≥',valor_max:'Valor ≤',sem_cpf:'Sem CPF',sem_data_pagamento:'Sem data de pagamento',sem_data_comissao:'Sem data de comissão',com_revisar:'Com ❗'};
+    const fmtF=(k,x)=>(NOMES_F[k]||k)+(x===true?'':': '+(k==='mes_ref'?mesCurto(x):String(x).match(/^\d{4}-\d{2}-\d{2}$/)?fmtData(x):x));
+    if(!linhas.length){
+      if(itens.length){ msg('🔎 Não encontrei no sistema os contratos do extrato: '+naoAchados.join(', ')); return; }
+      const ativos=Object.entries(f).filter(([k,x])=>x!==undefined&&x!==''&&x!==false&&x!==null);
+      let diag='🔎 Não encontrei contratos com esse critério.\nEntendi: '+(ativos.map(([k,x])=>fmtF(k,x)).join(' · ')||'(nenhum filtro)');
+      if(ativos.length>1){
+        const base=ativos.find(([k])=>k==='mes_ref')||ativos[0];
+        const nBase=filtraComissoes2({[base[0]]:base[1]}).length;
+        diag+='\n• Só com '+fmtF(base[0],base[1])+': '+nBase+' contrato(s)';
+        ativos.filter(([k])=>k!==base[0]).forEach(([k,x])=>{ const n=filtraComissoes2({[base[0]]:base[1],[k]:x}).length; diag+='\n• + '+fmtF(k,x)+': '+n+(n===0?'  ← este critério zerou a lista':''); });
+      } else if(ativos.length===1){ diag+='\nNenhum contrato bate com esse critério.'; }
+      diag+='\nTente de novo sem o critério que zerou, ou me diga de outro jeito.';
+      msg(diag); return;
+    }
 
     const temExtrato=linhas.some(l=>l.it&&l.it.comissao_valor&&Math.abs((+l.it.comissao_valor)-(+l.r.comissao||0))>1);
     const campos=chaves.map(k=>{ const [rot,tipo,ops]=campoLoteC(k); let val=alt[k]; if(tipo==='pct') val=String(val).replace('.',',');
