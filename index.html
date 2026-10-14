@@ -10283,5 +10283,389 @@ function cancelarUnificacao() {
 
 </script>
 </div><!-- /app-content -->
+<!-- ══════════════════════════════════════════════════════════════
+     🤖 ASSISTENTE IA (Gemini) — módulo independente
+     Só PREENCHE os formulários existentes e chama as MESMAS funções
+     de salvar (salvarLancamento / saveExpense / salvarGasto).
+     Nada é salvo sem a Carol tocar em "✅ Lançar".
+     ══════════════════════════════════════════════════════════════ -->
+<style>
+#ia-fab{position:fixed;right:20px;bottom:24px;z-index:9000;width:58px;height:58px;border-radius:50%;border:none;cursor:pointer;
+  background:#383772;color:#fff;font-size:26px;box-shadow:0 6px 18px rgba(56,55,114,.35);display:flex;align-items:center;justify-content:center}
+#ia-fab:hover{transform:scale(1.05)}
+#ia-fab .ia-dot{position:absolute;top:6px;right:6px;width:12px;height:12px;border-radius:50%;background:#FBAD09;border:2px solid #383772}
+#ia-painel{position:fixed;right:20px;bottom:94px;z-index:9001;width:390px;max-width:calc(100vw - 32px);height:min(640px,calc(100vh - 120px));
+  background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.25);display:none;flex-direction:column;overflow:hidden;
+  font-family:'Montserrat',system-ui,sans-serif;color:#1f1f3a}
+#ia-painel.on{display:flex}
+.ia-topo{background:#383772;color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px}
+.ia-topo b{font-size:.95rem;flex:1}
+.ia-topo small{display:block;font-weight:500;font-size:.68rem;opacity:.8}
+.ia-topo button{background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;padding:6px 9px;cursor:pointer;font-size:.8rem}
+#ia-msgs{flex:1;min-height:0;overflow-y:auto;padding:14px;background:#F5F6FB;display:flex;flex-direction:column;gap:10px}
+#ia-msgs>*{flex-shrink:0}
+.ia-b{max-width:88%;padding:9px 12px;border-radius:12px;font-size:.84rem;line-height:1.4;white-space:pre-wrap;word-wrap:break-word}
+.ia-b.eu{align-self:flex-end;background:#383772;color:#fff;border-bottom-right-radius:4px}
+.ia-b.ia{align-self:flex-start;background:#fff;border:1px solid #E3E5F0;border-bottom-left-radius:4px}
+.ia-b.erro{align-self:flex-start;background:#FDECEC;border:1px solid #F5B5B5;color:#8a1c1c}
+.ia-dicas{display:flex;flex-direction:column;gap:6px}
+.ia-dica{background:#fff;border:1px dashed #B9BBE0;border-radius:10px;padding:8px 10px;font-size:.78rem;color:#383772;cursor:pointer;text-align:left}
+.ia-card{align-self:stretch;background:#fff;border:1.5px solid #383772;border-radius:12px;overflow:hidden}
+.ia-card-h{background:#FBAD09;color:#383772;font-weight:800;font-size:.8rem;padding:7px 12px;display:flex;justify-content:space-between}
+.ia-card-g{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px;padding:10px 12px}
+.ia-card-g label{font-size:.62rem;font-weight:700;color:#6b6d8f;text-transform:uppercase;display:block;margin-bottom:2px}
+.ia-card-g input,.ia-card-g select{width:100%;box-sizing:border-box;border:1px solid #D9DBEA;border-radius:6px;padding:5px 7px;font-size:.8rem;font-family:inherit;background:#fff}
+.ia-card-g .full{grid-column:span 2}
+.ia-aviso{font-size:.7rem;color:#b45309;margin-top:2px}
+.ia-total{grid-column:span 2;background:#EEF0FF;border-radius:8px;padding:7px 10px;font-size:.8rem;color:#383772;font-weight:700}
+.ia-card-a{display:flex;gap:6px;padding:0 12px 12px}
+.ia-card-a button{flex:1;border:none;border-radius:8px;padding:8px 6px;font-weight:700;font-size:.76rem;cursor:pointer;font-family:inherit}
+.ia-ok{background:#16a34a;color:#fff}.ia-form{background:#EEF0FF;color:#383772}.ia-x{background:#f1f1f4;color:#555;flex:0 0 40px!important}
+.ia-card.feito{opacity:.6;border-color:#16a34a}.ia-card.feito .ia-card-a{display:none}
+.ia-base{display:flex;gap:6px;padding:10px;border-top:1px solid #E3E5F0;background:#fff;align-items:flex-end}
+#ia-txt{flex:1;resize:none;border:1px solid #D9DBEA;border-radius:10px;padding:9px 10px;font-size:.85rem;font-family:inherit;max-height:110px;min-height:40px}
+.ia-base button{border:none;border-radius:10px;width:42px;height:40px;cursor:pointer;font-size:1.05rem}
+#ia-env{background:#383772;color:#fff}#ia-mic{background:#EEF0FF}
+#ia-mic.gravando{background:#dc2626;color:#fff;animation:iaPulse 1s infinite}
+@keyframes iaPulse{50%{opacity:.6}}
+.ia-pensando{align-self:flex-start;font-size:.78rem;color:#6b6d8f;font-style:italic}
+@media(max-width:768px){
+  #ia-fab{bottom:84px;right:14px;width:52px;height:52px;font-size:23px}
+  #ia-painel{right:0;left:0;bottom:0;top:0;width:100%;max-width:100%;height:100%;border-radius:0}
+}
+</style>
+
+<button id="ia-fab" onclick="iaAbrir()" title="Assistente IA — lançar por mensagem">🤖<span class="ia-dot"></span></button>
+
+<div id="ia-painel" role="dialog" aria-label="Assistente IA">
+  <div class="ia-topo">
+    <span style="font-size:1.3rem">🤖</span>
+    <b>Assistente Bom Sucesso<small>Lança comissões, despesas e gastos</small></b>
+    <button onclick="iaLimpar()" title="Nova conversa">🧹</button>
+    <button onclick="iaFechar()" title="Fechar">✕</button>
+  </div>
+  <div id="ia-msgs"></div>
+  <div class="ia-base">
+    <button id="ia-mic" onclick="iaVoz()" title="Falar">🎤</button>
+    <textarea id="ia-txt" rows="1" placeholder="Ex: lança comissão Maria Souza, INSS, BMG, 8.500, 3,5%"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();iaEnviar();}"></textarea>
+    <button id="ia-env" onclick="iaEnviar()" title="Enviar">➤</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const IA_FUNCAO = 'assistente-ia';
+  let iaHistorico = [];
+  let iaOcupado = false;
+  let iaCardSeq = 0;
+  const iaCards = {};
+
+  // ── utilidades ─────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+  const hojeISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+  const fmtBR = n => (+n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const numBR = v => { if(v===null||v===undefined||v==='') return 0; if(typeof v==='number') return v;
+    const s=String(v).replace(/[^\d,.-]/g,''); return parseFloat(s.includes(',')?s.replace(/\./g,'').replace(',','.'):s)||0; };
+  const esperar = ms => new Promise(r=>setTimeout(r,ms));
+  const semAcento = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().trim();
+  function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // Acha o item da lista que corresponde ao que a IA disse
+  function casar(valor, lista){
+    if(!valor) return {valor:'', novo:false};
+    const alvo = semAcento(valor);
+    const L = (lista||[]).filter(Boolean);
+    let ach = L.find(x=>semAcento(x)===alvo)
+           || L.find(x=>semAcento(x).includes(alvo))
+           || L.find(x=>alvo.includes(semAcento(x)));
+    return ach ? {valor:ach, novo:false} : {valor:String(valor).toUpperCase(), novo:true};
+  }
+
+  function listas(){
+    const g = n => { try { return eval(n); } catch(e){ return []; } };
+    return {
+      modalidades: g('listaModalidades'), bancos: g('listaBancos'),
+      tipos_op: g('listaTiposOp'), promotoras: g('listaPromotoras'),
+      categorias_despesa: (typeof DB!=='undefined'?DB.cats():[]),
+      categorias_gasto: (typeof CATS_GASTOS!=='undefined'?CATS_GASTOS:[])
+    };
+  }
+
+  function msg(texto, tipo){
+    const el=document.createElement('div'); el.className='ia-b '+(tipo||'ia'); el.textContent=texto;
+    $('ia-msgs').appendChild(el); rolar(); return el;
+  }
+  function rolar(){ const m=$('ia-msgs'); m.scrollTop=m.scrollHeight; }
+
+  function boasVindas(){
+    $('ia-msgs').innerHTML='';
+    msg('Oi, Carol! 👋 Me diga o que lançar que eu preparo o card. Você confere e toca em ✅ Lançar.');
+    const box=document.createElement('div'); box.className='ia-dicas';
+    ['Lança comissão: Maria Souza, INSS, BMG, valor 8.500, 3,5%, hoje',
+     'Despesa da empresa: aluguel da sala 1.200, vence dia 10',
+     'Gastei 85 de gasolina hoje',
+     'Comissão do João Lima, CLT, C6, 12 mil, portabilidade, 2%, já recebi']
+      .forEach(t=>{ const b=document.createElement('button'); b.className='ia-dica'; b.textContent='💡 '+t;
+        b.onclick=()=>{ $('ia-txt').value=t; $('ia-txt').focus(); }; box.appendChild(b); });
+    $('ia-msgs').appendChild(box);
+  }
+
+  // Botão só aparece depois do login
+  setInterval(function(){ const l=$('tela-login'), f=$('ia-fab'); if(!f) return;
+    const logado = !l || l.style.display==='none'; f.style.display = logado ? 'flex' : 'none';
+    if(!logado) $('ia-painel').classList.remove('on'); }, 800);
+
+  window.iaAbrir = function(){ const p=$('ia-painel'); p.classList.add('on'); if(!$('ia-msgs').children.length) boasVindas(); setTimeout(()=>$('ia-txt').focus(),50); };
+  window.iaFechar = function(){ $('ia-painel').classList.remove('on'); };
+  window.iaLimpar = function(){ iaHistorico=[]; boasVindas(); };
+
+  // ── conversa com a Edge Function ───────────────────────────
+  window.iaEnviar = async function(){
+    if(iaOcupado) return;
+    const txt=$('ia-txt').value.trim(); if(!txt) return;
+    $('ia-txt').value=''; document.querySelectorAll('.ia-dicas').forEach(x=>x.remove()); msg(txt,'eu');
+    iaOcupado=true;
+    const pens=document.createElement('div'); pens.className='ia-pensando'; pens.textContent='🤖 pensando...';
+    $('ia-msgs').appendChild(pens); rolar();
+    try{
+      const r = await fetch(SUPA_URL+'/functions/v1/'+IA_FUNCAO,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY},
+        body: JSON.stringify({
+          mensagem: txt, historico: iaHistorico,
+          contexto: Object.assign({ hoje: hojeISO()+' ('+new Date().toLocaleDateString('pt-BR',{weekday:'long'})+')',
+                                    mes_sistema: (typeof state!=='undefined'?state.month:'') }, listas())
+        })
+      });
+      const j = await r.json().catch(()=>({erro:'Resposta inválida ('+r.status+')'}));
+      pens.remove();
+      if(!r.ok || j.erro){ msg('⚠️ '+(j.erro||('Erro '+r.status)),'erro'); return; }
+      iaHistorico.push({papel:'eu',texto:txt});
+      if(j.texto){ msg(j.texto); }
+      (j.acoes||[]).forEach(a=>cardAcao(a.acao,a.dados||{}));
+      const resumo = j.texto || ((j.acoes||[]).length ? 'Preparei '+j.acoes.length+' lançamento(s) para confirmação.' : '');
+      if(resumo) iaHistorico.push({papel:'ia',texto:resumo});
+      if(!j.texto && !(j.acoes||[]).length) msg('Não entendi bem 🤔 Pode repetir com mais detalhes?');
+      iaHistorico = iaHistorico.slice(-10);
+    }catch(e){
+      pens.remove(); msg('⚠️ Não consegui falar com o assistente. Verifique a internet e se a função "'+IA_FUNCAO+'" foi publicada no Supabase.','erro');
+    }finally{ iaOcupado=false; }
+  };
+
+  // ── voz (Chrome / Android) ─────────────────────────────────
+  let iaRec=null;
+  window.iaVoz = function(){
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SR){ msg('🎤 Este navegador não tem ditado por voz. Use o microfone do teclado do celular.'); return; }
+    if(iaRec){ iaRec.stop(); return; }
+    iaRec = new SR(); iaRec.lang='pt-BR'; iaRec.interimResults=true; iaRec.continuous=false;
+    const base=$('ia-txt').value;
+    iaRec.onresult = ev => { let t=''; for(const res of ev.results) t+=res[0].transcript; $('ia-txt').value=(base?base+' ':'')+t; };
+    iaRec.onend = () => { $('ia-mic').classList.remove('gravando'); iaRec=null; if($('ia-txt').value.trim()) iaEnviar(); };
+    iaRec.onerror = () => { $('ia-mic').classList.remove('gravando'); iaRec=null; };
+    $('ia-mic').classList.add('gravando'); iaRec.start();
+  };
+
+  // ── cards de confirmação ──────────────────────────────────
+  function campo(id,label,valor,opts){
+    opts=opts||{};
+    const cls=opts.full?' class="full"':'';
+    let input;
+    if(opts.select){
+      input='<select data-c="'+id+'">'+opts.select.map(o=>'<option'+(String(o)===String(valor)?' selected':'')+'>'+esc(o)+'</option>').join('')+'</select>';
+    } else {
+      input='<input data-c="'+id+'" type="'+(opts.type||'text')+'" value="'+esc(valor)+'" placeholder="'+esc(opts.ph||'')+'">';
+    }
+    return '<div'+cls+'><label>'+esc(label)+'</label>'+input+(opts.aviso?'<div class="ia-aviso">'+esc(opts.aviso)+'</div>':'')+'</div>';
+  }
+  function comOpcao(lista,v){ const L=[...(lista||[])]; if(v && !L.includes(v)) L.unshift(v); return L; }
+
+  function cardAcao(acao,d){
+    const id='iac'+(++iaCardSeq); const L=listas(); let titulo='', corpo='';
+    if(acao==='lancar_comissao'){
+      titulo='💰 Comissão';
+      const mod=casar(d.modalidade,L.modalidades), ban=casar(d.banco,L.bancos),
+            top=casar(d.tipo_op||'NOVO',L.tipos_op), pro=casar(d.promotora,L.promotoras);
+      corpo = campo('nome','Cliente',String(d.nome_cliente||'').toUpperCase(),{full:true})
+        + campo('modalidade','Modalidade',mod.valor,{select:comOpcao(L.modalidades,mod.valor),aviso:mod.novo?'Nova na lista':''})
+        + campo('banco','Banco',ban.valor,{select:comOpcao(L.bancos,ban.valor),aviso:ban.novo?'Banco novo na lista':''})
+        + campo('tipo_op','Tipo de operação',top.valor,{select:comOpcao(L.tipos_op,top.valor)})
+        + campo('promotora','Promotora',pro.valor,{select:comOpcao(['',...L.promotoras],pro.valor)})
+        + campo('valor','Valor contrato (R$)',d.valor_contrato?fmtBR(d.valor_contrato):'')
+        + campo('perc','% comissão',d.perc_comissao?String(d.perc_comissao).replace('.',','):'',{ph:'sugestão automática'})
+        + campo('comissao','Comissão R$ (se fixa)',d.comissao_valor?fmtBR(d.comissao_valor):'',{ph:'calcula sozinho'})
+        + campo('pact','Pacote fixo (R$)',d.pacote_fixo?fmtBR(d.pacote_fixo):'')
+        + campo('data_dig','Data digitação',d.data_digitacao||hojeISO(),{type:'date'})
+        + campo('status','Status',d.status||'ABERTO',{select:['ABERTO','PAGO']})
+        + campo('data_pg','Pagamento ao cliente',d.data_pagamento_cliente||'',{type:'date'})
+        + campo('data_rec','Comissão recebida em',d.data_comissao_recebida||'',{type:'date'})
+        + (d.cpf||d.telefone||d.num_contrato||d.prazo||d.valor_parcela||d.obs ?
+            campo('cpf','CPF',d.cpf||'') + campo('telefone','Telefone',d.telefone||'')
+          + campo('num_contrato','Nº contrato',d.num_contrato||'') + campo('prazo','Prazo (meses)',d.prazo||'')
+          + campo('valor_parcela','Valor parcela',d.valor_parcela?fmtBR(d.valor_parcela):'') + campo('obs','Observação',d.obs||'')
+          : '')
+        + '<div class="ia-total" data-total></div>';
+    } else if(acao==='lancar_despesa'){
+      titulo='🧾 Despesa';
+      const cat=casar(d.categoria,L.categorias_despesa);
+      corpo = campo('nome','Despesa',d.nome||'',{full:true})
+        + campo('card','Card',d.card||'EMPRESA',{select:['EMPRESA','CASA']})
+        + campo('cat','Categoria',cat.novo?'Outros':cat.valor,{select:L.categorias_despesa,aviso:cat.novo&&d.categoria?'"'+d.categoria+'" não existe — usei Outros':''})
+        + campo('valor','Valor (R$)',d.valor?fmtBR(d.valor):'')
+        + campo('tipo','Tipo',d.tipo||'Variável',{select:['Fixa','Variável']})
+        + campo('venc','Vencimento',d.vencimento||hojeISO(),{type:'date'})
+        + campo('status','Status',d.status||'ABERTO',{select:['ABERTO','PAGO']})
+        + campo('pgto','Pago em',d.data_pagamento||'',{type:'date'})
+        + campo('obs','Observação',d.obs||'');
+    } else if(acao==='lancar_gasto'){
+      titulo='🛒 Gasto do mês';
+      const cat=casar(d.categoria,L.categorias_gasto);
+      corpo = campo('nome','Descrição',d.descricao||'',{full:true})
+        + campo('cat','Categoria',cat.novo?'Outros Gastos':cat.valor,{select:L.categorias_gasto})
+        + campo('valor','Valor (R$)',d.valor?fmtBR(d.valor):'')
+        + campo('data','Data',d.data||hojeISO(),{type:'date'})
+        + campo('status','Status',d.status||'PAGO',{select:['PAGO','ABERTO']})
+        + campo('obs','Observação',d.obs||'',{full:true});
+    } else { msg('(ação desconhecida: '+acao+')'); return; }
+
+    const el=document.createElement('div'); el.className='ia-card'; el.id=id;
+    el.innerHTML='<div class="ia-card-h"><span>'+titulo+'</span><span>confira antes de lançar</span></div>'
+      +'<div class="ia-card-g">'+corpo+'</div>'
+      +'<div class="ia-card-a"><button class="ia-ok">✅ Lançar</button><button class="ia-form">📝 Abrir no formulário</button><button class="ia-x" title="Descartar">✕</button></div>';
+    $('ia-msgs').appendChild(el);
+    iaCards[id]=acao;
+    el.querySelector('.ia-ok').onclick=()=>executar(id,true);
+    el.querySelector('.ia-form').onclick=()=>executar(id,false);
+    el.querySelector('.ia-x').onclick=()=>{ el.remove(); };
+    if(acao==='lancar_comissao'){ el.querySelectorAll('input,select').forEach(i=>i.addEventListener('input',()=>totalComissao(el))); totalComissao(el); }
+    rolar();
+  }
+
+  function ler(el){ const o={}; el.querySelectorAll('[data-c]').forEach(i=>o[i.dataset.c]=i.value.trim()); return o; }
+
+  function totalComissao(el){
+    const v=ler(el), t=el.querySelector('[data-total]'); if(!t) return;
+    const val=numBR(v.valor), p=numBR(v.perc), pact=numBR(v.pact), fixa=numBR(v.comissao);
+    if(fixa) t.textContent='💵 Comissão: R$ '+fmtBR(fixa)+' (valor informado)';
+    else if(val&&p) t.textContent='💵 Comissão: R$ '+fmtBR(val*p/100+pact)+'  ('+fmtBR(p)+'% de R$ '+fmtBR(val)+')';
+    else t.textContent='💵 % vazio → o sistema sugere pelo último contrato igual';
+  }
+
+  function registrarLog(acao,resumo){
+    try{ const k='bs_ia_log'; const l=JSON.parse(localStorage.getItem(k)||'[]');
+      l.push({quando:new Date().toISOString(),acao,resumo}); localStorage.setItem(k,JSON.stringify(l.slice(-300))); }catch(e){}
+  }
+
+  async function executar(id,salvar){
+    const el=$(id); if(!el) return; const acao=iaCards[id]; const v=ler(el);
+    try{
+      let ok=false;
+      if(acao==='lancar_comissao') ok=await fazerComissao(v,salvar);
+      else if(acao==='lancar_despesa') ok=await fazerDespesa(v,salvar);
+      else if(acao==='lancar_gasto') ok=await fazerGasto(v,salvar);
+      if(ok && salvar){ el.classList.add('feito'); el.querySelector('.ia-card-h span:last-child').textContent='✅ lançado'; }
+      if(!salvar) iaFechar();
+    }catch(e){ console.error('[IA]',e); msg('⚠️ Erro ao preencher: '+e.message,'erro'); }
+  }
+
+  // Mês do sistema = mês da data do lançamento
+  function irParaMes(dataISO){
+    if(!dataISO || typeof state==='undefined' || typeof changeMonth!=='function') return;
+    const alvo=dataISO.slice(0,7); if(alvo===state.month) return;
+    const [ay,am]=alvo.split('-').map(Number), [sy,sm]=state.month.split('-').map(Number);
+    changeMonth((ay-sy)*12+(am-sm));
+  }
+
+  // ── COMISSÃO: preenche o formulário Lançar e usa salvarLancamento() ──
+  async function fazerComissao(v,salvar){
+    if(!v.nome){ msg('⚠️ Falta o nome do cliente.','erro'); return false; }
+    if(!v.modalidade||!v.banco){ msg('⚠️ Falta modalidade ou banco.','erro'); return false; }
+    // Garante que os contratos já foram carregados (proteção do cache)
+    if(typeof initBomSucesso==='function' && !window._bsIniciado){ initBomSucesso(); await esperar(300); }
+    let cache=[]; try{ cache=JSON.parse(localStorage.getItem('bs_cache_lancamentos')||'[]')||[]; }catch(e){}
+    if(cache.length>0 && (!todosLancamentos || todosLancamentos.length===0)){
+      msg('⏳ Os contratos ainda estão carregando. Tente de novo em alguns segundos.','erro'); return false;
+    }
+    if(!salvar){ const b=document.querySelector('.tab-btn.comissoes'); if(b) b.click(); }
+
+    limparFormulario();
+    const set=(fid,val)=>{ const e=$(fid); if(e) e.value=val??''; };
+    set('f-data-dig',v.data_dig||hojeISO()); if(typeof onDataDigChange==='function') onDataDigChange();
+    set('f-data-pg',v.data_pg);
+    set('f-nome',v.nome.toUpperCase());
+    // listas editáveis: se o item é novo, adiciona na lista igual ao "+ Add"
+    [['modal',v.modalidade,listaModalidades,'bs_modalidades'],['banco',v.banco,listaBancos,'bs_bancos'],
+     ['tipoop',v.tipo_op||'NOVO',listaTiposOp,'bs_tipos_op'],['promotora',v.promotora,listaPromotoras,'bs_promotoras']]
+     .forEach(([tipo,val,lista,ls])=>{
+       if(!val) return;
+       if(!lista.includes(val)){ lista.push(val); try{ _lsSet(ls,JSON.stringify(lista)); }catch(e){} }
+       selecionarItem(tipo,val);
+     });
+    set('f-valor',v.valor?fmtBR(numBR(v.valor)):'');
+    set('f-perc',v.perc?fmtBR(numBR(v.perc)):'');
+    set('f-pact-fixo',v.pact?fmtBR(numBR(v.pact)):'');
+    set('f-status',v.status||'ABERTO');
+    if(typeof onStatusComissaoChange==='function') onStatusComissaoChange();
+    if(v.data_rec) set('f-data-comissao-rec',v.data_rec);
+    ['cpf','telefone','num_contrato','prazo','obs'].forEach(k=>{ if(v[k]!==undefined){ const m={num_contrato:'f-num-contrato'}; set(m[k]||('f-'+k),v[k]); } });
+    if(v.valor_parcela) set('f-valor-parcela',fmtBR(numBR(v.valor_parcela)));
+    await esperar(250); // deixa a sugestão de % rodar
+    if(typeof calcularComissao==='function') calcularComissao();
+    if(numBR(v.comissao)>0){
+      if($('f-comissao-manual-flag')?.value!=='1' && typeof toggleComissaoManual==='function') toggleComissaoManual();
+      set('f-comissao',fmtBR(numBR(v.comissao)));
+    }
+
+    if(!salvar){
+      const bl=document.querySelector('.bs-sub-btn[onclick*="lancar"]'); if(bl) bsTab('lancar',bl);
+      if(typeof bs_mostrarToast==='function') bs_mostrarToast('🤖 Formulário preenchido pela IA — confira e salve',null,4000);
+      return true;
+    }
+    const antes=(todosLancamentos||[]).length;
+    try{ salvarLancamento(false); }catch(e){ console.warn('[IA] pós-salvar',e); }
+    const ok=(todosLancamentos||[]).length>antes;
+    if(ok){ const r=todosLancamentos[todosLancamentos.length-1]; registrarLog('comissao',(r.id||'')+' '+r.nome_cliente+' '+r.banco+' R$'+r.comissao);
+      msg('✅ Comissão de '+r.nome_cliente+' lançada: R$ '+fmtBR(r.comissao)+'.'); }
+    else msg('Lançamento não foi salvo (cancelado ou faltou campo).');
+    return ok;
+  }
+
+  // ── DESPESA: usa o modal Nova Despesa + saveExpense() ──
+  async function fazerDespesa(v,salvar){
+    if(!v.nome||!numBR(v.valor)){ msg('⚠️ Falta nome ou valor da despesa.','erro'); return false; }
+    irParaMes(v.venc);
+    openExpModal(null);
+    const set=(fid,val)=>{ const e=$(fid); if(e) e.value=val??''; };
+    set('ef-nome',v.nome); set('ef-card',v.card||'EMPRESA'); set('ef-cat',v.cat);
+    set('ef-tipo',v.tipo||'Variável'); set('ef-val',numBR(v.valor).toFixed(2));
+    set('ef-venc',v.venc); set('ef-pgto',v.pgto); set('ef-status',v.status||'ABERTO'); set('ef-obs',v.obs);
+    if(!salvar){ return true; }
+    const antes=data().expenses.length;
+    try{ saveExpense(); }catch(e){ console.warn('[IA] pós-salvar',e); }
+    const ok=data().expenses.length>antes;
+    if(ok){ registrarLog('despesa',v.nome+' R$'+v.valor); msg('✅ Despesa "'+v.nome+'" de R$ '+fmtBR(numBR(v.valor))+' lançada em '+(typeof monthLabel==='function'?monthLabel(state.month):state.month)+'.'); }
+    else msg('Despesa não foi salva — confira no formulário.');
+    return ok;
+  }
+
+  // ── GASTO DO MÊS: usa o modal de gastos + salvarGasto() ──
+  async function fazerGasto(v,salvar){
+    if(!v.nome||!numBR(v.valor)){ msg('⚠️ Falta descrição ou valor do gasto.','erro'); return false; }
+    irParaMes(v.data);
+    abrirGastosModal(null);
+    const set=(fid,val)=>{ const e=$(fid); if(e) e.value=val??''; };
+    set('gasto-name',v.nome); set('gasto-cat',v.cat); set('gasto-value',numBR(v.valor).toFixed(2));
+    set('gasto-date',v.data||hojeISO()); set('gasto-status',v.status||'PAGO'); set('gasto-obs',v.obs);
+    if(!salvar){ return true; }
+    const antes=data().expenses.length;
+    try{ salvarGasto(); }catch(e){ console.warn('[IA] pós-salvar',e); }
+    const ok=data().expenses.length>antes;
+    if(ok){ registrarLog('gasto',v.nome+' R$'+v.valor); msg('✅ Gasto "'+v.nome.toUpperCase()+'" de R$ '+fmtBR(numBR(v.valor))+' lançado.'); }
+    return ok;
+  }
+})();
+</script>
+
 </body>
 </html>
