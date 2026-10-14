@@ -399,6 +399,40 @@ const FERRAMENTAS = [
     },
   },
   {
+    name: "excluir_comissao",
+    description: "Localiza um contrato/cadastro de cliente JÁ LANÇADO para EXCLUIR. Só use quando a Carol pedir claramente para excluir/apagar/remover. O sistema mostra o cadastro e ela confirma.",
+    parameters: {
+      type: "object",
+      properties: {
+        busca: {
+          type: "object",
+          properties: {
+            nome_cliente: { type: "string" }, banco: { type: "string" }, valor_contrato: { type: "number" },
+            num_contrato: { type: "string" }, cpf: { type: "string" }, mes: { type: "string", description: "AAAA-MM" },
+          },
+        },
+      },
+      required: ["busca"],
+    },
+  },
+  {
+    name: "excluir_despesa",
+    description: "Localiza uma despesa ou gasto do mês JÁ LANÇADO para EXCLUIR. Só use quando a Carol pedir claramente para excluir/apagar/remover.",
+    parameters: {
+      type: "object",
+      properties: {
+        busca: {
+          type: "object",
+          properties: {
+            nome: { type: "string" }, valor: { type: "number" }, mes: { type: "string", description: "AAAA-MM" },
+            card: { type: "string", enum: ["CASA", "EMPRESA", "GASTOS"] },
+          },
+        },
+      },
+      required: ["busca"],
+    },
+  },
+  {
     name: "ficha_cliente",
     description: "Mostra a ficha completa de um cliente: todos os contratos, bancos, valores, datas, contato e se já cabe nova oferta. Ex: \"me mostra tudo da Maria Souza\".",
     parameters: {
@@ -462,7 +496,9 @@ SEU TRABALHO: transformar o pedido da Carol em lançamentos ou atualizações us
   "onde está o dinheiro", "qual banco/produto paga melhor" → ranking (ou consultar_comissoes se for algo bem específico);
   "meus lembretes" → meus_lembretes; "quem posso refinanciar" → lembretes_refinanciamento.
 - "lança igual o da X" / "repete o último" → repetir_lancamento.  Compra ou conta em parcelas → lancar_parcelado.
-- "me mostra tudo da X", "ficha da X" → ficha_cliente.  "me lembra de..." → criar_lembrete (calcule a data).
+- "me mostra tudo da X", "ficha da X" → ficha_cliente.
+- "exclui/apaga/remove o contrato/cadastro da X" → excluir_comissao. "exclui a despesa/gasto X" → excluir_despesa.
+  Nunca proponha exclusão se ela não pediu. Um pedido por item (vários itens = chame várias vezes).  "me lembra de..." → criar_lembrete (calcule a data).
 
 REGRAS:
 - Nunca invente dados. Se faltar algo obrigatório (nome do cliente, banco, modalidade, valor), pergunte em vez de chamar a função.

@@ -10352,6 +10352,8 @@ function cancelarUnificacao() {
 .ia-exist{margin-top:5px;padding:6px 8px;background:#F3F4FF;border-radius:7px;font-size:.72rem;line-height:1.45}
 .ia-l-exist{background:#FFFDF5}
 .cl-revisar{display:inline-block;margin-left:6px;background:#FEE2E2;color:#B91C1C;border-radius:6px;padding:1px 6px;font-size:.62rem;font-weight:800;vertical-align:middle;cursor:help}
+.ia-del{background:#DC2626;color:#fff}
+.ia-card-del{border-color:#DC2626}.ia-card-del .ia-card-h{background:#FEE2E2;color:#991B1B}
 .ia-pensando{align-self:flex-start;font-size:.78rem;color:#6b6d8f;font-style:italic}
 @media(max-width:768px){
   #ia-fab{bottom:84px;right:14px;width:52px;height:52px;font-size:23px}
@@ -10500,6 +10502,7 @@ function cancelarUnificacao() {
     if(acao==='lancar_parcelado') return cardParcelado(d);
     if(acao==='ficha_cliente') return fichaCliente(d);
     if(acao==='criar_lembrete') return criarLembrete(d);
+    if(acao==='excluir_comissao'||acao==='excluir_despesa') return cardExclusao(acao,d);
     if(acao==='lancar_comissoes_lote') return cardLoteLancamentos(d);
     if(String(acao).startsWith('atualizar_')) return cardAtualizacao(acao,d);
     const id='iac'+(++iaCardSeq); const L=listas(); let titulo='', corpo='';
@@ -11698,6 +11701,74 @@ function cancelarUnificacao() {
     const h=hojeISO(); if(+h.slice(8,10)>5) return;
     try{ const k='bs_ia_raiox'; if(localStorage.getItem(k)===h.slice(0,7)) return; localStorage.setItem(k,h.slice(0,7)); }catch(e){}
     setTimeout(()=>{ try{ painelRaioX(mesAnterior(h.slice(0,7))); }catch(e){} },400);
+  }
+
+  // ════════ EXCLUSÃO (localiza, mostra, confirma e usa a lixeira do próprio sistema) ════════
+  function cardExclusao(acao,d){
+    const ehC=acao==='excluir_comissao'; const b=d.busca||{};
+    if(ehC) garantirBS();
+    const cands=ehC?buscarComissoes(b):buscarDespesas(b);
+    const oQue=ehC?(b.nome_cliente||b.cpf||b.num_contrato||''):(b.nome||'');
+    if(!cands.length){ msg('🔎 Não encontrei '+(ehC?'contrato':'despesa')+' com "'+oQue+'" para excluir.'); return; }
+    const lista=cands.map((c,i)=>'<div class="ia-cand"><div class="ia-cand-i">'+(ehC?infoComissao(c):infoDespesa(c))+'</div>'
+      +'<div class="ia-card-a" style="padding:8px 0 0"><button class="ia-del" data-i="'+i+'">🗑️ Excluir '+(cands.length>1?'este':'')+'</button>'
+      +(ehC?'<button class="ia-form" data-f="'+i+'">📋 Abrir</button>':'')+'</div></div>').join('');
+    const el=document.createElement('div'); el.className='ia-card ia-card-del';
+    el.innerHTML='<div class="ia-card-h"><span>🗑️ Excluir '+(ehC?'contrato':'despesa')+'</span><span>'+(cands.length>1?cands.length+' encontrados — escolha':'confira antes')+'</span></div>'
+      +'<div class="ia-sec ia-cinza" style="font-size:.72rem">A exclusão usa a mesma lixeira do sistema e pede confirmação. Logo depois aparece ↩️ Desfazer.</div>'
+      +'<div class="ia-cands">'+lista+'</div><div class="ia-card-a"><button class="ia-x" style="flex:1!important">✕ Cancelar</button></div>';
+    $('ia-msgs').appendChild(el); rolar();
+    el.querySelector('.ia-x').onclick=()=>el.remove();
+    el.querySelectorAll('[data-f]').forEach(bt=>bt.onclick=()=>abrirContrato(cands[+bt.dataset.f].id));
+    el.querySelectorAll('.ia-del').forEach(bt=>bt.onclick=async()=>{
+      const alvo=cands[+bt.dataset.i];
+      try{
+        const ok = ehC ? await excluirComissao(alvo) : excluirDespesa(alvo);
+        if(!ok) return; // cancelou na confirmação
+        el.classList.add('feito'); el.querySelector('.ia-card-h span:last-child').textContent='🗑️ excluído';
+        el.querySelectorAll('.ia-card-a').forEach(x=>x.style.display='none');
+        const und=document.createElement('div'); und.className='ia-sec';
+        und.innerHTML='Excluído. '+btn('↩️ Desfazer','__undo',{});
+        el.appendChild(und);
+        und.querySelector('.ia-mini').onclick=()=>{ try{ ehC?desfazerComissao(alvo):desfazerDespesa(alvo); und.innerHTML='↩️ Restaurado.'; el.querySelector('.ia-card-h span:last-child').textContent='↩️ restaurado'; }catch(e){ msg('⚠️ Não consegui desfazer: '+e.message,'erro'); } };
+      }catch(e){ console.error(e); msg('⚠️ Erro ao excluir: '+e.message,'erro'); }
+    });
+  }
+  function guardarLixeira(item){ try{ const k='bs_ia_lixeira'; const l=JSON.parse(localStorage.getItem(k)||'[]'); l.push({quando:new Date().toISOString(),...item}); localStorage.setItem(k,JSON.stringify(l.slice(-100))); }catch(e){} }
+
+  async function excluirComissao(r){
+    const copia={...r};
+    let idx=dadosFiltrados.findIndex(x=>x&&x.id===r.id);
+    if(idx<0){ dadosFiltrados=[...todosLancamentos]; idx=dadosFiltrados.findIndex(x=>x&&x.id===r.id); }
+    if(idx<0){ msg('⚠️ Esse contrato não está mais na lista.','erro'); return false; }
+    await deletar(idx);                       // mesma função do botão 🗑️ (pede confirmação)
+    const ok=!todosLancamentos.some(x=>x&&x.id===r.id);
+    if(ok){ guardarLixeira({tipo:'comissao',registro:copia}); try{ salvarCacheCompleto(); }catch(e){} try{ atualizarSininho(); }catch(e){}
+      registrarLog('excluir_comissao',copia.id+' '+copia.nome_cliente); msg('🗑️ Contrato de '+copia.nome_cliente+' ('+(copia.banco||'')+', R$ '+fmtBR(copia.valor_cliente)+') excluído.'); }
+    return ok;
+  }
+  function desfazerComissao(r){
+    if(todosLancamentos.some(x=>x&&x.id===r.id)) return;
+    todosLancamentos.push({...r}); dadosFiltrados=[...todosLancamentos];
+    salvarCacheCompleto();                    // devolve ao aparelho e ao Supabase
+    try{ fetch(APPS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'salvarLancamento',payload:r})}); }catch(e){}
+    try{ renderTabela(); }catch(e){} try{ renderResumo(); }catch(e){}
+    registrarLog('desfazer_exclusao',r.id+' '+r.nome_cliente);
+  }
+
+  function excluirDespesa(x){
+    const e=x.e, copia={...e}; irParaMes(x.mes+'-01');
+    if(e.card==='GASTOS') excluirGasto(e.id); else deleteExpense(e.id);   // mesmas funções do sistema (pedem confirmação)
+    const ok=!(DB.get(x.mes).expenses||[]).some(y=>y.id===e.id);
+    if(ok){ guardarLixeira({tipo:'despesa',mes:x.mes,registro:copia}); registrarLog('excluir_despesa',x.mes+' '+copia.name);
+      msg('🗑️ "'+copia.name+'" (R$ '+fmtBR(copia.value)+', '+mesCurto(x.mes)+') excluída.'); }
+    return ok;
+  }
+  function desfazerDespesa(x){
+    irParaMes(x.mes+'-01'); const d=data(); if(d.expenses.some(y=>y.id===x.e.id)) return;
+    d.expenses.push({...x.e}); save(d);
+    try{ renderAll(); }catch(e){} try{ renderGastos(); }catch(e){}
+    registrarLog('desfazer_exclusao',x.mes+' '+x.e.name);
   }
 
   function ler(el){ const o={}; el.querySelectorAll('[data-c]').forEach(i=>o[i.dataset.c]=i.value.trim()); return o; }
