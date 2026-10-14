@@ -297,6 +297,50 @@ const FERRAMENTAS = [
     },
   },
   {
+    name: "lancar_comissoes_lote",
+    description:
+      "Lança VÁRIOS contratos NOVOS de uma vez a partir de um relatório/planilha/PDF de contratos pagos, produção ou propostas. Um item por contrato, com todos os dados que aparecerem.",
+    parameters: {
+      type: "object",
+      properties: {
+        banco: { type: "string", description: "Banco do relatório, se for um só" },
+        modalidade: { type: "string", description: "Modalidade do relatório, se for uma só (use a lista)" },
+        tipo_op: { type: "string" },
+        promotora: { type: "string" },
+        status: { type: "string", enum: ["ABERTO", "PAGO"], description: "Status da COMISSÃO. ABERTO, a menos que o relatório mostre comissão já paga" },
+        perc_comissao: { type: "number", description: "% de comissão geral, se o relatório trouxer um só" },
+        itens: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              nome_cliente: { type: "string" },
+              cpf: { type: "string" },
+              telefone: { type: "string" },
+              num_contrato: { type: "string", description: "Número do contrato, proposta ou ADE" },
+              banco: { type: "string" },
+              modalidade: { type: "string" },
+              tipo_op: { type: "string", description: "NOVO, PORTABILIDADE, REFINANCIAMENTO, etc. — use a lista" },
+              promotora: { type: "string" },
+              valor_contrato: { type: "number", description: "Valor liberado/valor do contrato" },
+              prazo: { type: "number", description: "Quantidade de parcelas" },
+              valor_parcela: { type: "number" },
+              perc_comissao: { type: "number" },
+              comissao_valor: { type: "number", description: "Comissão em R$ do contrato, se aparecer" },
+              data_digitacao: { type: "string", description: "AAAA-MM-DD — data de digitação/cadastro da proposta" },
+              data_pagamento_cliente: { type: "string", description: "AAAA-MM-DD — data em que o contrato foi pago/averbado" },
+              status: { type: "string", enum: ["ABERTO", "PAGO"] },
+              data_comissao_recebida: { type: "string" },
+              obs: { type: "string" },
+            },
+            required: ["nome_cliente"],
+          },
+        },
+      },
+      required: ["itens"],
+    },
+  },
+  {
     name: "abrir_painel",
     description:
       "Mostra um painel pronto do sistema: resumo do dia, lembretes de refinanciamento/nova oferta, ou faxina (cadastros incompletos, duplicados, despesas fora do normal).",
@@ -333,7 +377,12 @@ SEU TRABALHO: transformar o pedido da Carol em lançamentos ou atualizações us
 - LOTE: "marca como pagas todas do BMG de setembro" → atualizar_comissoes_lote com filtro. "paguei todas as fixas da empresa" → atualizar_despesas_lote.
 - IMAGENS/PDF anexados:
   • boleto, conta ou comprovante de pagamento → lancar_despesa (ou atualizar_despesa se for comprovante de uma conta que provavelmente já existe; na dúvida use lancar_despesa e explique)
-  • extrato/relatório de comissões de banco → atualizar_comissoes_lote com UM item por contrato (nome, CPF, nº contrato, valor, comissão) e alteracoes {status:"PAGO", data_comissao_recebida: data do extrato ou hoje}
+  • relatório de CONTRATOS PAGOS / produção / propostas digitadas (lista de clientes com valores) → lancar_comissoes_lote com UM item por contrato,
+    preenchendo nome, CPF, nº contrato/ADE, banco, modalidade, tipo de operação, valor, prazo, parcela, datas e % ou comissão quando houver.
+    Leia TODAS as páginas e TODAS as linhas; não pule nenhum contrato. Datas sempre AAAA-MM-DD. "Data de pagamento"/"averbação" → data_pagamento_cliente.
+    Se a data de digitação não aparecer, deixe vazia. Status da comissão ABERTO, a menos que o relatório diga que a comissão foi paga.
+    O sistema confere sozinho quais contratos já existem, então mande todos.
+  • extrato/relatório de COMISSÕES RECEBIDAS do banco (o banco pagando a você) → atualizar_comissoes_lote com UM item por contrato (nome, CPF, nº contrato, valor, comissão) e alteracoes {status:"PAGO", data_comissao_recebida: data do extrato ou hoje}
   • tela de digitação/proposta/contrato de banco → lancar_comissao com o máximo de campos (CPF, nº contrato, prazo, parcela)
   • leia com cuidado; se algo estiver ilegível, deixe vazio em vez de chutar.
 - "resumo do dia", "como está meu dia", "lembretes", "quem posso refinanciar", "faxina", "cadastros incompletos" → abrir_painel.
@@ -444,7 +493,7 @@ Deno.serve(async (req) => {
     contents,
     tools: [{ functionDeclarations: FERRAMENTAS }],
     toolConfig: { functionCallingConfig: { mode: "AUTO" } },
-    generationConfig: { temperature: 0.1 },
+    generationConfig: { temperature: 0.1, maxOutputTokens: 32768 },
   };
 
   try {

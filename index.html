@@ -10488,6 +10488,7 @@ function cancelarUnificacao() {
   function cardAcao(acao,d){
     if(acao==='atualizar_comissoes_lote'||acao==='atualizar_despesas_lote') return cardLote(acao,d);
     if(acao==='abrir_painel') return mostrarPainel(d.painel);
+    if(acao==='lancar_comissoes_lote') return cardLoteLancamentos(d);
     if(String(acao).startsWith('atualizar_')) return cardAtualizacao(acao,d);
     const id='iac'+(++iaCardSeq); const L=listas(); let titulo='', corpo='';
     if(acao==='lancar_comissao'){
@@ -11241,6 +11242,92 @@ function cancelarUnificacao() {
     }finally{ iaOcupado=false; }
   };
 
+  // ════════ RELATÓRIO DE CONTRATOS PAGOS → vários lançamentos novos ════════
+  function jaExiste(it){
+    const L=L_(); const cpf=soDig(it.cpf), num=semAcento(it.num_contrato), nome=semAcento(it.nome_cliente), val=+it.valor_contrato||0;
+    return L.find(r=>{ if(!r) return false;
+      const mesmoValor = val>0 && Math.abs((+r.valor_cliente||0)-val)<=Math.max(1,val*0.01);
+      if(num && semAcento(r.num_contrato)===num) return true;
+      if(cpf && soDig(r.cpf)===cpf && mesmoValor) return true;
+      if(nome && semAcento(r.nome_cliente)===nome && mesmoValor) return true;
+      return false; });
+  }
+  // só vira padrão se aparecer em pelo menos metade dos contratos
+  function maisComum(itens,k){ const c={}; itens.forEach(i=>{ if(i[k]) c[i[k]]=(c[i[k]]||0)+1; }); const t=Object.keys(c).sort((a,b)=>c[b]-c[a])[0]; return t && c[t]>=itens.length/2 ? t : ''; }
+
+  function cardLoteLancamentos(d){
+    garantirBS();
+    const L=listas(); const itens=(Array.isArray(d.itens)?d.itens:[]).filter(i=>i&&i.nome_cliente);
+    if(!itens.length){ msg('🔎 Não consegui ler contratos nesse arquivo. Tente uma foto mais nítida ou o PDF original.'); return; }
+    // padrões do relatório (valem quando o contrato não traz o dado)
+    const pad={ banco:casar(d.banco||maisComum(itens,'banco'),L.bancos).valor, modalidade:casar(d.modalidade||maisComum(itens,'modalidade'),L.modalidades).valor,
+      tipo_op:casar(d.tipo_op||'NOVO',L.tipos_op).valor, promotora:casar(d.promotora||maisComum(itens,'promotora'),L.promotoras).valor,
+      status:d.status||'ABERTO', perc:d.perc_comissao?String(d.perc_comissao).replace('.',','):'' };
+    const linhas=itens.map(it=>({it, existe:jaExiste(it)}));
+    const nNovos=linhas.filter(l=>!l.existe).length;
+    const campos = campo('banco','Banco (padrão)',pad.banco,{select:comOpcao(['',...L.bancos],pad.banco)})
+      + campo('modalidade','Modalidade (padrão)',pad.modalidade,{select:comOpcao(['',...L.modalidades],pad.modalidade)})
+      + campo('tipo_op','Tipo de operação (padrão)',pad.tipo_op,{select:comOpcao(L.tipos_op,pad.tipo_op)})
+      + campo('promotora','Promotora',pad.promotora,{select:comOpcao(['',...L.promotoras],pad.promotora)})
+      + campo('status','Status da comissão',pad.status,{select:['ABERTO','PAGO']})
+      + campo('perc','% comissão (se o relatório não trouxer)',pad.perc,{ph:'sugestão automática'});
+    const lis=linhas.map((l,i)=>{ const it=l.it;
+      const linha1='<b>'+esc(String(it.nome_cliente).toUpperCase())+'</b>'+(it.cpf?' · CPF '+esc(it.cpf):'');
+      const linha2=[it.banco?esc(it.banco):'', it.modalidade?esc(it.modalidade):'', it.tipo_op?esc(it.tipo_op):''].filter(Boolean).join(' · ');
+      const linha3=['Contrato R$ '+fmtBR(it.valor_contrato), it.perc_comissao?String(it.perc_comissao).replace('.',',')+'%':'', it.comissao_valor?'Comissão R$ '+fmtBR(it.comissao_valor):''].filter(Boolean).join(' · ');
+      const linha4=[it.num_contrato?'Nº '+esc(it.num_contrato):'', it.prazo?it.prazo+'x':'', it.valor_parcela?'parcela R$ '+fmtBR(it.valor_parcela):'',
+        it.data_digitacao?'dig. '+fmtData(it.data_digitacao):'', it.data_pagamento_cliente?'pago '+fmtData(it.data_pagamento_cliente):'', it.telefone?'📞 '+esc(it.telefone):''].filter(Boolean).join(' · ');
+      return '<label class="ia-lote-l"><input type="checkbox" data-k="'+i+'"'+(l.existe?'':' checked')+'><span>'+linha1+(linha2?'<br>'+linha2:'')+'<br>'+linha3
+        +(linha4?'<br><span class="ia-cinza">'+linha4+'</span>':'')
+        +(l.existe?'<br><span class="ia-aviso">⚠️ Já existe no sistema (digitado '+fmtData(l.existe.data_dig)+') — não será lançado de novo</span>':'')
+        +'<br><button type="button" class="ia-mini" data-edit="'+i+'">✏️ Editar este separado</button></span></label>';
+    }).join('');
+    const el=document.createElement('div'); el.className='ia-card';
+    el.innerHTML='<div class="ia-card-h"><span>📄 Lançar contratos do relatório</span><span>'+itens.length+' lido(s) · '+nNovos+' novo(s)</span></div>'
+      +'<div class="ia-card-g"><div class="full" style="font-size:.7rem;font-weight:800;color:#383772">VALE PARA TODOS (quando o contrato não traz o dado)</div>'+campos+'</div>'
+      +'<div class="ia-lote">'+lis+'</div>'
+      +'<div class="ia-sec ia-cinza" style="font-size:.72rem">Confira os nomes e valores com o PDF antes de lançar. Cada contrato passa pelo mesmo salvamento da tela Lançar.</div>'
+      +'<div class="ia-card-a"><button class="ia-ok">✅ Lançar</button><button class="ia-x">✕</button></div>';
+    $('ia-msgs').appendChild(el); rolar();
+    const contar=()=>{ const n=el.querySelectorAll('[data-k]:checked').length; el.querySelector('.ia-ok').textContent='✅ Lançar '+n+' contrato(s)'; };
+    el.querySelectorAll('[data-k]').forEach(c=>c.onchange=contar); contar();
+    el.querySelector('.ia-x').onclick=()=>el.remove();
+    el.querySelectorAll('[data-edit]').forEach(b=>b.onclick=ev=>{ ev.preventDefault(); ev.stopPropagation();
+      const i=+b.dataset.edit; const v=ler(el); const it=linhas[i].it;
+      const cb=el.querySelector('[data-k="'+i+'"]'); if(cb){ cb.checked=false; contar(); }
+      cardAcao('lancar_comissao',Object.assign({},it,{banco:it.banco||v.banco,modalidade:it.modalidade||v.modalidade,tipo_op:it.tipo_op||v.tipo_op,
+        promotora:it.promotora||v.promotora,status:it.status||v.status,perc_comissao:it.perc_comissao||(v.perc?numBR(v.perc):undefined)}));
+    });
+    el.querySelector('.ia-ok').onclick=async()=>{
+      if(iaOcupado) return;
+      const v=ler(el); const sel=[...el.querySelectorAll('[data-k]:checked')].map(c=>linhas[+c.dataset.k].it);
+      if(!sel.length){ msg('Nenhum contrato selecionado.'); return; }
+      const semDados=sel.filter(it=>!(it.banco||v.banco)||!(it.modalidade||v.modalidade));
+      if(semDados.length){ msg('⚠️ Escolha o Banco e a Modalidade padrão — '+semDados.length+' contrato(s) vieram sem esses dados.','erro'); return; }
+      iaOcupado=true; const bOk=el.querySelector('.ia-ok'); bOk.disabled=true;
+      let ok=0; const falhas=[];
+      for(let i=0;i<sel.length;i++){
+        const it=sel[i]; bOk.textContent='⏳ Lançando '+(i+1)+' de '+sel.length+'...';
+        const r={ nome:String(it.nome_cliente).toUpperCase(),
+          modalidade:casar(it.modalidade,L.modalidades).valor||v.modalidade, banco:casar(it.banco,L.bancos).valor||v.banco,
+          tipo_op:(it.tipo_op?casar(it.tipo_op,L.tipos_op).valor:'')||v.tipo_op||'NOVO', promotora:(it.promotora?casar(it.promotora,L.promotoras).valor:'')||v.promotora||'',
+          valor:it.valor_contrato?fmtBR(it.valor_contrato):'', perc:it.perc_comissao?String(it.perc_comissao).replace('.',','):(v.perc||''),
+          comissao:it.comissao_valor?fmtBR(it.comissao_valor):'', pact:it.pacote_fixo?fmtBR(it.pacote_fixo):'',
+          data_dig:it.data_digitacao||it.data_pagamento_cliente||hojeISO(), data_pg:it.data_pagamento_cliente||'',
+          status:it.status||v.status||'ABERTO', data_rec:it.data_comissao_recebida||'' };
+        if(it.cpf) r.cpf=it.cpf; if(it.telefone) r.telefone=it.telefone; if(it.num_contrato) r.num_contrato=it.num_contrato;
+        if(it.prazo) r.prazo=String(it.prazo); if(it.valor_parcela) r.valor_parcela=String(it.valor_parcela); if(it.obs) r.obs=it.obs;
+        try{ (await fazerComissao(r,true,true)) ? ok++ : falhas.push(r.nome); }catch(e){ falhas.push(r.nome); }
+        await esperar(120);
+      }
+      iaOcupado=false;
+      el.classList.add('feito'); el.querySelector('.ia-card-h span:last-child').textContent='✅ '+ok+' lançado(s)';
+      el.querySelectorAll('input,select').forEach(x=>x.disabled=true);
+      registrarLog('lote_lancamentos',ok+' contratos do relatório');
+      msg('✅ '+ok+' contrato(s) lançado(s) na aba Clientes.'+(falhas.length?'\n⚠️ Não lançados: '+falhas.join(', '):''));
+    };
+  }
+
   function ler(el){ const o={}; el.querySelectorAll('[data-c]').forEach(i=>o[i.dataset.c]=i.value.trim()); return o; }
 
   function totalComissao(el){
@@ -11277,7 +11364,7 @@ function cancelarUnificacao() {
   }
 
   // ── COMISSÃO: preenche o formulário Lançar e usa salvarLancamento() ──
-  async function fazerComissao(v,salvar){
+  async function fazerComissao(v,salvar,quieto){
     if(!v.nome){ msg('⚠️ Falta o nome do cliente.','erro'); return false; }
     if(!v.modalidade||!v.banco){ msg('⚠️ Falta modalidade ou banco.','erro'); return false; }
     // Garante que os contratos já foram carregados (proteção do cache)
@@ -11325,8 +11412,8 @@ function cancelarUnificacao() {
     try{ salvarLancamento(false); }catch(e){ console.warn('[IA] pós-salvar',e); }
     const ok=(todosLancamentos||[]).length>antes;
     if(ok){ const r=todosLancamentos[todosLancamentos.length-1]; registrarLog('comissao',(r.id||'')+' '+r.nome_cliente+' '+r.banco+' R$'+r.comissao);
-      msg('✅ Comissão de '+r.nome_cliente+' lançada: R$ '+fmtBR(r.comissao)+'.'); }
-    else msg('Lançamento não foi salvo (cancelado ou faltou campo).');
+      if(!quieto) msg('✅ Comissão de '+r.nome_cliente+' lançada: R$ '+fmtBR(r.comissao)+'.'); }
+    else if(!quieto) msg('Lançamento não foi salvo (cancelado ou faltou campo).');
     return ok;
   }
 
