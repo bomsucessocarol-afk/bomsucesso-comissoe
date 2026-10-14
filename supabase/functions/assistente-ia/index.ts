@@ -221,21 +221,29 @@ const FERRAMENTAS = [
   {
     name: "atualizar_comissoes_lote",
     description:
-      "Atualiza VÁRIOS contratos de uma vez. Use para pedidos em lote (\"marca como pagas todas do BMG de setembro\") ou quando ela enviar o EXTRATO/RELATÓRIO de comissões de um banco (liste cada contrato do extrato em itens).",
+      "Atualiza VÁRIOS contratos de uma vez — qualquer campo. Use para pedidos em lote (\"coloca a data de pagamento 15/02 em todos de janeiro do BMG\", \"muda o mês de referência dos digitados em 31/01 para fevereiro\", \"marca como pagas todas do C6 de setembro\", \"muda o % do C6 de janeiro para 2,5\") ou quando ela enviar o EXTRATO de comissões de um banco (liste cada contrato em itens). O sistema mostra a lista antes→depois e ela aprova.",
     parameters: {
       type: "object",
       properties: {
         filtro: {
           type: "object",
-          description: "Para lote por critério",
+          description: "Quais contratos. Combine os critérios que ela disser.",
           properties: {
             banco: { type: "string" },
             modalidade: { type: "string" },
             tipo_op: { type: "string" },
+            promotora: { type: "string" },
             status: { type: "string", enum: ["ABERTO", "PAGO"] },
-            mes_ref: { type: "string", description: "AAAA-MM" },
-            data_inicio: { type: "string" },
-            data_fim: { type: "string" },
+            mes_ref: { type: "string", description: "AAAA-MM — contratos daquele mês (de referência/digitação)" },
+            data_inicio: { type: "string", description: "AAAA-MM-DD digitação a partir de" },
+            data_fim: { type: "string", description: "AAAA-MM-DD digitação até" },
+            nome_contem: { type: "string" },
+            valor_min: { type: "number" },
+            valor_max: { type: "number" },
+            sem_cpf: { type: "boolean" },
+            sem_data_pagamento: { type: "boolean", description: "Sem data de pagamento ao cliente" },
+            sem_data_comissao: { type: "boolean", description: "Sem data de comissão recebida" },
+            com_revisar: { type: "boolean", description: "Marcados com ❗ Revisar" },
           },
         },
         itens: {
@@ -255,12 +263,22 @@ const FERRAMENTAS = [
         banco: { type: "string", description: "Banco do extrato, se houver" },
         alteracoes: {
           type: "object",
+          description: "Só os campos que devem mudar",
           properties: {
             status: { type: "string", enum: ["ABERTO", "PAGO"] },
-            data_comissao_recebida: { type: "string" },
-            data_pagamento_cliente: { type: "string" },
+            data_comissao_recebida: { type: "string", description: "AAAA-MM-DD" },
+            data_pagamento_cliente: { type: "string", description: "AAAA-MM-DD" },
+            data_digitacao: { type: "string", description: "AAAA-MM-DD" },
+            mes_referencia: { type: "string", description: "AAAA-MM" },
+            banco: { type: "string" },
+            promotora: { type: "string" },
+            modalidade: { type: "string" },
+            tipo_op: { type: "string" },
+            perc_comissao: { type: "number", description: "Novo % — o sistema recalcula a comissão" },
+            obs: { type: "string", description: "Texto a ACRESCENTAR na observação" },
           },
         },
+        so_vazios: { type: "boolean", description: "true se ela disser para só preencher onde está vazio / não sobrescrever" },
       },
       required: ["alteracoes"],
     },
@@ -477,7 +495,11 @@ SEU TRABALHO: transformar o pedido da Carol em lançamentos ou atualizações us
 - PERGUNTAS sobre os números ("quanto falta pra meta", "quais comissões estão em aberto", "quanto gastei de gasolina") →
   use o PANORAMA abaixo quando bastar; se precisar de detalhe, chame consultar_comissoes ou consultar_despesas e depois responda.
   Responda curto, com valores em R$ no formato brasileiro (R$ 1.234,56) e listas curtas. Nunca invente números.
-- LOTE: "marca como pagas todas do BMG de setembro" → atualizar_comissoes_lote com filtro. "paguei todas as fixas da empresa" → atualizar_despesas_lote.
+- LOTE: qualquer pedido para mudar VÁRIOS contratos de uma vez → atualizar_comissoes_lote com filtro + alteracoes. Exemplos:
+  "coloca a data de pagamento 15/02/2026 em todos os contratos de janeiro de 2026 do BMG" → filtro {mes_ref:"2026-01", banco:"BMG"}, alteracoes {data_pagamento_cliente:"2026-02-15"}
+  "muda para fevereiro o mês de referência dos digitados em 31/01" → filtro {data_inicio:"2026-01-31", data_fim:"2026-01-31"}, alteracoes {mes_referencia:"2026-02"}
+  "todos do INSS de janeiro sem data de pagamento ficam com 10/02" → filtro {modalidade:"INSS", mes_ref:"2026-01", sem_data_pagamento:true}
+  "paguei todas as fixas da empresa" → atualizar_despesas_lote.
 - IMAGENS/PDF anexados:
   • boleto, conta ou comprovante de pagamento → lancar_despesa (ou atualizar_despesa se for comprovante de uma conta que provavelmente já existe; na dúvida use lancar_despesa e explique)
   • relatório de CONTRATOS PAGOS / produção / propostas digitadas (lista de clientes com valores) → lancar_comissoes_lote com UM item por contrato,

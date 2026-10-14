@@ -10354,6 +10354,8 @@ function cancelarUnificacao() {
 .cl-revisar{display:inline-block;margin-left:6px;background:#FEE2E2;color:#B91C1C;border-radius:6px;padding:1px 6px;font-size:.62rem;font-weight:800;vertical-align:middle;cursor:help}
 .ia-del{background:#DC2626;color:#fff}
 .ia-card-del{border-color:#DC2626}.ia-card-del .ia-card-h{background:#FEE2E2;color:#991B1B}
+.ia-diff{margin-top:4px}.ia-dl{font-size:.72rem;color:#1f1f3a}.ia-dl s{color:#9a9cb8}.ia-dl-c{color:#b45309}
+.ia-avisos .ia-sec{border-bottom:none;padding:5px 12px}
 .ia-pensando{align-self:flex-start;font-size:.78rem;color:#6b6d8f;font-style:italic}
 @media(max-width:768px){
   #ia-fab{bottom:84px;right:14px;width:52px;height:52px;font-size:23px}
@@ -11059,7 +11061,168 @@ function cancelarUnificacao() {
     return L;
   }
 
+  // ════════ LOTE DE CONTRATOS v2: qualquer campo · prévia antes→depois · avisos · desfazer ════════
+  function campoLoteC(k){
+    const L=listas();
+    return ({ status:['Status da comissão','sel',['ABERTO','PAGO'],'status'],
+      data_comissao_recebida:['Comissão recebida em','date',null,'data_comissao_rec'],
+      data_pagamento_cliente:['Pagamento ao cliente','date',null,'data_pg'],
+      data_digitacao:['Data de digitação','date',null,'data_dig'],
+      mes_referencia:['Mês de referência','month',null,'mes_ref'],
+      banco:['Banco','sel',L.bancos,'banco'], promotora:['Promotora','sel',L.promotoras,'promotora'],
+      modalidade:['Modalidade','sel',L.modalidades,'modalidade'], tipo_op:['Tipo de operação','sel',L.tipos_op,'tipo_op'],
+      perc_comissao:['% comissão (recalcula)','pct',null,'perc_comissao'], obs:['Acrescentar na observação','txt',null,'obs'] })[k];
+  }
+  const ORDEM_LOTE=['status','data_comissao_recebida','data_pagamento_cliente','data_digitacao','mes_referencia','banco','promotora','modalidade','tipo_op','perc_comissao','obs'];
+
+  function filtraComissoes2(f){
+    let L=filtraComissoes(f);
+    if(f.promotora) L=L.filter(r=>contem(r.promotora,f.promotora));
+    if(f.nome_contem){ const p=palavras(f.nome_contem); L=L.filter(r=>p.every(w=>semAcento(r.nome_cliente).includes(w))); }
+    if(f.valor_min) L=L.filter(r=>(+r.valor_cliente||0)>=f.valor_min);
+    if(f.valor_max) L=L.filter(r=>(+r.valor_cliente||0)<=f.valor_max);
+    if(f.sem_cpf) L=L.filter(r=>!soDig(r.cpf));
+    if(f.sem_data_pagamento) L=L.filter(r=>!r.data_pg);
+    if(f.sem_data_comissao) L=L.filter(r=>!r.data_comissao_rec);
+    if(f.com_revisar) L=L.filter(r=>String(r.obs||'').includes('❗'));
+    return L;
+  }
+
+  // Calcula como o contrato fica (sem salvar)
+  function simularContrato(r,v,soVazios,itComissao){
+    const n={...r}; const mud=[]; let conflitos=0, mantidos=0;
+    const fmtCampo=(k,x)=>{ const t=campoLoteC(k)[1]; if(x===undefined||x===null||x==='') return '—';
+      if(t==='date') return fmtData(x); if(t==='pct') return String(x).replace('.',',')+'%'; return String(x); };
+    ORDEM_LOTE.forEach(k=>{
+      let alvo=v[k]; if(alvo===undefined||alvo===null||alvo==='') return;
+      const [rot,tipo,,campoR]=campoLoteC(k);
+      if(k==='mes_referencia') alvo=mesRefDe(String(alvo).slice(0,7));
+      if(k==='perc_comissao') alvo=numBR(alvo);
+      if(k==='obs'){ const novaObs=((r.obs?String(r.obs).trim()+' | ':'')+alvo).slice(0,600); n.obs=novaObs; mud.push({rot,de:r.obs?'…':'—',para:'+ '+alvo}); return; }
+      const atual = k==='tipo_op' ? (r.tipo_op||r.operacao) : r[campoR];
+      const vazio = k==='status' || atual===undefined||atual===null||atual===''||(k==='perc_comissao'&&!+atual); // status sempre tem valor: não conta como conflito
+      const igual = k==='perc_comissao' ? Math.abs((+atual||0)-alvo)<0.001 : (tipo==='sel'||k==='mes_referencia' ? semAcento(atual)===semAcento(alvo) : String(atual||'')===String(alvo));
+      if(igual) return;
+      if(!vazio){ if(soVazios){ mantidos++; return; } conflitos++; }
+      n[campoR]=alvo; if(k==='tipo_op') n.operacao=alvo; if(k==='status') n.status_comissao=alvo;
+      mud.push({rot,de:fmtCampo(k,k==='mes_referencia'?atual:atual),para:fmtCampo(k,alvo),conflito:!vazio});
+    });
+    // status ABERTO limpa a data de recebimento (igual à tela Lançar), a não ser que uma data tenha sido informada
+    if(n.status==='ABERTO' && r.status!=='ABERTO' && !v.data_comissao_recebida && n.data_comissao_rec){ mud.push({rot:'Comissão recebida em',de:fmtData(n.data_comissao_rec),para:'—'}); n.data_comissao_rec=''; }
+    // novo % → recalcula a comissão (se não for valor manual)
+    if(v.perc_comissao && n.perc_comissao!==r.perc_comissao && !r.comissao_manual){
+      const c=parseFloat((((+n.valor_cliente||0)*n.perc_comissao/100)+(+n.pact_fixo||0)).toFixed(2));
+      if(Math.abs(c-(+r.comissao||0))>=0.01){ n.comissao=c; mud.push({rot:'Comissão',de:'R$ '+fmtBR(r.comissao),para:'R$ '+fmtBR(c)}); }
+    }
+    if(itComissao!=null && Math.abs((+itComissao)-(+n.comissao||0))>0.5){ mud.push({rot:'Comissão (extrato)',de:'R$ '+fmtBR(n.comissao),para:'R$ '+fmtBR(itComissao)}); n.comissao=+itComissao; n.comissao_manual=true; }
+    return {novo:n, mud, conflitos, mantidos};
+  }
+
+  function cardLoteComissoes(d){
+    garantirBS(); const L=listas();
+    const alt=Object.assign({},d.alteracoes||{});
+    if(alt.status==='PAGO'&&!alt.data_comissao_recebida) alt.data_comissao_recebida=hojeISO();
+    if(alt.data_comissao_recebida&&!alt.status) alt.status='PAGO';
+    ['banco','promotora','modalidade','tipo_op'].forEach(k=>{ if(alt[k]){ const lista={banco:L.bancos,promotora:L.promotoras,modalidade:L.modalidades,tipo_op:L.tipos_op}[k]; alt[k]=casar(alt[k],lista).valor; } });
+    if(alt.mes_referencia) alt.mes_referencia=String(alt.mes_referencia).slice(0,7);
+    const chaves=ORDEM_LOTE.filter(k=>alt[k]!==undefined&&alt[k]!==null&&alt[k]!=='');
+    if(!chaves.length){ msg('Entendi quais contratos, mas não o que mudar 🤔 Ex: "coloca a data de pagamento 15/02 em todos de janeiro do BMG".'); return; }
+
+    const itens=Array.isArray(d.itens)?d.itens.filter(Boolean):[]; const f=d.filtro||{};
+    const linhas=[]; const naoAchados=[];
+    if(itens.length){
+      const usados=new Set();
+      itens.forEach(it=>{ const c=buscarComissoes({nome_cliente:it.nome_cliente,cpf:it.cpf,num_contrato:it.num_contrato,valor_contrato:it.valor_contrato,banco:d.banco||f.banco}).filter(r=>!usados.has(r.id));
+        if(!c.length){ naoAchados.push(it.nome_cliente||it.cpf||it.num_contrato||'?'); return; } usados.add(c[0].id); linhas.push({r:c[0],it,duvida:c.length>1}); });
+    } else filtraComissoes2(f).sort((a,b)=>String(a.data_dig||'').localeCompare(String(b.data_dig||''))).forEach(r=>linhas.push({r}));
+    if(!linhas.length){ msg('🔎 Não encontrei contratos com esse critério.'+(naoAchados.length?' Não achei: '+naoAchados.join(', '):'')); return; }
+
+    const temExtrato=linhas.some(l=>l.it&&l.it.comissao_valor&&Math.abs((+l.it.comissao_valor)-(+l.r.comissao||0))>1);
+    const campos=chaves.map(k=>{ const [rot,tipo,ops]=campoLoteC(k); let val=alt[k]; if(tipo==='pct') val=String(val).replace('.',',');
+      return campo(k,rot,val,tipo==='sel'?{select:comOpcao(ops,val)}:tipo==='date'?{type:'date'}:tipo==='month'?{type:'month'}:{}); }).join('');
+    const filtroTxt = itens.length ? 'Extrato com '+itens.length+' contrato(s)' :
+      Object.entries(f).filter(([k,x])=>x!==undefined&&x!==''&&x!==false).map(([k,x])=>({banco:'Banco',modalidade:'Produto',tipo_op:'Tipo',promotora:'Promotora',status:'Status',mes_ref:'Mês',data_inicio:'Digitado de',data_fim:'até',nome_contem:'Nome',valor_min:'Valor ≥',valor_max:'Valor ≤',sem_cpf:'Sem CPF',sem_data_pagamento:'Sem data de pagamento',sem_data_comissao:'Sem data de comissão',com_revisar:'Com ❗'}[k]||k)+(x===true?'':': '+(k==='mes_ref'?mesCurto(x):String(x).match(/^\d{4}-\d{2}-\d{2}$/)?fmtData(x):x))).join(' · ');
+
+    const el=document.createElement('div'); el.className='ia-card';
+    el.innerHTML='<div class="ia-card-h"><span>📦 Atualizar contratos em lote</span><span data-cont></span></div>'
+      +'<div class="ia-sec ia-cinza" style="font-size:.72rem">🔍 '+esc(filtroTxt||'Todos os contratos')+'</div>'
+      +'<div class="ia-card-g"><div class="full" style="font-size:.7rem;font-weight:800;color:#383772">O QUE VAI MUDAR</div>'+campos+'</div>'
+      +'<label class="ia-lote-l" style="margin:0 12px 6px"><input type="checkbox" data-sovazios'+(d.so_vazios?' checked':'')+'> <span><b>Só preencher onde está vazio</b> (não troca o que já está preenchido)</span></label>'
+      +(temExtrato?'<label class="ia-lote-l" style="margin:0 12px 6px;background:#FFF7E6"><input type="checkbox" data-corrigir> <span>Corrigir a comissão para o valor do extrato</span></label>':'')
+      +'<div class="ia-avisos" data-avisos></div>'
+      +'<div style="padding:0 12px 6px;display:flex;gap:6px">'+btn('☑️ Marcar todos','__todos',{})+btn('⬜ Desmarcar todos','__nenhum',{})+'</div>'
+      +'<div class="ia-lote">'+linhas.map((l,i)=>{ const r=l.r;
+        return '<label class="ia-lote-l"><input type="checkbox" data-k="'+i+'" checked><span><b>'+esc(r.nome_cliente)+'</b> · '+esc(r.banco||'')+' · '+esc(r.modalidade||'')
+          +'<br><span class="ia-cinza">Dig. '+fmtData(r.data_dig)+' · R$ '+fmtBR(r.valor_cliente)+' · comissão R$ '+fmtBR(r.comissao)+' · '+statusDe(r)+(r.mes_ref?' · '+esc(r.mes_ref):'')+'</span>'
+          +(l.duvida?'<br><span class="ia-aviso">Há outro contrato parecido — confira</span>':'')
+          +'<div class="ia-diff" data-diff="'+i+'"></div></span></label>'; }).join('')+'</div>'
+      +(naoAchados.length?'<div class="ia-sec" style="color:#8a1c1c">🔎 Não encontrados no sistema: '+esc(naoAchados.join(', '))+'</div>':'')
+      +'<div class="ia-card-a"><button class="ia-ok">✅ OK</button><button class="ia-x">✕</button></div>';
+    $('ia-msgs').appendChild(el); rolar();
+
+    const estado=()=>{ const v=ler(el); return {v, so:!!el.querySelector('[data-sovazios]:checked'), corr:!!el.querySelector('[data-corrigir]:checked')}; };
+    const simular=(l,e)=>simularContrato(l.r,e.v,e.so,(e.corr&&l.it&&l.it.comissao_valor)?l.it.comissao_valor:null);
+    const atualizar=()=>{
+      const e=estado(); let nSel=0, valor=0, com=0, conf=0, mant=0, nada=0; const mesesAntes=new Set();
+      linhas.forEach((l,i)=>{ const s=simular(l,e); const box=el.querySelector('[data-diff="'+i+'"]'); const cb=el.querySelector('[data-k="'+i+'"]');
+        box.innerHTML=s.mud.length? s.mud.map(m=>'<div class="ia-dl'+(m.conflito?' ia-dl-c':'')+'">'+esc(m.rot)+': <s>'+esc(m.de)+'</s> → <b>'+esc(m.para)+'</b>'+(m.conflito?' ⚠️':'')+'</div>').join('') : '<div class="ia-cinza">✓ nada muda neste contrato</div>';
+        if(cb.checked){ nSel++; valor+=+l.r.valor_cliente||0; com+=+s.novo.comissao||0; conf+=s.conflitos; mant+=s.mantidos; if(!s.mud.length) nada++; if(e.v.mes_referencia && l.r.mes_ref && l.r.mes_ref!==s.novo.mes_ref) mesesAntes.add(l.r.mes_ref); }
+      });
+      el.querySelector('[data-cont]').textContent=nSel+' de '+linhas.length+' selecionado(s)';
+      let av='<div class="ia-sec" style="background:#F5F6FB"><b>'+nSel+' contrato(s)</b> · R$ '+fmtBR(valor)+' em contratos · comissão R$ '+fmtBR(com)+'</div>';
+      if(conf) av+='<div class="ia-sec ia-aviso">⚠️ '+conf+' campo(s) já preenchido(s) com outro valor serão <b>sobrescritos</b> (marcados com ⚠️). Marque "Só preencher onde está vazio" para manter.</div>';
+      if(mant) av+='<div class="ia-sec ia-cinza">ℹ️ '+mant+' campo(s) já preenchido(s) serão mantidos.</div>';
+      if(mesesAntes.size) av+='<div class="ia-sec ia-aviso">📅 Mudar o mês de referência tira esses contratos de '+esc([...mesesAntes].join(', '))+' — muda o Resumo e a meta desses meses.</div>';
+      if(e.v.perc_comissao) av+='<div class="ia-sec ia-cinza">🧮 A comissão é recalculada pelo novo %, exceto contratos com comissão manual.</div>';
+      if(nada) av+='<div class="ia-sec ia-cinza">'+nada+' selecionado(s) já estão iguais — nada muda neles.</div>';
+      el.querySelector('[data-avisos]').innerHTML=av;
+      el.querySelector('.ia-ok').textContent='✅ OK, atualizar '+(nSel-nada);
+    };
+    el.addEventListener('input',atualizar); el.addEventListener('change',atualizar); atualizar();
+    el.querySelectorAll('.ia-mini[data-acao="__todos"],.ia-mini[data-acao="__nenhum"]').forEach(b=>b.onclick=ev=>{ ev.preventDefault();
+      const on=b.dataset.acao==='__todos'; el.querySelectorAll('[data-k]').forEach(c=>c.checked=on); atualizar(); });
+    el.querySelector('.ia-x').onclick=()=>el.remove();
+    el.querySelector('.ia-ok').onclick=()=>{
+      const e=estado(); const sel=[...el.querySelectorAll('[data-k]:checked')].map(c=>linhas[+c.dataset.k]);
+      const plano=sel.map(l=>({l,s:simular(l,e)})).filter(x=>x.s.mud.length);
+      if(!plano.length){ msg('Nada para atualizar nos selecionados.'); return; }
+      const antes=[]; let n=0;
+      plano.forEach(({l,s})=>{ const gi=todosLancamentos.findIndex(x=>x&&x.id===l.r.id); if(gi<0) return;
+        antes.push({...todosLancamentos[gi]}); todosLancamentos[gi]=s.novo;
+        if(typeof dadosFiltrados!=='undefined'){ const fi=dadosFiltrados.findIndex(x=>x&&x.id===l.r.id); if(fi>-1) dadosFiltrados[fi]=s.novo; } n++; });
+      salvarCacheCompleto();   // mesma rotina do sistema: aparelho + Supabase
+      try{ renderTabela(); }catch(x){} try{ renderResumo(); }catch(x){} try{ atualizarSininho(); }catch(x){}
+      const desc=chaves.map(k=>campoLoteC(k)[0]).join(', ');
+      const loteId=guardarLote({desc, filtro:filtroTxt, n, antes});
+      registrarLog('lote_comissoes_v2',n+' contratos: '+desc);
+      el.classList.add('feito'); el.querySelector('[data-cont]').textContent='✅ '+n+' atualizado(s)';
+      el.querySelectorAll('input,select').forEach(i=>i.disabled=true); el.querySelector('.ia-card-a').style.display='none';
+      const und=document.createElement('div'); und.className='ia-sec'; und.innerHTML='✅ '+n+' contrato(s) atualizado(s). '+btn('↩️ Desfazer este lote','__undo',{});
+      el.appendChild(und);
+      und.querySelector('.ia-mini').onclick=()=>{ const r=desfazerLote(loteId); und.innerHTML=r?'↩️ Lote desfeito — '+r+' contrato(s) voltaram como estavam.':'Não consegui desfazer (lote não encontrado).';
+        if(r) el.querySelector('[data-cont]').textContent='↩️ desfeito'; };
+      msg('✅ '+n+' contrato(s) atualizado(s): '+desc+'.');
+    };
+  }
+
+  // Histórico de lotes (para desfazer)
+  function guardarLote(info){
+    const id='LT'+Date.now().toString(36);
+    try{ const k='bs_ia_lotes'; const l=JSON.parse(localStorage.getItem(k)||'[]'); l.push({id,quando:new Date().toISOString(),...info}); localStorage.setItem(k,JSON.stringify(l.slice(-15))); }catch(e){}
+    return id;
+  }
+  function desfazerLote(id){
+    let l=[]; try{ l=JSON.parse(localStorage.getItem('bs_ia_lotes')||'[]'); }catch(e){}
+    const lt=l.find(x=>x.id===id); if(!lt||lt.desfeito) return 0; let n=0;
+    lt.antes.forEach(r=>{ const gi=todosLancamentos.findIndex(x=>x&&x.id===r.id); if(gi<0) return; todosLancamentos[gi]={...r};
+      if(typeof dadosFiltrados!=='undefined'){ const fi=dadosFiltrados.findIndex(x=>x&&x.id===r.id); if(fi>-1) dadosFiltrados[fi]={...r}; } n++; });
+    salvarCacheCompleto(); try{ renderTabela(); }catch(e){} try{ renderResumo(); }catch(e){}
+    lt.desfeito=true; try{ localStorage.setItem('bs_ia_lotes',JSON.stringify(l)); }catch(e){}
+    registrarLog('desfazer_lote',id+' '+n); return n;
+  }
+
   function cardLote(acao,d){
+    if(acao==='atualizar_comissoes_lote') return cardLoteComissoes(d);
     const ehC=acao==='atualizar_comissoes_lote'; garantirBS();
     const alt=Object.assign({},d.alteracoes||{});
     if(ehC){ if(alt.status==='PAGO'&&!alt.data_comissao_recebida) alt.data_comissao_recebida=hojeISO(); if(alt.data_comissao_recebida&&!alt.status) alt.status='PAGO'; }
