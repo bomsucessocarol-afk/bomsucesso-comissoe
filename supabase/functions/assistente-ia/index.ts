@@ -97,6 +97,82 @@ const FERRAMENTAS = [
       required: ["descricao", "valor"],
     },
   },
+  {
+    name: "atualizar_comissao",
+    description:
+      "Localiza um contrato/comissão JÁ LANÇADO e propõe uma atualização (ex: marcar como PAGO, informar data de recebimento, corrigir valor, banco, CPF). O sistema procura o contrato e mostra para a Carol confirmar.",
+    parameters: {
+      type: "object",
+      properties: {
+        busca: {
+          type: "object",
+          description: "Como encontrar o contrato. Informe tudo o que a Carol disser.",
+          properties: {
+            nome_cliente: { type: "string", description: "Nome ou parte do nome do cliente" },
+            banco: { type: "string" },
+            modalidade: { type: "string" },
+            valor_contrato: { type: "number" },
+            num_contrato: { type: "string" },
+            cpf: { type: "string" },
+            mes: { type: "string", description: "Mês do contrato AAAA-MM, se ela disser" },
+          },
+        },
+        alteracoes: {
+          type: "object",
+          description: "Somente os campos que devem mudar.",
+          properties: {
+            status: { type: "string", enum: ["ABERTO", "PAGO"], description: "PAGO quando a comissão foi recebida" },
+            data_comissao_recebida: { type: "string", description: "AAAA-MM-DD — data em que a comissão caiu" },
+            data_pagamento_cliente: { type: "string", description: "AAAA-MM-DD — data em que o banco pagou o cliente" },
+            data_digitacao: { type: "string" },
+            valor_contrato: { type: "number" },
+            perc_comissao: { type: "number" },
+            comissao_valor: { type: "number" },
+            banco: { type: "string" },
+            promotora: { type: "string" },
+            cpf: { type: "string" },
+            telefone: { type: "string" },
+            num_contrato: { type: "string" },
+            prazo: { type: "number" },
+            valor_parcela: { type: "number" },
+            obs: { type: "string" },
+          },
+        },
+      },
+      required: ["busca", "alteracoes"],
+    },
+  },
+  {
+    name: "atualizar_despesa",
+    description:
+      "Localiza uma despesa ou gasto JÁ LANÇADO no Finance Control e propõe uma atualização (ex: marcar conta como PAGA em tal dia, mudar valor ou vencimento).",
+    parameters: {
+      type: "object",
+      properties: {
+        busca: {
+          type: "object",
+          properties: {
+            nome: { type: "string", description: "Nome ou parte do nome da conta (ex: energia, Nubank, aluguel)" },
+            valor: { type: "number" },
+            mes: { type: "string", description: "AAAA-MM se ela disser o mês" },
+            card: { type: "string", enum: ["CASA", "EMPRESA", "GASTOS"] },
+          },
+        },
+        alteracoes: {
+          type: "object",
+          properties: {
+            status: { type: "string", enum: ["ABERTO", "PAGO", "REPARCELADO", "PROXIMO"] },
+            data_pagamento: { type: "string", description: "AAAA-MM-DD" },
+            valor: { type: "number" },
+            vencimento: { type: "string", description: "AAAA-MM-DD" },
+            nome: { type: "string" },
+            obs: { type: "string" },
+          },
+        },
+      },
+      required: ["busca", "alteracoes"],
+    },
+  },
 ];
 
 function montarInstrucoes(ctx: Record<string, unknown>) {
@@ -106,11 +182,18 @@ Quem fala com você é a Carol, dona da empresa. Responda sempre em português, 
 
 Hoje é ${ctx.hoje || "(data não informada)"}. Mês aberto no sistema: ${ctx.mes_sistema || "-"}.
 
-SEU TRABALHO: transformar o pedido da Carol em lançamentos usando as funções.
+SEU TRABALHO: transformar o pedido da Carol em lançamentos ou atualizações usando as funções.
 - Comissão de contrato → lancar_comissao
 - Conta/boleto da casa ou da empresa → lancar_despesa
 - Gasto do dia a dia (mercado, gasolina, ifood, almoço, lazer) → lancar_gasto
-- Se ela pedir vários lançamentos na mesma mensagem, chame a função uma vez para cada.
+- ATUALIZAR algo que já existe → atualizar_comissao (contratos/comissões) ou atualizar_despesa (contas, despesas, gastos).
+  Exemplos: "paguei a conta de energia dia 10" → atualizar_despesa {busca:{nome:"energia"}, alteracoes:{status:"PAGO", data_pagamento:"AAAA-MM-10"}}
+            "recebi a comissão da Maria Souza do BMG hoje" / "pago contrato Maria Souza" → atualizar_comissao {busca:{nome_cliente:"Maria Souza", banco:"BMG"}, alteracoes:{status:"PAGO", data_comissao_recebida: hoje}}
+            "o banco pagou o cliente João dia 12" → atualizar_comissao alteracoes:{data_pagamento_cliente:"AAAA-MM-12"}
+  Você NÃO precisa saber se o registro existe: o sistema procura e mostra o cadastro para a Carol confirmar.
+  Na busca, coloque só o que ela disse (nome, banco, valor...). Em "alteracoes", só o que deve mudar.
+  Se ela disser "pago"/"paguei" sem data, use hoje.
+- Se ela pedir vários lançamentos ou atualizações na mesma mensagem, chame a função uma vez para cada.
 
 REGRAS:
 - Nunca invente dados. Se faltar algo obrigatório (nome do cliente, banco, modalidade, valor), pergunte em vez de chamar a função.

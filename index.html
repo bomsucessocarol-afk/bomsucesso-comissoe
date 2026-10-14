@@ -10328,6 +10328,10 @@ function cancelarUnificacao() {
 #ia-env{background:#383772;color:#fff}#ia-mic{background:#EEF0FF}
 #ia-mic.gravando{background:#dc2626;color:#fff;animation:iaPulse 1s infinite}
 @keyframes iaPulse{50%{opacity:.6}}
+.ia-cands{padding:0 12px 4px;display:flex;flex-direction:column;gap:8px}
+.ia-cand{border:1px solid #E3E5F0;border-radius:10px;padding:9px 10px;background:#FAFAFE}
+.ia-cand-i{font-size:.76rem;line-height:1.45;color:#333}
+.ia-cand-i b{color:#383772;font-size:.82rem}
 .ia-pensando{align-self:flex-start;font-size:.78rem;color:#6b6d8f;font-style:italic}
 @media(max-width:768px){
   #ia-fab{bottom:84px;right:14px;width:52px;height:52px;font-size:23px}
@@ -10405,7 +10409,8 @@ function cancelarUnificacao() {
     ['Lança comissão: Maria Souza, INSS, BMG, valor 8.500, 3,5%, hoje',
      'Despesa da empresa: aluguel da sala 1.200, vence dia 10',
      'Gastei 85 de gasolina hoje',
-     'Comissão do João Lima, CLT, C6, 12 mil, portabilidade, 2%, já recebi']
+     'Recebi a comissão da Maria Souza hoje',
+     'Paguei a conta de energia dia 10']
       .forEach(t=>{ const b=document.createElement('button'); b.className='ia-dica'; b.textContent='💡 '+t;
         b.onclick=()=>{ $('ia-txt').value=t; $('ia-txt').focus(); }; box.appendChild(b); });
     $('ia-msgs').appendChild(box);
@@ -10493,6 +10498,7 @@ function cancelarUnificacao() {
   function comOpcao(lista,v){ const L=[...(lista||[])]; if(v && !L.includes(v)) L.unshift(v); return L; }
 
   function cardAcao(acao,d){
+    if(String(acao).startsWith('atualizar_')) return cardAtualizacao(acao,d);
     const id='iac'+(++iaCardSeq); const L=listas(); let titulo='', corpo='';
     if(acao==='lancar_comissao'){
       titulo='💰 Comissão';
@@ -10551,6 +10557,188 @@ function cancelarUnificacao() {
     el.querySelector('.ia-x').onclick=()=>{ el.remove(); };
     if(acao==='lancar_comissao'){ el.querySelectorAll('input,select').forEach(i=>i.addEventListener('input',()=>totalComissao(el))); totalComissao(el); }
     rolar();
+  }
+
+  // ════════ ATUALIZAÇÕES (localiza o registro e mostra para confirmar) ════════
+  const fmtData = s => s ? String(s).slice(0,10).split('-').reverse().join('/') : '—';
+  const soDig = s => String(s||'').replace(/\D/g,'');
+  const palavras = s => semAcento(s).split(/\s+/).filter(w=>w.length>1);
+
+  function buscarComissoes(b){
+    const lista = (typeof todosLancamentos!=='undefined' && todosLancamentos) ? todosLancamentos : [];
+    const pal = palavras(b.nome_cliente);
+    const res = [];
+    lista.forEach(r=>{
+      if(!r) return; let pts=0;
+      const nome = semAcento(r.nome_cliente);
+      if(pal.length){ const ach=pal.filter(w=>nome.includes(w)).length; if(!ach) return; pts+=ach*10; if(ach===pal.length) pts+=15; }
+      if(b.cpf){ if(soDig(r.cpf)===soDig(b.cpf)) pts+=50; else if(!pal.length) return; }
+      if(b.num_contrato){ if(semAcento(r.num_contrato)===semAcento(b.num_contrato)) pts+=50; else if(!pal.length) return; }
+      if(b.banco){ const bb=semAcento(b.banco), rb=semAcento(r.banco); if(rb && (rb.includes(bb)||bb.includes(rb))) pts+=12; else pts-=8; }
+      if(b.modalidade && semAcento(r.modalidade).includes(semAcento(b.modalidade))) pts+=6;
+      if(b.valor_contrato){ const v=+r.valor_cliente||0; if(Math.abs(v-b.valor_contrato)<=Math.max(1,b.valor_contrato*0.01)) pts+=12; }
+      if(b.mes && String(r.data_dig||'').slice(0,7)===b.mes) pts+=6;
+      if(!pal.length && !b.cpf && !b.num_contrato) return;
+      res.push({r,pts});
+    });
+    res.sort((a,c)=>c.pts-a.pts || String(c.r.data_dig||'').localeCompare(String(a.r.data_dig||'')));
+    const topo=res.length?res[0].pts:0;
+    return res.filter(x=>x.pts>=topo*0.6).slice(0,5).map(x=>x.r);
+  }
+
+  function mesesFC(){
+    const ms=[]; try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); const m=/^fc_(\d{4}-\d{2})$/.exec(k||''); if(m) ms.push(m[1]); } }catch(e){}
+    return ms.sort().reverse();
+  }
+  function buscarDespesas(b){
+    const pal=palavras(b.nome); if(!pal.length) return [];
+    const atual=(typeof state!=='undefined'?state.month:'');
+    const res=[];
+    mesesFC().forEach(mes=>{
+      if(b.mes && mes!==b.mes) return;
+      let d; try{ d=DB.get(mes); }catch(e){ return; }
+      (d.expenses||[]).forEach(e=>{
+        const nome=semAcento(e.name); const ach=pal.filter(w=>nome.includes(w)).length; if(!ach) return;
+        let pts=ach*10+(ach===pal.length?15:0);
+        if(b.valor && Math.abs((+e.value||0)-b.valor)<=Math.max(1,b.valor*0.02)) pts+=12;
+        if(b.card && (e.card||'')===b.card) pts+=5;
+        if(mes===atual) pts+=8;
+        if(e.status!=='PAGO') pts+=4;
+        // meses mais perto do atual primeiro
+        if(atual){ const [ay,am]=atual.split('-').map(Number),[y,m]=mes.split('-').map(Number); pts-=Math.min(10,Math.abs((y-ay)*12+(m-am))*2); }
+        res.push({e,mes,pts});
+      });
+    });
+    res.sort((a,c)=>c.pts-a.pts);
+    const topo=res.length?res[0].pts:0;
+    return res.filter(x=>x.pts>=topo*0.6).slice(0,5);
+  }
+
+  function infoComissao(r){
+    const st=(r.status||r.status_comissao||'ABERTO');
+    return '<b>'+esc(r.nome_cliente)+'</b><br>'+esc([r.banco,r.modalidade,r.tipo_op||r.operacao].filter(Boolean).join(' · '))
+      +'<br>Digitado '+fmtData(r.data_dig)+' · Contrato R$ '+fmtBR(r.valor_cliente)+' · Comissão R$ '+fmtBR(r.comissao)
+      +'<br>'+(st==='PAGO'?'✅ PAGO':'⏳ ABERTO')+(r.data_comissao_rec?' em '+fmtData(r.data_comissao_rec):'')
+      +(r.data_pg?' · Cliente pago '+fmtData(r.data_pg):'')+(r.cpf?' · CPF '+esc(r.cpf):'')+(r.num_contrato?' · Nº '+esc(r.num_contrato):'');
+  }
+  function infoDespesa(x){
+    const e=x.e; const card={CASA:'🏠 Casa',EMPRESA:'🏢 Empresa',GASTOS:'🛒 Gastos'}[e.card]||'⬜';
+    return '<b>'+esc(e.name)+'</b><br>'+card+' · '+esc(e.category||'')+' · '+(typeof monthLabel==='function'?monthLabel(x.mes):x.mes)
+      +'<br>R$ '+fmtBR(e.value)+' · Vence '+fmtData(e.dueDate)+' · '+(e.status==='PAGO'?'✅ PAGO'+(e.payDate?' em '+fmtData(e.payDate):''):'⏳ '+esc(e.status||'ABERTO'));
+  }
+
+  const ROTULOS_C = {status:['Status','sel',['ABERTO','PAGO']], data_comissao_recebida:['Comissão recebida em','date'], data_pagamento_cliente:['Pagamento ao cliente','date'],
+    data_digitacao:['Data digitação','date'], valor_contrato:['Valor contrato (R$)','brl'], perc_comissao:['% comissão','pct'], comissao_valor:['Comissão (R$)','brl'],
+    banco:['Banco','txt'], promotora:['Promotora','txt'], cpf:['CPF','txt'], telefone:['Telefone','txt'], num_contrato:['Nº contrato','txt'], prazo:['Prazo','txt'], valor_parcela:['Valor parcela','brl'], obs:['Observação','txt']};
+  const ROTULOS_D = {status:['Status','sel',['ABERTO','PAGO','REPARCELADO','PROXIMO']], data_pagamento:['Pago em','date'], valor:['Valor (R$)','brl'],
+    vencimento:['Vencimento','date'], nome:['Nome','txt'], obs:['Observação','txt']};
+
+  function cardAtualizacao(acao,d){
+    const ehC = acao==='atualizar_comissao';
+    const b=d.busca||{}; const alt=Object.assign({}, d.alteracoes||{});
+    // regras de bom senso
+    if(ehC){ if(alt.status==='PAGO' && !alt.data_comissao_recebida) alt.data_comissao_recebida=hojeISO();
+             if(alt.data_comissao_recebida && !alt.status) alt.status='PAGO';
+             if(alt.banco) alt.banco=casar(alt.banco,listas().bancos).valor; }
+    else   { if(alt.status==='PAGO' && !alt.data_pagamento) alt.data_pagamento=hojeISO();
+             if(alt.data_pagamento && !alt.status) alt.status='PAGO'; }
+    const ROT = ehC?ROTULOS_C:ROTULOS_D;
+    const chaves = Object.keys(alt).filter(k=>ROT[k] && alt[k]!==undefined && alt[k]!==null && alt[k]!=='');
+    if(!chaves.length){ msg('Entendi qual registro, mas não o que mudar 🤔 Ex: "marca como pago dia 10".'); return; }
+
+    if(ehC && typeof initBomSucesso==='function' && !window._bsIniciado){ try{ initBomSucesso(); }catch(e){} }
+    const cands = ehC ? buscarComissoes(b) : buscarDespesas(b);
+    const oQue = ehC ? (b.nome_cliente||b.cpf||b.num_contrato||'') : (b.nome||'');
+    if(!cands.length){ msg('🔎 Não encontrei '+(ehC?'contrato':'despesa')+' com "'+oQue+'". Confira o nome ou me diga mais um detalhe (banco, valor, mês).'); return; }
+
+    const id='iac'+(++iaCardSeq);
+    const campos = chaves.map(k=>{ const [rot,tipo,ops]=ROT[k]; let v=alt[k];
+      if(tipo==='brl') v=fmtBR(v); if(tipo==='pct') v=String(v).replace('.',',');
+      return campo(k, rot, v, tipo==='sel'?{select:ops}:tipo==='date'?{type:'date'}:{}); }).join('');
+    const lista = cands.map((c,i)=>'<div class="ia-cand"><div class="ia-cand-i">'+(ehC?infoComissao(c):infoDespesa(c))+'</div>'
+      +'<div class="ia-card-a" style="padding:8px 0 0"><button class="ia-ok" data-i="'+i+'">✅ Atualizar '+(cands.length>1?'este':'')+'</button><button class="ia-form" data-f="'+i+'">📝 Abrir para conferir</button></div></div>').join('');
+    const el=document.createElement('div'); el.className='ia-card'; el.id=id;
+    el.innerHTML='<div class="ia-card-h"><span>🔄 Atualizar '+(ehC?'comissão':'despesa')+'</span><span>'+(cands.length>1?cands.length+' encontrados — escolha':'confira o cadastro')+'</span></div>'
+      +'<div class="ia-card-g"><div class="full" style="font-size:.7rem;font-weight:800;color:#383772">O QUE VAI MUDAR</div>'+campos+'</div>'
+      +'<div class="ia-cands">'+lista+'</div>'
+      +'<div class="ia-card-a"><button class="ia-x" style="flex:1!important">✕ Cancelar</button></div>';
+    $('ia-msgs').appendChild(el);
+    el.querySelector('.ia-x').onclick=()=>el.remove();
+    el.querySelectorAll('[data-i]').forEach(btn=>btn.onclick=()=>aplicarAtualizacao(el,ehC,cands[+btn.dataset.i],true));
+    el.querySelectorAll('[data-f]').forEach(btn=>btn.onclick=()=>aplicarAtualizacao(el,ehC,cands[+btn.dataset.f],false));
+    rolar();
+  }
+
+  async function aplicarAtualizacao(el,ehC,alvo,salvar){
+    const v=ler(el);
+    try{
+      const ok = ehC ? await atualizarComissao(alvo,v,salvar) : await atualizarDespesa(alvo,v,salvar);
+      if(ok && salvar){ el.classList.add('feito'); el.querySelector('.ia-card-h span:last-child').textContent='✅ atualizado'; el.querySelectorAll('.ia-cand .ia-card-a,.ia-card-a').forEach(x=>x.style.display='none'); }
+      if(!salvar) iaFechar();
+    }catch(e){ console.error('[IA]',e); msg('⚠️ Erro ao atualizar: '+e.message,'erro'); }
+  }
+
+  // Comissão: abre o modal de edição do próprio sistema, aplica as mudanças e usa salvarEdicao()
+  async function atualizarComissao(r,v,salvar){
+    if(typeof dadosFiltrados==='undefined' || typeof abrirModal!=='function'){ msg('⚠️ Módulo de comissões não carregou.','erro'); return false; }
+    let idx=dadosFiltrados.findIndex(x=>x && x.id===r.id);
+    if(idx<0){ dadosFiltrados=[...todosLancamentos]; idx=dadosFiltrados.findIndex(x=>x && x.id===r.id); }
+    if(idx<0){ msg('⚠️ Não achei mais esse contrato na lista. Atualize a página e tente de novo.','erro'); return false; }
+    if(!salvar){ const b=document.querySelector('.tab-btn.comissoes'); if(b) b.click(); idx=dadosFiltrados.findIndex(x=>x && x.id===r.id); if(idx<0){ dadosFiltrados=[...todosLancamentos]; idx=dadosFiltrados.findIndex(x=>x && x.id===r.id);} }
+    abrirModal(idx);
+    const set=(fid,val)=>{ const e=$(fid); if(e) e.value=val??''; };
+    if(v.status!==undefined) set('e-status',v.status);
+    if(v.data_comissao_recebida!==undefined) set('e-data-comissao-rec',v.data_comissao_recebida);
+    if(v.status==='ABERTO' && v.data_comissao_recebida===undefined) set('e-data-comissao-rec','');
+    if(v.data_pagamento_cliente!==undefined) set('e-data-pg',v.data_pagamento_cliente);
+    if(v.data_digitacao!==undefined) set('e-data-dig',v.data_digitacao);
+    if(v.banco!==undefined) set('e-banco',v.banco);
+    if(v.promotora!==undefined) set('e-promotora',v.promotora);
+    ['cpf','telefone','prazo','obs'].forEach(k=>{ if(v[k]!==undefined) set('e-'+k,v[k]); });
+    if(v.num_contrato!==undefined) set('e-num-contrato',v.num_contrato);
+    if(v.valor_parcela!==undefined) set('e-valor-parcela',fmtBR(numBR(v.valor_parcela)));
+    if(v.valor_contrato!==undefined) set('e-valor',fmtBR(numBR(v.valor_contrato)));
+    if(v.perc_comissao!==undefined) set('e-perc',fmtBR(numBR(v.perc_comissao)));
+    if(v.comissao_valor!==undefined){
+      if($('e-comissao-manual-flag')?.value!=='1' && $('btn-e-comissao-manual')) $('btn-e-comissao-manual').click();
+      set('e-comissao',fmtBR(numBR(v.comissao_valor)));
+    } else if((v.valor_contrato!==undefined||v.perc_comissao!==undefined) && typeof calcularComissaoEdit==='function'){ try{ calcularComissaoEdit(); }catch(e){} }
+    if(!salvar){ if(typeof bs_mostrarToast==='function') bs_mostrarToast('🤖 Mudanças preenchidas — confira e salve',null,4000); return true; }
+    try{ salvarEdicao(); }catch(e){ console.warn('[IA] pós-salvar',e); }
+    const atual=todosLancamentos.find(x=>x.id===r.id)||{};
+    registrarLog('atualizar_comissao',r.id+' '+r.nome_cliente+' → '+JSON.stringify(v));
+    msg('✅ '+r.nome_cliente+' atualizado: '+((atual.status||'')==='PAGO'?'PAGO'+(atual.data_comissao_rec?' em '+fmtData(atual.data_comissao_rec):''):(atual.status||''))+'.');
+    return true;
+  }
+
+  // Despesa/gasto: vai para o mês dela, abre o modal de edição do sistema e salva pelo caminho normal
+  async function atualizarDespesa(x,v,salvar){
+    const e=x.e; irParaMes(x.mes+'-01');
+    const gasto=(e.card==='GASTOS');
+    const set=(fid,val)=>{ const el=$(fid); if(el) el.value=val??''; };
+    if(gasto){
+      abrirGastosModal(e.id);
+      if(v.nome!==undefined) set('gasto-name',v.nome);
+      if(v.valor!==undefined) set('gasto-value',numBR(v.valor).toFixed(2));
+      if(v.status!==undefined) set('gasto-status',v.status==='PAGO'?'PAGO':'ABERTO');
+      if(v.data_pagamento!==undefined||v.vencimento!==undefined) set('gasto-date',v.data_pagamento||v.vencimento);
+      if(v.obs!==undefined) set('gasto-obs',v.obs);
+    } else {
+      openExpModal(e.id);
+      if(v.nome!==undefined) set('ef-nome',v.nome);
+      if(v.valor!==undefined) set('ef-val',numBR(v.valor).toFixed(2));
+      if(v.vencimento!==undefined) set('ef-venc',v.vencimento);
+      if(v.status!==undefined) set('ef-status',v.status);
+      if(v.data_pagamento!==undefined) set('ef-pgto',v.data_pagamento);
+      if(v.status && v.status!=='PAGO' && v.data_pagamento===undefined) set('ef-pgto','');
+      if(v.obs!==undefined) set('ef-obs',v.obs);
+    }
+    if(!salvar) return true;
+    try{ gasto ? salvarGasto() : saveExpense(); }catch(err){ console.warn('[IA] pós-salvar',err); }
+    const depois=(DB.get(x.mes).expenses||[]).find(y=>y.id===e.id)||{};
+    registrarLog('atualizar_despesa',x.mes+' '+e.name+' → '+JSON.stringify(v));
+    msg('✅ "'+(depois.name||e.name)+'" atualizada: R$ '+fmtBR(depois.value)+' · '+(depois.status||'')+(depois.payDate?' em '+fmtData(depois.payDate):'')+'.');
+    return true;
   }
 
   function ler(el){ const o={}; el.querySelectorAll('[data-c]').forEach(i=>o[i.dataset.c]=i.value.trim()); return o; }
