@@ -12,10 +12,14 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// Ordem de tentativa: se um estiver sobrecarregado, passa para o próximo
 const MODELOS = [
   Deno.env.get("GEMINI_MODEL") || "gemini-flash-latest",
   "gemini-2.5-flash",
+  "gemini-flash-lite-latest",
+  "gemini-2.5-flash-lite",
 ];
+const ERROS_TEMPORARIOS = [404, 429, 500, 503, 504];
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -137,8 +141,13 @@ async function chamarGemini(chave: string, corpo: unknown) {
     });
     const txt = await r.text();
     if (r.ok) return JSON.parse(txt);
-    ultimoErro = `Gemini (${modelo}) respondeu ${r.status}: ${txt.slice(0, 400)}`;
-    if (r.status !== 404) break; // só tenta o próximo modelo se este não existir
+    ultimoErro = `Gemini (${modelo}) respondeu ${r.status}: ${txt.slice(0, 300)}`;
+    console.warn(ultimoErro);
+    if (!ERROS_TEMPORARIOS.includes(r.status)) break; // erro de chave/pedido: não adianta trocar
+    await new Promise((ok) => setTimeout(ok, 600));
+  }
+  if (/\b(429|503|504|500)\b/.test(ultimoErro)) {
+    throw new Error("O Gemini está sobrecarregado agora 😕 Tente de novo em 1 minuto.");
   }
   throw new Error(ultimoErro);
 }

@@ -10323,7 +10323,7 @@ function cancelarUnificacao() {
 .ia-ok{background:#16a34a;color:#fff}.ia-form{background:#EEF0FF;color:#383772}.ia-x{background:#f1f1f4;color:#555;flex:0 0 40px!important}
 .ia-card.feito{opacity:.6;border-color:#16a34a}.ia-card.feito .ia-card-a{display:none}
 .ia-base{display:flex;gap:6px;padding:10px;border-top:1px solid #E3E5F0;background:#fff;align-items:flex-end}
-#ia-txt{flex:1;resize:none;border:1px solid #D9DBEA;border-radius:10px;padding:9px 10px;font-size:.85rem;font-family:inherit;max-height:110px;min-height:40px}
+#ia-txt{flex:1;resize:none;border:1px solid #D9DBEA;border-radius:10px;padding:9px 10px;font-size:.85rem;font-family:inherit;max-height:40vh;min-height:40px;line-height:1.4;overflow-y:auto}
 .ia-base button{border:none;border-radius:10px;width:42px;height:40px;cursor:pointer;font-size:1.05rem}
 #ia-env{background:#383772;color:#fff}#ia-mic{background:#EEF0FF}
 #ia-mic.gravando{background:#dc2626;color:#fff;animation:iaPulse 1s infinite}
@@ -10424,7 +10424,8 @@ function cancelarUnificacao() {
   window.iaEnviar = async function(){
     if(iaOcupado) return;
     const txt=$('ia-txt').value.trim(); if(!txt) return;
-    $('ia-txt').value=''; document.querySelectorAll('.ia-dicas').forEach(x=>x.remove()); msg(txt,'eu');
+    if(iaGravando){ iaGravando=false; iaMicVisual(false); try{ iaRec&&iaRec.stop(); }catch(e){} }
+    $('ia-txt').value=''; iaAjustarAltura(); document.querySelectorAll('.ia-dicas').forEach(x=>x.remove()); msg(txt,'eu');
     iaOcupado=true;
     const pens=document.createElement('div'); pens.className='ia-pensando'; pens.textContent='🤖 pensando...';
     $('ia-msgs').appendChild(pens); rolar();
@@ -10440,7 +10441,7 @@ function cancelarUnificacao() {
       });
       const j = await r.json().catch(()=>({erro:'Resposta inválida ('+r.status+')'}));
       pens.remove();
-      if(!r.ok || j.erro){ msg('⚠️ '+(j.erro||('Erro '+r.status)),'erro'); return; }
+      if(!r.ok || j.erro){ msg('⚠️ '+(j.erro||('Erro '+r.status)),'erro'); if(!$('ia-txt').value){ $('ia-txt').value=txt; iaAjustarAltura(); } msg('↩️ Deixei sua mensagem na caixa — é só tocar em ➤ para tentar de novo.'); return; }
       iaHistorico.push({papel:'eu',texto:txt});
       if(j.texto){ msg(j.texto); }
       (j.acoes||[]).forEach(a=>cardAcao(a.acao,a.dados||{}));
@@ -10449,23 +10450,33 @@ function cancelarUnificacao() {
       if(!j.texto && !(j.acoes||[]).length) msg('Não entendi bem 🤔 Pode repetir com mais detalhes?');
       iaHistorico = iaHistorico.slice(-10);
     }catch(e){
-      pens.remove(); msg('⚠️ Não consegui falar com o assistente. Verifique a internet e se a função "'+IA_FUNCAO+'" foi publicada no Supabase.','erro');
+      pens.remove(); if(!$('ia-txt').value) $('ia-txt').value=txt; msg('⚠️ Não consegui falar com o assistente. Verifique a internet e se a função "'+IA_FUNCAO+'" foi publicada no Supabase.','erro');
     }finally{ iaOcupado=false; }
   };
 
-  // ── voz (Chrome / Android) ─────────────────────────────────
-  let iaRec=null;
+  // ── voz: 🎤 grava · ⏸ pausa · 🎤 de novo continua · ➤ envia ──
+  let iaRec=null, iaGravando=false, iaBaseTxt='';
+  function iaAjustarAltura(){ const t=$('ia-txt'); t.style.height='auto'; t.style.height=Math.min(t.scrollHeight,window.innerHeight*0.4)+'px'; }
+  function iaMicVisual(on){ const m=$('ia-mic'); m.classList.toggle('gravando',on); m.textContent=on?'⏸':'🎤'; m.title=on?'Pausar gravação':'Falar'; }
   window.iaVoz = function(){
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if(!SR){ msg('🎤 Este navegador não tem ditado por voz. Use o microfone do teclado do celular.'); return; }
-    if(iaRec){ iaRec.stop(); return; }
-    iaRec = new SR(); iaRec.lang='pt-BR'; iaRec.interimResults=true; iaRec.continuous=false;
-    const base=$('ia-txt').value;
-    iaRec.onresult = ev => { let t=''; for(const res of ev.results) t+=res[0].transcript; $('ia-txt').value=(base?base+' ':'')+t; };
-    iaRec.onend = () => { $('ia-mic').classList.remove('gravando'); iaRec=null; if($('ia-txt').value.trim()) iaEnviar(); };
-    iaRec.onerror = () => { $('ia-mic').classList.remove('gravando'); iaRec=null; };
-    $('ia-mic').classList.add('gravando'); iaRec.start();
+    if(iaGravando){ iaGravando=false; iaMicVisual(false); try{ iaRec&&iaRec.stop(); }catch(e){} return; } // pausa
+    iaGravando=true; iaMicVisual(true);
+    const iniciar=()=>{
+      iaBaseTxt=$('ia-txt').value.trim();
+      iaRec=new SR(); iaRec.lang='pt-BR'; iaRec.interimResults=true; iaRec.continuous=true;
+      iaRec.onresult=ev=>{ let t=''; for(const res of ev.results) t+=res[0].transcript;
+        $('ia-txt').value=(iaBaseTxt?iaBaseTxt+' ':'')+t.trim(); iaAjustarAltura(); };
+      iaRec.onerror=ev=>{ if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){ iaGravando=false; iaMicVisual(false);
+        msg('🎤 Permita o uso do microfone para este site nas configurações do navegador.','erro'); } };
+      // o celular às vezes para sozinho no silêncio: se você não pausou, continua gravando
+      iaRec.onend=()=>{ iaRec=null; if(iaGravando){ setTimeout(()=>{ if(iaGravando){ try{ iniciar(); }catch(e){ iaGravando=false; iaMicVisual(false); } } },250); } };
+      iaRec.start();
+    };
+    try{ iniciar(); }catch(e){ iaGravando=false; iaMicVisual(false); }
   };
+  document.addEventListener('input',e=>{ if(e.target&&e.target.id==='ia-txt') iaAjustarAltura(); });
 
   // ── cards de confirmação ──────────────────────────────────
   function campo(id,label,valor,opts){
