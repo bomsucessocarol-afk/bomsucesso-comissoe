@@ -173,6 +173,139 @@ const FERRAMENTAS = [
       required: ["busca", "alteracoes"],
     },
   },
+  {
+    name: "consultar_comissoes",
+    description:
+      "Consulta os contratos/comissões do sistema para RESPONDER perguntas (totais, quem está em aberto, ranking por banco, etc). Use sempre que a pergunta depender dos dados. Depois da consulta, responda em texto.",
+    parameters: {
+      type: "object",
+      properties: {
+        status: { type: "string", enum: ["ABERTO", "PAGO", "TODOS"] },
+        banco: { type: "string" },
+        modalidade: { type: "string" },
+        tipo_op: { type: "string" },
+        promotora: { type: "string" },
+        nome_cliente: { type: "string" },
+        data_inicio: { type: "string", description: "AAAA-MM-DD (data de digitação)" },
+        data_fim: { type: "string", description: "AAAA-MM-DD (data de digitação)" },
+        mes_ref: { type: "string", description: "AAAA-MM do mês de referência" },
+        aberto_ha_mais_de_dias: { type: "number", description: "Só contratos sem retorno há mais de X dias" },
+        sem_cpf: { type: "boolean" },
+        agrupar_por: { type: "string", enum: ["banco", "modalidade", "tipo_op", "promotora", "mes", "nenhum"] },
+        limite: { type: "number", description: "Máximo de contratos listados (padrão 20)" },
+      },
+    },
+  },
+  {
+    name: "consultar_despesas",
+    description:
+      "Consulta despesas e gastos do Finance Control para RESPONDER perguntas (quanto gastou, o que vence, o que está em aberto, comparação entre meses).",
+    parameters: {
+      type: "object",
+      properties: {
+        nome: { type: "string" },
+        card: { type: "string", enum: ["CASA", "EMPRESA", "GASTOS", "TODOS"] },
+        categoria: { type: "string" },
+        tipo: { type: "string", enum: ["Fixa", "Variável"] },
+        status: { type: "string", enum: ["ABERTO", "PAGO", "TODOS"] },
+        mes_inicio: { type: "string", description: "AAAA-MM" },
+        mes_fim: { type: "string", description: "AAAA-MM" },
+        vence_nos_proximos_dias: { type: "number" },
+        atrasadas: { type: "boolean", description: "Só as vencidas e não pagas" },
+        agrupar_por: { type: "string", enum: ["categoria", "card", "mes", "nome", "nenhum"] },
+        limite: { type: "number" },
+      },
+    },
+  },
+  {
+    name: "atualizar_comissoes_lote",
+    description:
+      "Atualiza VÁRIOS contratos de uma vez. Use para pedidos em lote (\"marca como pagas todas do BMG de setembro\") ou quando ela enviar o EXTRATO/RELATÓRIO de comissões de um banco (liste cada contrato do extrato em itens).",
+    parameters: {
+      type: "object",
+      properties: {
+        filtro: {
+          type: "object",
+          description: "Para lote por critério",
+          properties: {
+            banco: { type: "string" },
+            modalidade: { type: "string" },
+            tipo_op: { type: "string" },
+            status: { type: "string", enum: ["ABERTO", "PAGO"] },
+            mes_ref: { type: "string", description: "AAAA-MM" },
+            data_inicio: { type: "string" },
+            data_fim: { type: "string" },
+          },
+        },
+        itens: {
+          type: "array",
+          description: "Para extrato: um item por contrato que aparece no documento",
+          items: {
+            type: "object",
+            properties: {
+              nome_cliente: { type: "string" },
+              cpf: { type: "string" },
+              num_contrato: { type: "string" },
+              valor_contrato: { type: "number" },
+              comissao_valor: { type: "number", description: "Comissão que o banco pagou por este contrato" },
+            },
+          },
+        },
+        banco: { type: "string", description: "Banco do extrato, se houver" },
+        alteracoes: {
+          type: "object",
+          properties: {
+            status: { type: "string", enum: ["ABERTO", "PAGO"] },
+            data_comissao_recebida: { type: "string" },
+            data_pagamento_cliente: { type: "string" },
+          },
+        },
+      },
+      required: ["alteracoes"],
+    },
+  },
+  {
+    name: "atualizar_despesas_lote",
+    description: "Atualiza VÁRIAS despesas de uma vez (ex: \"paguei todas as contas fixas da empresa hoje\").",
+    parameters: {
+      type: "object",
+      properties: {
+        filtro: {
+          type: "object",
+          properties: {
+            card: { type: "string", enum: ["CASA", "EMPRESA", "GASTOS"] },
+            tipo: { type: "string", enum: ["Fixa", "Variável"] },
+            categoria: { type: "string" },
+            status: { type: "string", enum: ["ABERTO", "PAGO", "REPARCELADO", "PROXIMO"] },
+            mes: { type: "string", description: "AAAA-MM (padrão: mês aberto no sistema)" },
+            vence_ate: { type: "string", description: "AAAA-MM-DD" },
+          },
+        },
+        itens: {
+          type: "array",
+          items: { type: "object", properties: { nome: { type: "string" }, valor: { type: "number" } } },
+        },
+        alteracoes: {
+          type: "object",
+          properties: {
+            status: { type: "string", enum: ["ABERTO", "PAGO", "REPARCELADO", "PROXIMO"] },
+            data_pagamento: { type: "string" },
+          },
+        },
+      },
+      required: ["alteracoes"],
+    },
+  },
+  {
+    name: "abrir_painel",
+    description:
+      "Mostra um painel pronto do sistema: resumo do dia, lembretes de refinanciamento/nova oferta, ou faxina (cadastros incompletos, duplicados, despesas fora do normal).",
+    parameters: {
+      type: "object",
+      properties: { painel: { type: "string", enum: ["resumo_do_dia", "lembretes_refinanciamento", "faxina"] } },
+      required: ["painel"],
+    },
+  },
 ];
 
 function montarInstrucoes(ctx: Record<string, unknown>) {
@@ -194,6 +327,16 @@ SEU TRABALHO: transformar o pedido da Carol em lançamentos ou atualizações us
   Na busca, coloque só o que ela disse (nome, banco, valor...). Em "alteracoes", só o que deve mudar.
   Se ela disser "pago"/"paguei" sem data, use hoje.
 - Se ela pedir vários lançamentos ou atualizações na mesma mensagem, chame a função uma vez para cada.
+- PERGUNTAS sobre os números ("quanto falta pra meta", "quais comissões estão em aberto", "quanto gastei de gasolina") →
+  use o PANORAMA abaixo quando bastar; se precisar de detalhe, chame consultar_comissoes ou consultar_despesas e depois responda.
+  Responda curto, com valores em R$ no formato brasileiro (R$ 1.234,56) e listas curtas. Nunca invente números.
+- LOTE: "marca como pagas todas do BMG de setembro" → atualizar_comissoes_lote com filtro. "paguei todas as fixas da empresa" → atualizar_despesas_lote.
+- IMAGENS/PDF anexados:
+  • boleto, conta ou comprovante de pagamento → lancar_despesa (ou atualizar_despesa se for comprovante de uma conta que provavelmente já existe; na dúvida use lancar_despesa e explique)
+  • extrato/relatório de comissões de banco → atualizar_comissoes_lote com UM item por contrato (nome, CPF, nº contrato, valor, comissão) e alteracoes {status:"PAGO", data_comissao_recebida: data do extrato ou hoje}
+  • tela de digitação/proposta/contrato de banco → lancar_comissao com o máximo de campos (CPF, nº contrato, prazo, parcela)
+  • leia com cuidado; se algo estiver ilegível, deixe vazio em vez de chutar.
+- "resumo do dia", "como está meu dia", "lembretes", "quem posso refinanciar", "faxina", "cadastros incompletos" → abrir_painel.
 
 REGRAS:
 - Nunca invente dados. Se faltar algo obrigatório (nome do cliente, banco, modalidade, valor), pergunte em vez de chamar a função.
@@ -210,20 +353,36 @@ Bancos: ${lista("bancos")}
 Tipos de operação: ${lista("tipos_op")}
 Promotoras: ${lista("promotoras")}
 Categorias de despesas: ${lista("categorias_despesa")}
-Categorias de gastos do mês: ${lista("categorias_gasto")}`;
+Categorias de gastos do mês: ${lista("categorias_gasto")}
+
+PANORAMA ATUAL DO SISTEMA (calculado agora):
+${JSON.stringify(ctx.panorama || {})}`;
 }
 
-async function chamarGemini(chave: string, corpo: unknown) {
+type Parte = Record<string, unknown>;
+function semAssinatura(conteudos: { role: string; parts: Parte[] }[]) {
+  // ao trocar de modelo no meio de uma consulta, a assinatura do modelo anterior não vale
+  return conteudos.map((c) => ({
+    ...c,
+    parts: c.parts.map((p) => (p.thoughtSignature ? { ...p, thoughtSignature: "skip_thought_signature_validator" } : p)),
+  }));
+}
+
+async function chamarGemini(chave: string, corpo: Record<string, unknown>, preferido?: string) {
   let ultimoErro = "";
-  for (const modelo of MODELOS) {
+  const ordem = preferido ? [preferido, ...MODELOS.filter((m) => m !== preferido)] : MODELOS;
+  for (const modelo of ordem) {
+    const corpoModelo = preferido && modelo !== preferido
+      ? { ...corpo, contents: semAssinatura(corpo.contents as { role: string; parts: Parte[] }[]) }
+      : corpo;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`;
     const r = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": chave },
-      body: JSON.stringify(corpo),
+      body: JSON.stringify(corpoModelo),
     });
     const txt = await r.text();
-    if (r.ok) return JSON.parse(txt);
+    if (r.ok) return { ...JSON.parse(txt), _modelo: modelo };
     ultimoErro = `Gemini (${modelo}) respondeu ${r.status}: ${txt.slice(0, 300)}`;
     console.warn(ultimoErro);
     if (!ERROS_TEMPORARIOS.includes(r.status)) break; // erro de chave/pedido: não adianta trocar
@@ -242,43 +401,67 @@ Deno.serve(async (req) => {
   const chave = Deno.env.get("GEMINI_API_KEY");
   if (!chave) return json({ erro: "Secret GEMINI_API_KEY não configurado no Supabase." }, 500);
 
-  let entrada: { mensagem?: string; historico?: { papel: string; texto: string }[]; contexto?: Record<string, unknown> };
+  // deno-lint-ignore no-explicit-any
+  let entrada: any;
   try {
     entrada = await req.json();
   } catch {
     return json({ erro: "Corpo inválido" }, 400);
   }
   const mensagem = (entrada.mensagem || "").toString().slice(0, 4000);
-  if (!mensagem.trim()) return json({ erro: "Mensagem vazia" }, 400);
+  const anexos: { mime: string; base64: string }[] = Array.isArray(entrada.anexos) ? entrada.anexos.slice(0, 4) : [];
+  if (!mensagem.trim() && !anexos.length) return json({ erro: "Mensagem vazia" }, 400);
 
-  const historico = (entrada.historico || []).slice(-10).map((h) => ({
+  const historico = (entrada.historico || []).slice(-10).map((h: { papel: string; texto: string }) => ({
     role: h.papel === "ia" ? "model" : "user",
     parts: [{ text: String(h.texto || "").slice(0, 2000) }],
   }));
 
+  const partesUsuario: Parte[] = [];
+  for (const a of anexos) {
+    if (a && a.base64 && /^(image\/|application\/pdf)/.test(a.mime || "")) {
+      partesUsuario.push({ inlineData: { mimeType: a.mime, data: a.base64 } });
+    }
+  }
+  partesUsuario.push({ text: mensagem || "Analise o arquivo anexado e faça o que for adequado." });
+
+  const contents: { role: string; parts: Parte[] }[] = [...historico, { role: "user", parts: partesUsuario }];
+
+  // 2ª rodada: o site executou as consultas e devolve os resultados
+  const rodadas = Array.isArray(entrada.rodadas) ? entrada.rodadas.slice(0, 3) : [];
+  for (const rd of rodadas) {
+    contents.push({ role: "model", parts: rd.partes_modelo || [] });
+    contents.push({
+      role: "user",
+      parts: (rd.respostas || []).map((x: { name: string; response: unknown }) => ({
+        functionResponse: { name: x.name, response: { resultado: x.response } },
+      })),
+    });
+  }
+
   const corpo = {
     systemInstruction: { parts: [{ text: montarInstrucoes(entrada.contexto || {}) }] },
-    contents: [...historico, { role: "user", parts: [{ text: mensagem }] }],
+    contents,
     tools: [{ functionDeclarations: FERRAMENTAS }],
     toolConfig: { functionCallingConfig: { mode: "AUTO" } },
     generationConfig: { temperature: 0.1 },
   };
 
   try {
-    const resp = await chamarGemini(chave, corpo);
-    const partes = resp?.candidates?.[0]?.content?.parts || [];
+    const resp = await chamarGemini(chave, corpo, rodadas.length ? entrada.modelo : undefined);
+    const partes: Parte[] = resp?.candidates?.[0]?.content?.parts || [];
     const acoes = partes
-      .filter((p: { functionCall?: unknown }) => p.functionCall)
-      .map((p: { functionCall: { name: string; args: Record<string, unknown> } }) => ({
-        acao: p.functionCall.name,
-        dados: p.functionCall.args || {},
-      }));
+      .filter((p) => p.functionCall)
+      .map((p) => {
+        const fc = p.functionCall as { name: string; args?: Record<string, unknown> };
+        return { acao: fc.name, dados: fc.args || {} };
+      });
     const texto = partes
-      .filter((p: { text?: string }) => p.text)
-      .map((p: { text: string }) => p.text)
+      .filter((p) => typeof p.text === "string" && !p.thought)
+      .map((p) => p.text as string)
       .join("\n")
       .trim();
-    return json({ texto, acoes });
+    return json({ texto, acoes, partes_modelo: partes, modelo: resp._modelo });
   } catch (e) {
     return json({ erro: String((e as Error).message || e) }, 502);
   }
