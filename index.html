@@ -10520,7 +10520,7 @@ function cancelarUnificacao() {
         + campo('tipo_op','Tipo de operação',top.valor,{select:comOpcao(L.tipos_op,top.valor)})
         + campo('promotora','Promotora',pro.valor,{select:comOpcao(['',...L.promotoras],pro.valor)})
         + campo('valor','Valor contrato (R$)',d.valor_contrato?fmtBR(d.valor_contrato):'')
-        + campo('perc','% comissão',d.perc_comissao?String(d.perc_comissao).replace('.',','):'',{ph:'sugestão automática'})
+        + campo('perc','% comissão',(d.perc_comissao||d.perc_comissao===0)?String(d.perc_comissao).replace('.',','):'',{ph:'sugestão automática'})
         + campo('comissao','Comissão R$ (se fixa)',d.comissao_valor?fmtBR(d.comissao_valor):'',{ph:'calcula sozinho'})
         + campo('pact','Pacote fixo (R$)',d.pacote_fixo?fmtBR(d.pacote_fixo):'')
         + campo('data_dig','Data digitação',d.data_digitacao||hojeISO(),{type:'date'})
@@ -11517,14 +11517,15 @@ function cancelarUnificacao() {
     cmp('Tipo de operação','tipo_op',(r.tipo_op||r.operacao),it.tipo_op?casar(it.tipo_op,L.tipos_op).valor:'',eqLista);
     cmp('Promotora','promotora',r.promotora,it.promotora?casar(it.promotora,L.promotoras).valor:'',eqLista);
     cmp('% comissão','perc_comissao',r.perc_comissao,it.perc_comissao?+it.perc_comissao:'',eqNum,v=>String(v).replace('.',',')+'%');
-    if(it.comissao_valor && (+r.comissao||0)>0 && Math.abs((+r.comissao)-(+it.comissao_valor))>0.5) dif.push({rot:'Comissão',sis:'R$ '+fmtBR(r.comissao),rel:'R$ '+fmtBR(it.comissao_valor)});
+    if(it._zero && (+r.perc_comissao||0)>0) dif.push({rot:'% comissão',sis:String(r.perc_comissao).replace('.',',')+'%',rel:'0%',comissao:true});
+    if(it.comissao_valor!==undefined&&it.comissao_valor!==null&&it.comissao_valor!=='' && Math.abs((+r.comissao||0)-(+it.comissao_valor||0))>0.5) dif.push({rot:'Comissão',sis:'R$ '+fmtBR(r.comissao),rel:'R$ '+fmtBR(it.comissao_valor),comissao:true});
     if(it.valor_contrato && Math.abs((+r.valor_cliente||0)-(+it.valor_contrato))>=0.01) dif.push({rot:'Valor do contrato',sis:'R$ '+fmtBR(r.valor_cliente),rel:'R$ '+fmtBR(it.valor_contrato)});
     if(it._mesref){ const k=mesRefDe(it._mesref); if(k){ if(!r.mes_ref) pre.push({campo:'mes_ref',rot:'Mês de referência',valor:k,txt:k}); else if(r.mes_ref!==k) dif.push({rot:'Mês de referência',sis:r.mes_ref,rel:k}); } }
     return {pre,dif};
   }
   // O que muda para ficar PAGO (status + Dt. Comissão Recebida + Dt. Pagamento) — só preenche datas vazias
   function planoPago(r,it,pago){
-    const out=[]; if(!pago) return out;
+    const out=[]; if(!pago||pago.soComissao) return out;
     if(statusDe(r)!=='PAGO') out.push({campo:'status',rot:'Status',valor:'PAGO',txt:'PAGO'});
     if(!r.data_comissao_rec){ const v=it.data_comissao_recebida||pago.datarec; if(v) out.push({campo:'data_comissao_rec',rot:'Dt. Comissão Recebida',valor:v,txt:fmtData(v)}); }
     if(!r.data_pg){ const v=it.data_pagamento_cliente||pago.datarec; if(v) out.push({campo:'data_pg',rot:'Dt. Pagamento',valor:v,txt:fmtData(v)}); }
@@ -11538,11 +11539,17 @@ function cancelarUnificacao() {
       plano.pre.forEach(p=>{ r[p.campo]=p.valor; if(p.campo==='tipo_op') r.operacao=p.valor; });
       // % preenchido agora e comissão sem valor manual → recalcula igual à tela Lançar
       if(plano.pre.some(p=>p.campo==='perc_comissao') && !r.comissao_manual){ const v=+r.valor_cliente||0, pc=+r.perc_comissao||0; if(v&&pc) r.comissao=parseFloat(((v*pc/100)+(+r.pact_fixo||0)).toFixed(2)); }
-      if(plano.dif.length){
-        const nota='❗ Relatório '+hoje+': '+plano.dif.map(d=>d.rot+' '+d.rel+' (sistema '+d.sis+')').join('; ');
+      const difs = (pago&&pago.corrigirComissao) ? plano.dif.filter(d=>!d.comissao) : plano.dif;
+      if(difs.length){
+        const nota='❗ Relatório '+hoje+': '+difs.map(d=>d.rot+' '+d.rel+' (sistema '+d.sis+')').join('; ');
         r.obs=((r.obs?String(r.obs).trim()+' | ':'')+nota).slice(0,600);
       }
       if(pago){ const pp=planoPago(r,it||{},pago); pp.forEach(x=>{ r[x.campo]=x.valor; if(x.campo==='status') r.status_comissao=x.valor; }); }
+      // Corrigir % e comissão para o valor do relatório (quando a Carol marcar)
+      if(pago && pago.corrigirComissao && it && plano.dif.some(d=>d.comissao)){
+        const novaCom = (it.comissao_valor!==undefined&&it.comissao_valor!==null&&it.comissao_valor!=='') ? +it.comissao_valor : (it._zero?0:null);
+        if(novaCom!==null){ r.comissao=novaCom; r.comissao_manual=true; r.perc_comissao = it._zero?0:(+it.perc_comissao||r.perc_comissao); }
+      }
       todosLancamentos[gi]=r;
       if(typeof dadosFiltrados!=='undefined'){ const fi=dadosFiltrados.findIndex(x=>x&&x.id===r.id); if(fi>-1) dadosFiltrados[fi]=r; }
       n++;
@@ -11555,6 +11562,11 @@ function cancelarUnificacao() {
   function cardLoteLancamentos(d){
     garantirBS();
     const L=listas(); const itens=(Array.isArray(d.itens)?d.itens:[]).filter(i=>i&&i.nome_cliente);
+    // Se o relatório traz coluna de % ou comissão, contrato sem valor = R$ 0,00 (nunca inventar pela sugestão)
+    const temNum=x=>x!==undefined&&x!==null&&x!==''&&!isNaN(+x);
+    const relTemComissao=itens.some(i=>temNum(i.perc_comissao)||temNum(i.comissao_valor));
+    itens.forEach(i=>{ if(relTemComissao && !temNum(i.perc_comissao) && !temNum(i.comissao_valor)){ i.comissao_valor=0; i.perc_comissao=0; }
+      i._zero = (temNum(i.comissao_valor)&&+i.comissao_valor===0) || (temNum(i.perc_comissao)&&+i.perc_comissao===0&&!(+i.comissao_valor>0)); });
     if(!itens.length){ msg('🔎 Não consegui ler contratos nesse arquivo. Tente uma foto mais nítida ou o PDF original.'); return; }
     // padrões do relatório (valem quando o contrato não traz o dado)
     const pad={ banco:casar(d.banco||maisComum(itens,'banco'),L.bancos).valor, modalidade:casar(d.modalidade||maisComum(itens,'modalidade'),L.modalidades).valor,
@@ -11583,7 +11595,7 @@ function cancelarUnificacao() {
     const lis=linhas.map((l,i)=>{ const it=l.it;
       const linha1='<b>'+esc(String(it.nome_cliente).toUpperCase())+'</b>'+(it.cpf?' · CPF '+esc(it.cpf):'')+'<br><span class="ia-cinza">📅 vai para <b>'+esc(vaiPara(it))+'</b></span>';
       const linha2=[it.banco?esc(it.banco):'', it.modalidade?esc(it.modalidade):'', it.tipo_op?esc(it.tipo_op):''].filter(Boolean).join(' · ');
-      const linha3=['Contrato R$ '+fmtBR(it.valor_contrato), it.perc_comissao?String(it.perc_comissao).replace('.',',')+'%':'', it.comissao_valor?'Comissão R$ '+fmtBR(it.comissao_valor):''].filter(Boolean).join(' · ');
+      const linha3=['Contrato R$ '+fmtBR(it.valor_contrato), it._zero?'<span class="ia-aviso">Comissão R$ 0,00 no relatório (sem incentivo)</span>':(it.perc_comissao?String(it.perc_comissao).replace('.',',')+'%':''), (!it._zero&&it.comissao_valor)?'Comissão R$ '+fmtBR(it.comissao_valor):''].filter(Boolean).join(' · ');
       const linha4=[it.num_contrato?'Nº '+esc(it.num_contrato):'', it.prazo?it.prazo+'x':'', it.valor_parcela?'parcela R$ '+fmtBR(it.valor_parcela):'',
         it.data_digitacao?'dig. '+fmtData(it.data_digitacao):'', it.data_pagamento_cliente?'pago '+fmtData(it.data_pagamento_cliente):'', it.telefone?'📞 '+esc(it.telefone):''].filter(Boolean).join(' · ');
       let ex='';
@@ -11592,7 +11604,7 @@ function cancelarUnificacao() {
         ex='<div class="ia-exist"><b>🔄 Já está no sistema</b> (digitado '+fmtData(l.existe.data_dig)+(l.existe.mes_ref?' · '+esc(l.existe.mes_ref):'')+' · '+statusDe(l.existe)+') — não vai duplicar.'
           +'<span data-pago="'+i+'"></span>'
           +(p.pre.length?'<br>✍️ Vai preencher: '+p.pre.map(x=>esc(x.rot)+' <b>'+esc(x.txt)+'</b>').join(' · '):'')
-          +(p.dif.length?'<br><span class="ia-aviso">❗ Diferente do relatório (vai para Observações para você decidir):</span>'+p.dif.map(x=>'<br>&nbsp;• '+esc(x.rot)+': sistema <b>'+esc(x.sis)+'</b> · relatório <b>'+esc(x.rel)+'</b>').join(''):'')
+          +(p.dif.length?'<br><span class="ia-aviso">❗ Diferente do relatório:</span>'+p.dif.map(x=>'<br>&nbsp;• '+esc(x.rot)+': sistema <b>'+esc(x.sis)+'</b> · relatório <b>'+esc(x.rel)+'</b> <span class="ia-cinza">'+(x.comissao?'→ corrige se a caixa "Corrigir % e comissão" estiver marcada':'→ vai para Observações (❗ Revisar)')+'</span>').join(''):'')
           +(!tem?'<br>✓ Cadastro já está completo e igual ao relatório.':'')+'</div>';
       }
       const marcado = l.existe ? temMudanca(l) : true;
@@ -11604,6 +11616,7 @@ function cancelarUnificacao() {
     el.innerHTML='<div class="ia-card-h"><span>📄 Conferir relatório</span><span>'+itens.length+' lido(s)</span></div>'
       +'<div class="ia-sec" style="background:#F5F6FB"><b>🆕 '+nNovos+' novo(s)</b> para lançar · <b>✅ '+nCompl+'</b> já lançado(s) para atualizar'+(linhas.some(l=>l.existe&&l.plano.dif.length)?' · <b>❗ '+linhas.filter(l=>l.existe&&l.plano.dif.length).length+'</b> com diferença':'')+(faltando.length?' · <b>❓ '+faltando.length+'</b> fora do relatório':'')+'</div>'
       +'<div class="ia-card-g"><div class="full" style="font-size:.7rem;font-weight:800;color:#383772">VALE PARA TODOS (quando o contrato não traz o dado)</div>'+campos+'</div>'
+      +(linhas.some(l=>l.existe&&l.plano.dif.some(x=>x.comissao))?'<label class="ia-lote-l" style="margin:0 12px 8px;background:#FFF7E6"><input type="checkbox" data-corrcom checked><span><b>Corrigir % e comissão para o valor do relatório</b><br><span class="ia-cinza">'+linhas.filter(l=>l.existe&&l.plano.dif.some(x=>x.comissao)).length+' contrato(s) estão com comissão diferente no sistema (ex.: relatório R$ 0,00)</span></span></label>':'')
       +'<div class="ia-lote">'+lis+'</div>'
       +(faltando.length?'<div class="ia-sec"><b>❓ No sistema e não estão no relatório: '+faltando.length+'</b><br><span class="ia-cinza">'+esc(pad.banco)+' · '+mesCurto(mesRef)+' · ainda em aberto — vale cobrar o banco. Nada será alterado neles.</span>'
         +faltando.slice(0,15).map(r=>linha(esc(r.nome_cliente)+' · R$ '+fmtBR(r.valor_cliente)+' · comissão R$ '+fmtBR(r.comissao)+' <span class="ia-cinza">dig. '+fmtData(r.data_dig)+'</span>',btn('📋 Abrir','abrir_contrato',{id:r.id}))).join('')
@@ -11611,7 +11624,8 @@ function cancelarUnificacao() {
       +'<div class="ia-sec ia-cinza" style="font-size:.72rem">Confira os nomes e valores com o PDF antes. Os novos passam pelo mesmo salvamento da tela Lançar.</div>'
       +'<div class="ia-card-a"><button class="ia-ok">✅ Lançar</button><button class="ia-x">✕</button></div>';
     $('ia-msgs').appendChild(el); rolar();
-    const pagoAtual=()=>{ const v=ler(el); return el.querySelector('[data-marcarpago]:checked') ? {datarec:v.datapago||hojeISO()} : null; };
+    const pagoAtual=()=>{ const v=ler(el); const corr=!!el.querySelector('[data-corrcom]:checked');
+      return el.querySelector('[data-marcarpago]:checked') ? {datarec:v.datapago||hojeISO(),corrigirComissao:corr} : (corr?{datarec:null,corrigirComissao:true,soComissao:true}:null); };
     const contar=()=>{ const pg=pagoAtual();
       linhas.forEach((l,i)=>{ if(!l.existe) return; const sp=el.querySelector('[data-pago="'+i+'"]'); if(!sp) return;
         const pp=planoPago(l.existe,l.it,pg); sp.innerHTML=pp.length?'<br>✅ Vai marcar: '+pp.map(x=>esc(x.rot)+' <b>'+esc(x.txt)+'</b>').join(' · '):(pg?'<br>✓ Já está PAGO com as datas preenchidas.':''); });
@@ -11620,6 +11634,7 @@ function cancelarUnificacao() {
       el.querySelector('.ia-ok').textContent='✅ '+[nv?'Lançar '+nv+' novo(s)':'', nc?'Atualizar '+nc:''].filter(Boolean).join(' e ')||'✅ Nada selecionado'; };
     el.querySelectorAll('[data-k]').forEach(c=>c.onchange=contar);
     el.querySelector('[data-marcarpago]').addEventListener('change',contar);
+    const cc=el.querySelector('[data-corrcom]'); if(cc) cc.addEventListener('change',contar);
     el.querySelector('[data-c="datapago"]').addEventListener('input',contar); contar();
     ligarBotoes(el);
     el.querySelector('.ia-x').onclick=()=>el.remove();
@@ -11631,7 +11646,7 @@ function cancelarUnificacao() {
       const i=+b.dataset.edit; const v=ler(el); const it=linhas[i].it;
       const cb=el.querySelector('[data-k="'+i+'"]'); if(cb){ cb.checked=false; contar(); }
       cardAcao('lancar_comissao',Object.assign({},it,{banco:it.banco||v.banco,modalidade:it.modalidade||v.modalidade,tipo_op:it.tipo_op||v.tipo_op,
-        promotora:it.promotora||v.promotora,perc_comissao:it.perc_comissao||(v.perc?numBR(v.perc):undefined),mes_referencia:v.mesref||undefined},
+        promotora:it.promotora||v.promotora,perc_comissao:it._zero?0:(it.perc_comissao||(v.perc?numBR(v.perc):undefined)),mes_referencia:v.mesref||undefined},
         pagoAtual()?{status:'PAGO',data_comissao_recebida:it.data_comissao_recebida||v.datapago,data_pagamento_cliente:it.data_pagamento_cliente||v.datapago}:{status:it.status||v.status}));
     });
     el.querySelector('.ia-ok').onclick=async()=>{
@@ -11647,18 +11662,20 @@ function cancelarUnificacao() {
       let ok=0; const falhas=[];
       const antes=completar.map(c=>{ const x=todosLancamentos.find(y=>y&&y.id===c.r.id); return x?{...x}:null; }).filter(Boolean);
       const idsAntes=new Set(todosLancamentos.filter(Boolean).map(x=>x.id));
-      const nPagos = pg ? completar.filter(c=>statusDe(c.r)!=='PAGO').length : 0;
+      const pagar = !!(pg && !pg.soComissao);
+      const nPagos = pagar ? completar.filter(c=>statusDe(c.r)!=='PAGO').length : 0;
       const nComp = completar.length ? aplicarComplementos(completar,pg) : 0;
-      const nRevisar = completar.filter(c=>c.plano.dif.length).length;
+      const nRevisar = completar.filter(c=>(pg&&pg.corrigirComissao ? c.plano.dif.filter(d=>!d.comissao) : c.plano.dif).length).length;
       for(let i=0;i<sel.length;i++){
         const it=sel[i]; bOk.textContent='⏳ Lançando '+(i+1)+' de '+sel.length+'...';
         const r={ nome:String(it.nome_cliente).toUpperCase(),
           modalidade:casar(it.modalidade,L.modalidades).valor||v.modalidade, banco:casar(it.banco,L.bancos).valor||v.banco,
           tipo_op:(it.tipo_op?casar(it.tipo_op,L.tipos_op).valor:'')||v.tipo_op||'NOVO', promotora:(it.promotora?casar(it.promotora,L.promotoras).valor:'')||v.promotora||'',
-          valor:it.valor_contrato?fmtBR(it.valor_contrato):'', perc:it.perc_comissao?String(it.perc_comissao).replace('.',','):(v.perc||''),
-          comissao:it.comissao_valor?fmtBR(it.comissao_valor):'', pact:it.pacote_fixo?fmtBR(it.pacote_fixo):'',
-          data_dig:it.data_digitacao||it.data_pagamento_cliente||(v.mesref?v.mesref+'-01':hojeISO()), data_pg:it.data_pagamento_cliente||(pg?pg.datarec:''), mes_ref:v.mesref||'',
-          status:pg?'PAGO':(it.status||v.status||'ABERTO'), data_rec:it.data_comissao_recebida||(pg?pg.datarec:'') };
+          valor:it.valor_contrato?fmtBR(it.valor_contrato):'',
+          perc: it._zero ? '0' : (it.perc_comissao?String(it.perc_comissao).replace('.',','):(v.perc||'')),
+          comissao: it._zero ? '' : (it.comissao_valor?fmtBR(it.comissao_valor):''), pact:it.pacote_fixo?fmtBR(it.pacote_fixo):'',
+          data_dig:it.data_digitacao||it.data_pagamento_cliente||(v.mesref?v.mesref+'-01':hojeISO()), data_pg:it.data_pagamento_cliente||(pagar?pg.datarec:''), mes_ref:v.mesref||'',
+          status:pagar?'PAGO':(it.status||v.status||'ABERTO'), data_rec:it.data_comissao_recebida||(pagar?pg.datarec:'') };
         if(it.cpf) r.cpf=it.cpf; if(it.telefone) r.telefone=it.telefone; if(it.num_contrato) r.num_contrato=it.num_contrato;
         if(it.prazo) r.prazo=String(it.prazo); if(it.valor_parcela) r.valor_parcela=String(it.valor_parcela); if(it.obs) r.obs=it.obs;
         try{ (await fazerComissao(r,true,true)) ? ok++ : falhas.push(r.nome); }catch(e){ falhas.push(r.nome); }
@@ -11672,7 +11689,7 @@ function cancelarUnificacao() {
       const und=document.createElement('div'); und.className='ia-sec'; und.innerHTML='Concluído. '+btn('↩️ Desfazer tudo','__undo',{}); el.appendChild(und);
       und.querySelector('.ia-mini').onclick=()=>{ const n=desfazerLote(loteId); und.innerHTML=n?'↩️ Desfeito — '+n+' contrato(s) voltaram como estavam (novos removidos).':'Não consegui desfazer.'; if(n) el.querySelector('.ia-card-h span:last-child').textContent='↩️ desfeito'; };
       registrarLog('conferir_relatorio',ok+' novos, '+nComp+' atualizados, '+nPagos+' marcados PAGO');
-      msg('✅ '+ok+' contrato(s) novo(s) lançado(s) e '+nComp+' já lançado(s) atualizado(s)'+(pg?' ('+nPagos+' marcado(s) como PAGO)':'')+'.'
+      msg('✅ '+ok+' contrato(s) novo(s) lançado(s) e '+nComp+' já lançado(s) atualizado(s)'+(pagar?' ('+nPagos+' marcado(s) como PAGO)':'')+'.'
         +(faltando.length?'\n❓ '+faltando.length+' contrato(s) do '+pad.banco+' em '+mesCurto(mesRef)+' seguem em aberto e não vieram no relatório.':'')
         +(nRevisar?'\n❗ '+nRevisar+' cliente(s) ficaram marcados com ❗ Revisar na aba Clientes — os dados diferentes estão nas Observações.':'')
         +(falhas.length?'\n⚠️ Não lançados: '+falhas.join(', '):''));
@@ -12061,7 +12078,7 @@ function cancelarUnificacao() {
        selecionarItem(tipo,val);
      });
     set('f-valor',v.valor?fmtBR(numBR(v.valor)):'');
-    set('f-perc',v.perc?fmtBR(numBR(v.perc)):'');
+    set('f-perc',(v.perc!==undefined&&v.perc!==null&&String(v.perc).trim()!=='')?fmtBR(numBR(v.perc)):'');
     set('f-pact-fixo',v.pact?fmtBR(numBR(v.pact)):'');
     set('f-status',v.status||'ABERTO');
     if(typeof onStatusComissaoChange==='function') onStatusComissaoChange();

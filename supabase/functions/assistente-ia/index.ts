@@ -516,7 +516,10 @@ SEU TRABALHO: transformar o pedido da Carol em lançamentos ou atualizações us
   • relatório de CONTRATOS PAGOS / produção / propostas digitadas (lista de clientes com valores) → lancar_comissoes_lote com UM item por contrato,
     preenchendo nome, CPF, nº contrato/ADE, banco, modalidade, tipo de operação, valor, prazo, parcela, datas e % ou comissão quando houver.
     Leia TODAS as páginas e TODAS as linhas; não pule nenhum contrato. Datas sempre AAAA-MM-DD. "Data de pagamento"/"averbação" → data_pagamento_cliente.
-    Se a data de digitação não aparecer, deixe vazia. Status da comissão ABERTO, a menos que o relatório diga que a comissão foi paga.
+    Se a data de digitação não aparecer, deixe vazia.
+    VALORES ZERADOS: se a linha mostra % 0,00 e/ou comissão/incentivo 0,00, mande perc_comissao: 0 e comissao_valor: 0 (NÃO omita, NÃO estime).
+    Nunca calcule nem invente % ou comissão que não esteja escrito no documento. Coluna "VLR INCEN."/"Incentivo"/"Comissão" = comissao_valor; "%" = perc_comissao.
+    Ex. FACTA: "DT PGTO" = data_pagamento_cliente, "DT EMISSAO" = data_digitacao, "N.CTT" = num_contrato, "VLR EMPR." = valor_contrato, convênio com INSS/CONSIGNADO DO TRABALHADOR indica a modalidade e o tipo (PORTABILIDADE, REFIN DA PORTABILIDADE, NOVO). Status da comissão ABERTO, a menos que o relatório diga que a comissão foi paga.
     O sistema confere sozinho quais contratos já existem (não duplica), lança os que faltam e marca como PAGO os que constam — então mande TODOS.
     "confere esse relatório", "lança e baixa esse relatório", "atualiza com esse PDF" → também lancar_comissoes_lote.
     MÊS DE REFERÊNCIA: procure no documento "Período de Pagamento" (às vezes escrito com acento quebrado, como "PerÃ­odo de Pagamento"),
