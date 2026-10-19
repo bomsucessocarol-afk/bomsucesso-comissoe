@@ -325,6 +325,11 @@ const FERRAMENTAS = [
     parameters: {
       type: "object",
       properties: {
+        data_pagamento: {
+          type: "string",
+          description: "AAAA-MM-DD — data do pagamento do relatório (a data única do relatório; se houver período, o último dia do Período de Pagamento). Usada para Dt. Comissão Recebida e Dt. Pagamento.",
+        },
+        marcar_pago: { type: "boolean", description: "false só se ela disser para NÃO marcar como pago. Padrão: true" },
         mes_referencia: {
           type: "string",
           description: "AAAA-MM em que TODOS os contratos devem ser lançados. Use o mês que a Carol disser (\"lança no mês 02/2026\") ou, se ela não disser, o mês/ano do campo \"Período de Pagamento\" (ou Referência/Competência) do documento.",
@@ -512,7 +517,8 @@ SEU TRABALHO: transformar o pedido da Carol em lançamentos ou atualizações us
     preenchendo nome, CPF, nº contrato/ADE, banco, modalidade, tipo de operação, valor, prazo, parcela, datas e % ou comissão quando houver.
     Leia TODAS as páginas e TODAS as linhas; não pule nenhum contrato. Datas sempre AAAA-MM-DD. "Data de pagamento"/"averbação" → data_pagamento_cliente.
     Se a data de digitação não aparecer, deixe vazia. Status da comissão ABERTO, a menos que o relatório diga que a comissão foi paga.
-    O sistema confere sozinho quais contratos já existem, então mande todos.
+    O sistema confere sozinho quais contratos já existem (não duplica), lança os que faltam e marca como PAGO os que constam — então mande TODOS.
+    "confere esse relatório", "lança e baixa esse relatório", "atualiza com esse PDF" → também lancar_comissoes_lote.
     MÊS DE REFERÊNCIA: procure no documento "Período de Pagamento" (às vezes escrito com acento quebrado, como "PerÃ­odo de Pagamento"),
     "Referência", "Competência" ou "Mês de pagamento" e coloque o mês/ano em mes_referencia (AAAA-MM). Ex: "Período de Pagamento: 01/02/2026 a 28/02/2026" → "2026-02".
     Se a Carol disser o mês ("lança no mês 02/2026", "joga em fevereiro"), isso vale mais que o documento.

@@ -10356,6 +10356,8 @@ function cancelarUnificacao() {
 .ia-card-del{border-color:#DC2626}.ia-card-del .ia-card-h{background:#FEE2E2;color:#991B1B}
 .ia-diff{margin-top:4px}.ia-dl{font-size:.72rem;color:#1f1f3a}.ia-dl s{color:#9a9cb8}.ia-dl-c{color:#b45309}
 .ia-avisos .ia-sec{border-bottom:none;padding:5px 12px}
+.ia-card-g label.ia-lote-l{display:flex;font-size:.76rem;text-transform:none;font-weight:400;color:#1f1f3a;margin:0}
+.ia-card-g label.ia-lote-l b{font-size:.8rem}
 .ia-pensando{align-self:flex-start;font-size:.78rem;color:#6b6d8f;font-style:italic}
 @media(max-width:768px){
   #ia-fab{bottom:84px;right:14px;width:52px;height:52px;font-size:23px}
@@ -11233,6 +11235,9 @@ function cancelarUnificacao() {
   function desfazerLote(id){
     let l=[]; try{ l=JSON.parse(localStorage.getItem('bs_ia_lotes')||'[]'); }catch(e){}
     const lt=l.find(x=>x.id===id); if(!lt||lt.desfeito) return 0; let n=0;
+    (lt.novos||[]).forEach(nid=>{ const gi=todosLancamentos.findIndex(x=>x&&x.id===nid); if(gi<0) return; todosLancamentos.splice(gi,1);
+      if(typeof dadosFiltrados!=='undefined'){ const fi=dadosFiltrados.findIndex(x=>x&&x.id===nid); if(fi>-1) dadosFiltrados.splice(fi,1); }
+      try{ supabaseDeletar(nid); }catch(e){} try{ bsJsonpGet(APPS_URL,{action:'deletarLancamento',id:nid,t:Date.now()}); }catch(e){} n++; });
     lt.antes.forEach(r=>{ const gi=todosLancamentos.findIndex(x=>x&&x.id===r.id); if(gi<0) return; todosLancamentos[gi]={...r};
       if(typeof dadosFiltrados!=='undefined'){ const fi=dadosFiltrados.findIndex(x=>x&&x.id===r.id); if(fi>-1) dadosFiltrados[fi]={...r}; } n++; });
     salvarCacheCompleto(); try{ renderTabela(); }catch(e){} try{ renderResumo(); }catch(e){}
@@ -11517,9 +11522,17 @@ function cancelarUnificacao() {
     if(it._mesref){ const k=mesRefDe(it._mesref); if(k){ if(!r.mes_ref) pre.push({campo:'mes_ref',rot:'Mês de referência',valor:k,txt:k}); else if(r.mes_ref!==k) dif.push({rot:'Mês de referência',sis:r.mes_ref,rel:k}); } }
     return {pre,dif};
   }
-  function aplicarComplementos(lista){
+  // O que muda para ficar PAGO (status + Dt. Comissão Recebida + Dt. Pagamento) — só preenche datas vazias
+  function planoPago(r,it,pago){
+    const out=[]; if(!pago) return out;
+    if(statusDe(r)!=='PAGO') out.push({campo:'status',rot:'Status',valor:'PAGO',txt:'PAGO'});
+    if(!r.data_comissao_rec){ const v=it.data_comissao_recebida||pago.datarec; if(v) out.push({campo:'data_comissao_rec',rot:'Dt. Comissão Recebida',valor:v,txt:fmtData(v)}); }
+    if(!r.data_pg){ const v=it.data_pagamento_cliente||pago.datarec; if(v) out.push({campo:'data_pg',rot:'Dt. Pagamento',valor:v,txt:fmtData(v)}); }
+    return out;
+  }
+  function aplicarComplementos(lista,pago){
     let n=0; const hoje=fmtData(hojeISO());
-    lista.forEach(({r:orig,plano})=>{
+    lista.forEach(({r:orig,plano,it})=>{
       const gi=todosLancamentos.findIndex(x=>x&&x.id===orig.id); if(gi<0) return;
       const r={...todosLancamentos[gi]};
       plano.pre.forEach(p=>{ r[p.campo]=p.valor; if(p.campo==='tipo_op') r.operacao=p.valor; });
@@ -11529,11 +11542,12 @@ function cancelarUnificacao() {
         const nota='❗ Relatório '+hoje+': '+plano.dif.map(d=>d.rot+' '+d.rel+' (sistema '+d.sis+')').join('; ');
         r.obs=((r.obs?String(r.obs).trim()+' | ':'')+nota).slice(0,600);
       }
+      if(pago){ const pp=planoPago(r,it||{},pago); pp.forEach(x=>{ r[x.campo]=x.valor; if(x.campo==='status') r.status_comissao=x.valor; }); }
       todosLancamentos[gi]=r;
       if(typeof dadosFiltrados!=='undefined'){ const fi=dadosFiltrados.findIndex(x=>x&&x.id===r.id); if(fi>-1) dadosFiltrados[fi]=r; }
       n++;
     });
-    if(n){ salvarCacheCompleto(); try{ renderTabela(); }catch(e){} try{ renderResumo(); }catch(e){} }
+    if(n){ salvarCacheCompleto(); try{ renderTabela(); }catch(e){} try{ renderResumo(); }catch(e){} try{ atualizarSininho(); }catch(e){} }
     return n;
   }
   function maisComum(itens,k){ const c={}; itens.forEach(i=>{ if(i[k]) c[i[k]]=(c[i[k]]||0)+1; }); const t=Object.keys(c).sort((a,b)=>c[b]-c[a])[0]; return t && c[t]>=itens.length/2 ? t : ''; }
@@ -11546,16 +11560,25 @@ function cancelarUnificacao() {
     const pad={ banco:casar(d.banco||maisComum(itens,'banco'),L.bancos).valor, modalidade:casar(d.modalidade||maisComum(itens,'modalidade'),L.modalidades).valor,
       tipo_op:casar(d.tipo_op||'NOVO',L.tipos_op).valor, promotora:casar(d.promotora||maisComum(itens,'promotora'),L.promotoras).valor,
       status:d.status||'ABERTO', perc:d.perc_comissao?String(d.perc_comissao).replace('.',','):'' };
+    const marcarPagoIni = d.marcar_pago!==false;
+    const dataPagoIni = d.data_pagamento ? String(d.data_pagamento).slice(0,10) : hojeISO();
     const mesRef=d.mes_referencia?String(d.mes_referencia).slice(0,7):'';
     const linhas=itens.map(it=>{ const existe=jaExiste(it,mesRef); return {it, existe, plano: existe?planoComplemento(existe,Object.assign({},it,{_mesref:mesRef})):null}; });
     const vaiPara=it=>{ const m=mesRef||String(it.data_digitacao||it.data_pagamento_cliente||hojeISO()).slice(0,7); return mesCurto(m)+(mesRef?'':(it.data_digitacao||it.data_pagamento_cliente?' (pela data)':' (⚠️ sem data — mês atual)')); };
-    const nNovos=linhas.filter(l=>!l.existe).length, nCompl=linhas.filter(l=>l.existe && (l.plano.pre.length||l.plano.dif.length)).length;
-    const campos = campo('mesref','📅 Mês de referência',mesRef,{type:'month',aviso:mesRef?(d.mes_lido_do_pdf===false?'':'Lido do PDF/mensagem — confira'):'Vazio = usa a data de cada contrato'})
+    const pagoIni = marcarPagoIni ? {datarec:dataPagoIni} : null;
+    const temMudanca = l => l.plano.pre.length||l.plano.dif.length||planoPago(l.existe,l.it,pagoIni).length;
+    const nNovos=linhas.filter(l=>!l.existe).length, nCompl=linhas.filter(l=>l.existe && temMudanca(l)).length;
+    // Contratos do sistema (mesmo banco e mês) ainda em aberto que NÃO vieram no relatório
+    const idsAchados=new Set(linhas.filter(l=>l.existe).map(l=>l.existe.id));
+    const faltando = (mesRef && pad.banco) ? L_().filter(r=>r && !idsAchados.has(r.id) && statusDe(r)!=='PAGO' && contem(r.banco,pad.banco) && doMes(r,mesRef)) : [];
+    const campos = '<label class="ia-lote-l full" style="background:#F0FDF4"><input type="checkbox" data-marcarpago'+(marcarPagoIni?' checked':'')+'><span><b>✅ Marcar como PAGO quem está no relatório</b><br><span class="ia-cinza">Status PAGO + Dt. Comissão Recebida + Dt. Pagamento (datas só onde estiverem vazias)</span></span></label>'
+      + campo('datapago','Data do pagamento (relatório)',dataPagoIni,{type:'date',aviso:'Usada quando o contrato não traz a própria data'})
+      + campo('mesref','📅 Mês de referência',mesRef,{type:'month',aviso:mesRef?(d.mes_lido_do_pdf===false?'':'Lido do PDF/mensagem — confira'):'Vazio = usa a data de cada contrato'})
       + campo('banco','Banco (padrão)',pad.banco,{select:comOpcao(['',...L.bancos],pad.banco)})
       + campo('modalidade','Modalidade (padrão)',pad.modalidade,{select:comOpcao(['',...L.modalidades],pad.modalidade)})
       + campo('tipo_op','Tipo de operação (padrão)',pad.tipo_op,{select:comOpcao(L.tipos_op,pad.tipo_op)})
       + campo('promotora','Promotora',pad.promotora,{select:comOpcao(['',...L.promotoras],pad.promotora)})
-      + campo('status','Status da comissão',pad.status,{select:['ABERTO','PAGO']})
+      + campo('status','Status (se não marcar como pago)',pad.status,{select:['ABERTO','PAGO']})
       + campo('perc','% comissão (se o relatório não trouxer)',pad.perc,{ph:'sugestão automática'});
     const lis=linhas.map((l,i)=>{ const it=l.it;
       const linha1='<b>'+esc(String(it.nome_cliente).toUpperCase())+'</b>'+(it.cpf?' · CPF '+esc(it.cpf):'')+'<br><span class="ia-cinza">📅 vai para <b>'+esc(vaiPara(it))+'</b></span>';
@@ -11565,50 +11588,67 @@ function cancelarUnificacao() {
         it.data_digitacao?'dig. '+fmtData(it.data_digitacao):'', it.data_pagamento_cliente?'pago '+fmtData(it.data_pagamento_cliente):'', it.telefone?'📞 '+esc(it.telefone):''].filter(Boolean).join(' · ');
       let ex='';
       if(l.existe){
-        const p=l.plano, tem=p.pre.length||p.dif.length;
-        ex='<div class="ia-exist"><b>🔄 Já está no sistema</b> (digitado '+fmtData(l.existe.data_dig)+(l.existe.mes_ref?' · '+esc(l.existe.mes_ref):'')+') — não vai duplicar.'
+        const p=l.plano, tem=temMudanca(l);
+        ex='<div class="ia-exist"><b>🔄 Já está no sistema</b> (digitado '+fmtData(l.existe.data_dig)+(l.existe.mes_ref?' · '+esc(l.existe.mes_ref):'')+' · '+statusDe(l.existe)+') — não vai duplicar.'
+          +'<span data-pago="'+i+'"></span>'
           +(p.pre.length?'<br>✍️ Vai preencher: '+p.pre.map(x=>esc(x.rot)+' <b>'+esc(x.txt)+'</b>').join(' · '):'')
           +(p.dif.length?'<br><span class="ia-aviso">❗ Diferente do relatório (vai para Observações para você decidir):</span>'+p.dif.map(x=>'<br>&nbsp;• '+esc(x.rot)+': sistema <b>'+esc(x.sis)+'</b> · relatório <b>'+esc(x.rel)+'</b>').join(''):'')
           +(!tem?'<br>✓ Cadastro já está completo e igual ao relatório.':'')+'</div>';
       }
-      const marcado = l.existe ? (l.plano.pre.length||l.plano.dif.length) : true;
+      const marcado = l.existe ? temMudanca(l) : true;
       return '<label class="ia-lote-l'+(l.existe?' ia-l-exist':'')+'"><input type="checkbox" data-k="'+i+'"'+(marcado?' checked':'')+'><span>'+linha1+(linha2?'<br>'+linha2:'')+'<br>'+linha3
         +(linha4?'<br><span class="ia-cinza">'+linha4+'</span>':'')+ex
         +(l.existe?'':'<br><button type="button" class="ia-mini" data-edit="'+i+'">✏️ Editar este separado</button>')+'</span></label>';
     }).join('');
     const el=document.createElement('div'); el.className='ia-card';
-    el.innerHTML='<div class="ia-card-h"><span>📄 Contratos do relatório</span><span>'+itens.length+' lido(s) · '+nNovos+' novo(s) · '+nCompl+' a completar</span></div>'
+    el.innerHTML='<div class="ia-card-h"><span>📄 Conferir relatório</span><span>'+itens.length+' lido(s)</span></div>'
+      +'<div class="ia-sec" style="background:#F5F6FB"><b>🆕 '+nNovos+' novo(s)</b> para lançar · <b>✅ '+nCompl+'</b> já lançado(s) para atualizar'+(linhas.some(l=>l.existe&&l.plano.dif.length)?' · <b>❗ '+linhas.filter(l=>l.existe&&l.plano.dif.length).length+'</b> com diferença':'')+(faltando.length?' · <b>❓ '+faltando.length+'</b> fora do relatório':'')+'</div>'
       +'<div class="ia-card-g"><div class="full" style="font-size:.7rem;font-weight:800;color:#383772">VALE PARA TODOS (quando o contrato não traz o dado)</div>'+campos+'</div>'
       +'<div class="ia-lote">'+lis+'</div>'
-      +'<div class="ia-sec ia-cinza" style="font-size:.72rem">Confira os nomes e valores com o PDF antes de lançar. Cada contrato passa pelo mesmo salvamento da tela Lançar.</div>'
+      +(faltando.length?'<div class="ia-sec"><b>❓ No sistema e não estão no relatório: '+faltando.length+'</b><br><span class="ia-cinza">'+esc(pad.banco)+' · '+mesCurto(mesRef)+' · ainda em aberto — vale cobrar o banco. Nada será alterado neles.</span>'
+        +faltando.slice(0,15).map(r=>linha(esc(r.nome_cliente)+' · R$ '+fmtBR(r.valor_cliente)+' · comissão R$ '+fmtBR(r.comissao)+' <span class="ia-cinza">dig. '+fmtData(r.data_dig)+'</span>',btn('📋 Abrir','abrir_contrato',{id:r.id}))).join('')
+        +(faltando.length>15?'<div class="ia-cinza">+ '+(faltando.length-15)+' outros</div>':'')+'</div>':'')
+      +'<div class="ia-sec ia-cinza" style="font-size:.72rem">Confira os nomes e valores com o PDF antes. Os novos passam pelo mesmo salvamento da tela Lançar.</div>'
       +'<div class="ia-card-a"><button class="ia-ok">✅ Lançar</button><button class="ia-x">✕</button></div>';
     $('ia-msgs').appendChild(el); rolar();
-    const contar=()=>{ const sel=[...el.querySelectorAll('[data-k]:checked')].map(c=>linhas[+c.dataset.k]);
+    const pagoAtual=()=>{ const v=ler(el); return el.querySelector('[data-marcarpago]:checked') ? {datarec:v.datapago||hojeISO()} : null; };
+    const contar=()=>{ const pg=pagoAtual();
+      linhas.forEach((l,i)=>{ if(!l.existe) return; const sp=el.querySelector('[data-pago="'+i+'"]'); if(!sp) return;
+        const pp=planoPago(l.existe,l.it,pg); sp.innerHTML=pp.length?'<br>✅ Vai marcar: '+pp.map(x=>esc(x.rot)+' <b>'+esc(x.txt)+'</b>').join(' · '):(pg?'<br>✓ Já está PAGO com as datas preenchidas.':''); });
+      const sel=[...el.querySelectorAll('[data-k]:checked')].map(c=>linhas[+c.dataset.k]);
       const nv=sel.filter(l=>!l.existe).length, nc=sel.length-nv;
-      el.querySelector('.ia-ok').textContent='✅ '+[nv?'Lançar '+nv+' novo(s)':'', nc?'Completar '+nc:''].filter(Boolean).join(' e ')||'✅ Nada selecionado'; };
-    el.querySelectorAll('[data-k]').forEach(c=>c.onchange=contar); contar();
+      el.querySelector('.ia-ok').textContent='✅ '+[nv?'Lançar '+nv+' novo(s)':'', nc?'Atualizar '+nc:''].filter(Boolean).join(' e ')||'✅ Nada selecionado'; };
+    el.querySelectorAll('[data-k]').forEach(c=>c.onchange=contar);
+    el.querySelector('[data-marcarpago]').addEventListener('change',contar);
+    el.querySelector('[data-c="datapago"]').addEventListener('input',contar); contar();
+    ligarBotoes(el);
     el.querySelector('.ia-x').onclick=()=>el.remove();
     const campoMes=el.querySelector('[data-c="mesref"]');
     if(campoMes) campoMes.addEventListener('change',()=>{ const v=ler(el);
-      const nd=Object.assign({},d,{mes_referencia:v.mesref||'',banco:v.banco,modalidade:v.modalidade,tipo_op:v.tipo_op,promotora:v.promotora,status:v.status,perc_comissao:v.perc?numBR(v.perc):d.perc_comissao});
+      const nd=Object.assign({},d,{marcar_pago:!!el.querySelector('[data-marcarpago]:checked'),data_pagamento:v.datapago,mes_referencia:v.mesref||'',banco:v.banco,modalidade:v.modalidade,tipo_op:v.tipo_op,promotora:v.promotora,status:v.status,perc_comissao:v.perc?numBR(v.perc):d.perc_comissao});
       el.remove(); cardLoteLancamentos(nd); });
     el.querySelectorAll('[data-edit]').forEach(b=>b.onclick=ev=>{ ev.preventDefault(); ev.stopPropagation();
       const i=+b.dataset.edit; const v=ler(el); const it=linhas[i].it;
       const cb=el.querySelector('[data-k="'+i+'"]'); if(cb){ cb.checked=false; contar(); }
       cardAcao('lancar_comissao',Object.assign({},it,{banco:it.banco||v.banco,modalidade:it.modalidade||v.modalidade,tipo_op:it.tipo_op||v.tipo_op,
-        promotora:it.promotora||v.promotora,status:it.status||v.status,perc_comissao:it.perc_comissao||(v.perc?numBR(v.perc):undefined),mes_referencia:v.mesref||undefined}));
+        promotora:it.promotora||v.promotora,perc_comissao:it.perc_comissao||(v.perc?numBR(v.perc):undefined),mes_referencia:v.mesref||undefined},
+        pagoAtual()?{status:'PAGO',data_comissao_recebida:it.data_comissao_recebida||v.datapago,data_pagamento_cliente:it.data_pagamento_cliente||v.datapago}:{status:it.status||v.status}));
     });
     el.querySelector('.ia-ok').onclick=async()=>{
       if(iaOcupado) return;
       const v=ler(el); const marcadas=[...el.querySelectorAll('[data-k]:checked')].map(c=>linhas[+c.dataset.k]);
       if(!marcadas.length){ msg('Nenhum contrato selecionado.'); return; }
-      const completar=marcadas.filter(l=>l.existe).map(l=>({r:l.existe,plano:l.plano}));
+      const pg=pagoAtual();
+      const completar=marcadas.filter(l=>l.existe).map(l=>({r:l.existe,plano:l.plano,it:l.it}));
       const sel=marcadas.filter(l=>!l.existe).map(l=>l.it);
       const semDados=sel.filter(it=>!(it.banco||v.banco)||!(it.modalidade||v.modalidade));
       if(semDados.length){ msg('⚠️ Escolha o Banco e a Modalidade padrão — '+semDados.length+' contrato(s) vieram sem esses dados.','erro'); return; }
       iaOcupado=true; const bOk=el.querySelector('.ia-ok'); bOk.disabled=true;
       let ok=0; const falhas=[];
-      const nComp = completar.length ? aplicarComplementos(completar) : 0;
+      const antes=completar.map(c=>{ const x=todosLancamentos.find(y=>y&&y.id===c.r.id); return x?{...x}:null; }).filter(Boolean);
+      const idsAntes=new Set(todosLancamentos.filter(Boolean).map(x=>x.id));
+      const nPagos = pg ? completar.filter(c=>statusDe(c.r)!=='PAGO').length : 0;
+      const nComp = completar.length ? aplicarComplementos(completar,pg) : 0;
       const nRevisar = completar.filter(c=>c.plano.dif.length).length;
       for(let i=0;i<sel.length;i++){
         const it=sel[i]; bOk.textContent='⏳ Lançando '+(i+1)+' de '+sel.length+'...';
@@ -11617,18 +11657,23 @@ function cancelarUnificacao() {
           tipo_op:(it.tipo_op?casar(it.tipo_op,L.tipos_op).valor:'')||v.tipo_op||'NOVO', promotora:(it.promotora?casar(it.promotora,L.promotoras).valor:'')||v.promotora||'',
           valor:it.valor_contrato?fmtBR(it.valor_contrato):'', perc:it.perc_comissao?String(it.perc_comissao).replace('.',','):(v.perc||''),
           comissao:it.comissao_valor?fmtBR(it.comissao_valor):'', pact:it.pacote_fixo?fmtBR(it.pacote_fixo):'',
-          data_dig:it.data_digitacao||it.data_pagamento_cliente||(v.mesref?v.mesref+'-01':hojeISO()), data_pg:it.data_pagamento_cliente||'', mes_ref:v.mesref||'',
-          status:it.status||v.status||'ABERTO', data_rec:it.data_comissao_recebida||'' };
+          data_dig:it.data_digitacao||it.data_pagamento_cliente||(v.mesref?v.mesref+'-01':hojeISO()), data_pg:it.data_pagamento_cliente||(pg?pg.datarec:''), mes_ref:v.mesref||'',
+          status:pg?'PAGO':(it.status||v.status||'ABERTO'), data_rec:it.data_comissao_recebida||(pg?pg.datarec:'') };
         if(it.cpf) r.cpf=it.cpf; if(it.telefone) r.telefone=it.telefone; if(it.num_contrato) r.num_contrato=it.num_contrato;
         if(it.prazo) r.prazo=String(it.prazo); if(it.valor_parcela) r.valor_parcela=String(it.valor_parcela); if(it.obs) r.obs=it.obs;
         try{ (await fazerComissao(r,true,true)) ? ok++ : falhas.push(r.nome); }catch(e){ falhas.push(r.nome); }
         await esperar(120);
       }
       iaOcupado=false;
-      el.classList.add('feito'); el.querySelector('.ia-card-h span:last-child').textContent='✅ '+ok+' lançado(s) · '+nComp+' completado(s)';
-      el.querySelectorAll('input,select').forEach(x=>x.disabled=true);
-      registrarLog('lote_lancamentos',ok+' novos, '+nComp+' completados do relatório');
-      msg('✅ '+ok+' contrato(s) novo(s) lançado(s) e '+nComp+' cadastro(s) completado(s).'
+      const novos=todosLancamentos.filter(x=>x&&!idsAntes.has(x.id)).map(x=>x.id);
+      const loteId=guardarLote({desc:'Conferir relatório',filtro:mesRef?mesCurto(mesRef):'',n:ok+nComp,antes,novos});
+      el.classList.add('feito'); el.querySelector('.ia-card-h span:last-child').textContent='✅ '+ok+' lançado(s) · '+nComp+' atualizado(s)';
+      el.querySelectorAll('input,select').forEach(x=>x.disabled=true); el.querySelector('.ia-card-a').style.display='none';
+      const und=document.createElement('div'); und.className='ia-sec'; und.innerHTML='Concluído. '+btn('↩️ Desfazer tudo','__undo',{}); el.appendChild(und);
+      und.querySelector('.ia-mini').onclick=()=>{ const n=desfazerLote(loteId); und.innerHTML=n?'↩️ Desfeito — '+n+' contrato(s) voltaram como estavam (novos removidos).':'Não consegui desfazer.'; if(n) el.querySelector('.ia-card-h span:last-child').textContent='↩️ desfeito'; };
+      registrarLog('conferir_relatorio',ok+' novos, '+nComp+' atualizados, '+nPagos+' marcados PAGO');
+      msg('✅ '+ok+' contrato(s) novo(s) lançado(s) e '+nComp+' já lançado(s) atualizado(s)'+(pg?' ('+nPagos+' marcado(s) como PAGO)':'')+'.'
+        +(faltando.length?'\n❓ '+faltando.length+' contrato(s) do '+pad.banco+' em '+mesCurto(mesRef)+' seguem em aberto e não vieram no relatório.':'')
         +(nRevisar?'\n❗ '+nRevisar+' cliente(s) ficaram marcados com ❗ Revisar na aba Clientes — os dados diferentes estão nas Observações.':'')
         +(falhas.length?'\n⚠️ Não lançados: '+falhas.join(', '):''));
     };
