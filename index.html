@@ -2109,6 +2109,9 @@ html { scroll-behavior: smooth; }
 #aba-resumo .rs-abas .aba-ranking-btn{min-height:34px;padding:0 12px;border:0;border-radius:9px;font-size:0.78rem;font-weight:700;cursor:pointer;background:transparent;color:#383772;box-shadow:none}
 #aba-resumo .rs-abas .aba-ranking-btn.active{background:#383772;color:#fff}
 #aba-resumo .rs-rank-linha{display:grid;grid-template-columns:minmax(90px,150px) minmax(0,1fr) auto;align-items:center;gap:12px;padding:5px 0}
+#aba-resumo .rs-rank-click{cursor:pointer;border-radius:10px;padding:6px 8px;margin:0 -8px}
+#aba-resumo .rs-rank-click:hover,#aba-resumo .rs-rank-click:focus{background:#F0F2FA;outline:none}
+#aba-resumo .rs-rank-click:hover .rs-rank-nome{text-decoration:underline}
 #aba-resumo .rs-rank-nome{font-size:0.82rem;font-weight:700;color:#1F1E3D;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #aba-resumo .rs-rank-qtd{display:block;font-size:0.7rem;font-weight:400;color:#5F5B4D}
 #aba-resumo .rs-rank-trilho{height:10px;border-radius:999px;background:#EEF0F8;overflow:hidden}
@@ -2460,6 +2463,12 @@ html { scroll-behavior: smooth; }
 <!-- ══════════ ABA CLIENTES ══════════ -->
 <div class="tab-content" id="aba-clientes">
   <div style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.3rem;color:var(--azul);margin-bottom:14px;">Contratos Lançados</div>
+  <div id="cl-chip-ranking" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#383772;color:#fff;border-radius:12px;padding:10px 14px;margin-bottom:14px;">
+    <span style="font-size:0.8rem;">🏆 Mostrando só</span>
+    <b id="cl-chip-ranking-txt" style="font-size:0.9rem;color:#FBAD09;"></b>
+    <button onclick="limparFiltroRanking()" style="margin-left:auto;background:rgba(255,255,255,.15);color:#fff;border:0;border-radius:8px;padding:8px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;">✕ Ver todos</button>
+    <button onclick="bsTab('resumo', document.querySelector('.bs-sub-btn[onclick*=&quot;resumo&quot;]'))" style="background:#FBAD09;color:#383772;border:0;border-radius:8px;padding:8px 12px;font-size:0.78rem;font-weight:700;cursor:pointer;">← Voltar ao Ranking</button>
+  </div>
 
   <!-- BARRA DE TOTAIS -->
   <div class="cl-totais-bar" id="cl-totais-bar">
@@ -5000,6 +5009,7 @@ function bsTab(nome, btn) {
   document.getElementById('aba-'+nome).classList.add('active');
   if(btn){ btn.style.background='#FBAD09'; btn.style.color='#383772'; }
   if(nome==='clientes'){
+    _filtroRanking = null; _atualizarChipRanking();
     dadosFiltrados=[...todosLancamentos];
     sincronizarMesBS();
     renderTabela();
@@ -5603,6 +5613,7 @@ function bs_trocarAba(nome,btn){
   document.getElementById('aba-'+nome).classList.add('active');
   if(btn) btn.classList.add('active');
   if(nome==='clientes'){
+    _filtroRanking = null; _atualizarChipRanking();
     dadosFiltrados=[...todosLancamentos];
     sincronizarMesBS();
     renderTabela();
@@ -6563,6 +6574,7 @@ function filtrarTabela() {
         &&(!banco||ba===banco.toUpperCase())
         &&(!promotora||pr===promotora.toUpperCase())
         &&(!tipoOp||to===tipoOp.toUpperCase())
+        &&(!_filtroRanking||(_RANK_CHAVES[_filtroRanking.aba]||(()=>''))(r)===_filtroRanking.valor)
         &&(!mes||r.mes_ref===mes);
   });
   paginaAtual=1; renderTabela();
@@ -6574,6 +6586,7 @@ function limparFiltrosTabela() {
     const el=document.getElementById(id);
     if(el) el.value='';
   });
+  _filtroRanking = null; _atualizarChipRanking();
   filtrarTabela();
 }
 
@@ -9433,6 +9446,46 @@ function renderAgenda() {
 /* ══ [4] RANKING — 3 ABAS ══ */
 let _rankingDadosCache = []; // cache dos dados para re-render sem redesenhar tudo
 
+const _RANK_CHAVES = {
+  'banco':         r => (r.banco||r.banco_digitado||'').trim().toUpperCase() || 'Sem banco',
+  'produto':       r => normalizarProduto(r.modalidade) || 'Sem produto',
+  'promotora':     r => (r.promotora||'').trim().toUpperCase() || 'Sem promotora',
+  'tipo-operacao': r => (r.tipo_op||r.operacao||'').trim().toUpperCase() || 'Sem tipo'
+};
+const _RANK_ROTULOS = { 'banco':'Banco', 'produto':'Produto', 'promotora':'Promotora', 'tipo-operacao':'Operação' };
+let _rankingLinhasCache = { aba:'banco', nomes:[] };
+let _filtroRanking = null; // { aba, valor } — filtro vindo do clique no Ranking
+
+function _atualizarChipRanking() {
+  const chip = document.getElementById('cl-chip-ranking');
+  if(!chip) return;
+  if(!_filtroRanking) { chip.style.display = 'none'; return; }
+  const txt = document.getElementById('cl-chip-ranking-txt');
+  if(txt) txt.textContent = (_RANK_ROTULOS[_filtroRanking.aba]||'') + ': ' + _filtroRanking.valor;
+  chip.style.display = 'flex';
+}
+
+function abrirClientesDoRanking(idx) {
+  const valor = _rankingLinhasCache.nomes[idx];
+  if(valor == null) return;
+  const aba = _rankingLinhasCache.aba;
+  const btn = document.querySelector('.bs-sub-btn[onclick*="clientes"]');
+  bsTab('clientes', btn);
+  ['busca-cliente','filtro-status-tab','filtro-modal-tab','filtro-banco-tab','filtro-promotora-tab','filtro-tipo-op-tab'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  _filtroRanking = { aba: aba, valor: valor };
+  _atualizarChipRanking();
+  filtrarTabela();
+  try { document.getElementById('aba-clientes').scrollIntoView({behavior:'smooth', block:'start'}); } catch(e) {}
+}
+
+function limparFiltroRanking() {
+  _filtroRanking = null;
+  _atualizarChipRanking();
+  filtrarTabela();
+}
+
 function setAbaRanking(aba) {
   if(aba==='banco-produto') aba='banco';
   _abaRankingAtiva = aba;
@@ -9449,13 +9502,9 @@ function _renderRankingContent(dados, aba) {
   if(!container) return;
   dados = dados || [];
   const totalCom = dados.reduce((s,r)=>s+parseFloat(r.comissao||0),0);
-  const chave = {
-    'banco':         r => (r.banco||r.banco_digitado||'').trim().toUpperCase() || 'Sem banco',
-    'produto':       r => normalizarProduto(r.modalidade) || 'Sem produto',
-    'promotora':     r => (r.promotora||'').trim().toUpperCase() || 'Sem promotora',
-    'tipo-operacao': r => (r.tipo_op||r.operacao||'').trim().toUpperCase() || 'Sem tipo'
-  };
-  const fn = chave[aba] || chave['banco'];
+  const chave = _RANK_CHAVES;
+  if(!chave[aba]) aba = 'banco';
+  const fn = chave[aba];
   const por = {};
   dados.forEach(r => {
     const k = fn(r);
@@ -9467,9 +9516,10 @@ function _renderRankingContent(dados, aba) {
   if(!rows.length){ container.innerHTML = '<div class="rs-vazio">Nenhum dado neste período</div>'; return; }
   const max = rows[0].com > 0 ? rows[0].com : 1;
   const esc = t => String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  container.innerHTML = rows.map(row => {
+  _rankingLinhasCache = { aba: aba, nomes: rows.map(r => r.nome) };
+  container.innerHTML = rows.map((row, idx) => {
     const w = Math.max(2, Math.round(Math.max(row.com,0)/max*100));
-    return `<div class="rs-rank-linha">
+    return `<div class="rs-rank-linha rs-rank-click" role="button" tabindex="0" title="Ver os clientes de ${esc(row.nome)}" onclick="abrirClientesDoRanking(${idx})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();abrirClientesDoRanking(${idx})}">
       <div class="rs-rank-nome" title="${esc(row.nome)}">${esc(row.nome)}<span class="rs-rank-qtd">${row.qtd} contrato${row.qtd!==1?'s':''}</span></div>
       <div class="rs-rank-trilho"><div style="width:${w}%"></div></div>
       <div class="rs-rank-val">${fmt(row.com)}<span class="rs-rank-perc">${totalCom>0?fmtP(row.com/totalCom*100):'—'}</span></div>
