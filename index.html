@@ -12350,6 +12350,10 @@ function cancelarUnificacao() {
 .li-grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
 .li-chip{min-height:46px;padding:6px 8px;line-height:1.2;border-radius:14px;border:2px solid #D9DCEB;background:#fff;color:#383772;font-size:.85rem;font-weight:700;cursor:pointer}
 .li-chip.on{border-color:#383772;background:#383772;color:#fff}
+.li-chip-card{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;text-align:left;min-height:62px;padding:8px 12px}
+.li-cc-nome{font-size:.72rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#383772}
+.li-cc-val{font-family:'Montserrat',Arial,sans-serif;font-size:.95rem;font-weight:900;color:#ea580c}
+.li-chip.on .li-cc-nome{color:#fff}.li-chip.on .li-cc-val{color:#FBAD09}
 .li-acoes{display:flex;gap:10px;margin-top:6px}
 .li-btn{height:56px;border-radius:16px;font-family:'Montserrat',Arial,sans-serif;font-size:1rem;font-weight:800;cursor:pointer}
 .li-btn-azul{flex:1;border:0;background:#383772;color:#fff}
@@ -12395,7 +12399,7 @@ function cancelarUnificacao() {
       <span class="li-mic-txt" id="li-mic-txt">Toque e fale</span>
     </div>
     <div>
-      <span class="li-lbl">Categoria (opcional — o assistente escolhe se você não tocar)</span>
+      <span class="li-lbl">Categoria — os mesmos cards do Gastos do Mês (opcional: se não tocar, o assistente escolhe)</span>
       <div class="li-grid2" id="li-cats"></div>
     </div>
     <div>
@@ -12462,7 +12466,20 @@ function cancelarUnificacao() {
   const numBR = v => { if(v===null||v===undefined||v==='') return 0; if(typeof v==='number') return v;
     const s=String(v).replace(/[^\d,.-]/g,''); return parseFloat(s.includes(',')?s.replace(/\./g,'').replace(',','.'):s)||0; };
   const semAcento = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
-  const cats = () => { try { return (typeof _getCatsGastos==='function') ? _getCatsGastos() : [...CATS_GASTOS]; } catch(e){ return []; } };
+  // Mesmas categorias dos cards do Gastos do Mês: as cadastradas + as já usadas no mês,
+  // na mesma ordem dos cards (maior total primeiro)
+  function totaisDoMes(){
+    const t = {};
+    try { (data().expenses||[]).filter(e=>e.card==='GASTOS').forEach(g=>{ const c=g.category||'Outros'; t[c]=(t[c]||0)+(+g.value||0); }); } catch(e){}
+    return t;
+  }
+  const cats = () => {
+    let base = [];
+    try { base = (typeof _getCatsGastos==='function') ? _getCatsGastos() : [...CATS_GASTOS]; } catch(e){}
+    const t = totaisDoMes();
+    const todas = [...new Set([...base, ...Object.keys(t)])].filter(Boolean);
+    return todas.sort((a,b)=>(t[b]||0)-(t[a]||0));
+  };
 
   // Acha a categoria da lista do sistema que mais combina com o texto
   function casarCat(txt){
@@ -12530,7 +12547,8 @@ function cancelarUnificacao() {
   }
 
   function montarChips(){
-    $('li-cats').innerHTML = cats().map((c,i)=>'<button type="button" class="li-chip'+(c===catEscolhida?' on':'')+'" data-i="'+i+'">'+String(c).replace(/</g,'&lt;')+'</button>').join('');
+    const tot = totaisDoMes();
+    $('li-cats').innerHTML = cats().map((c,i)=>'<button type="button" class="li-chip li-chip-card'+(c===catEscolhida?' on':'')+'" data-i="'+i+'"><span class="li-cc-nome">'+String(c).replace(/</g,'&lt;')+'</span><span class="li-cc-val">R$ '+fmtBR(tot[c]||0)+'</span></button>').join('');
     $('li-cats').querySelectorAll('button').forEach(b=>b.onclick=()=>{ const c=cats()[+b.dataset.i]; catEscolhida = (catEscolhida===c?'':c); montarChips(); });
     $('li-pags').innerHTML = PAGS.map(p=>'<button type="button" class="li-chip'+(p===pagEscolhido?' on':'')+'">'+p+'</button>').join('');
     $('li-pags').querySelectorAll('button').forEach((b,i)=>b.onclick=()=>{ pagEscolhido = (pagEscolhido===PAGS[i]?'':PAGS[i]); montarChips(); });
@@ -12541,6 +12559,10 @@ function cancelarUnificacao() {
     if(typeof closeSidebar==='function') try{ closeSidebar(); }catch(e){}
     catEscolhida=''; pagEscolhido=''; foto=null; $('li-frase').value='';
     montarChips(); passo(1); $('li-tela').classList.add('on');
+    // garante as categorias da nuvem (criadas em outro aparelho) e atualiza os cards
+    try{ if(typeof _carregarCatsGastosNuvem==='function') _carregarCatsGastosNuvem(); }catch(e){}
+    try{ if(typeof fcAtualizarMesDoBanco==='function') fcAtualizarMesDoBanco(true).then(()=>{ if($('li-tela').classList.contains('on')) montarChips(); }); }catch(e){}
+    setTimeout(()=>{ if($('li-tela').classList.contains('on') && $('li-p1').style.display!=='none') montarChips(); }, 2500);
     try{ document.body.style.overflow='hidden'; }catch(e){}
   };
   window.liFechar = function(){
