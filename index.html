@@ -12529,7 +12529,7 @@ function cancelarUnificacao() {
     const contexto = { hoje: hojeISO(), mes_sistema:(typeof state!=='undefined'?state.month:''), categorias_gasto: cats(),
       categorias_despesa:(typeof DB!=='undefined'?DB.cats():[]), modalidades:[], bancos:[], tipos_op:[], promotoras:[] };
     const corpo = { mensagem: instr, historico: [], contexto, anexos: foto ? [foto] : [], rodadas: [] };
-    const ctrl = new AbortController(); const t = setTimeout(()=>ctrl.abort(), 25000);
+    const ctrl = new AbortController(); const t = setTimeout(()=>ctrl.abort(), 15000);
     try{
       const r = await fetch(SUPA_URL+'/functions/v1/assistente-ia', { method:'POST', signal: ctrl.signal,
         headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}, body: JSON.stringify(corpo) });
@@ -12607,23 +12607,46 @@ function cancelarUnificacao() {
     $('li-aviso').textContent = aviso || '';
   }
 
+  // Mostra a tela de conferir NA HORA (leitura rápida do próprio celular)
+  // e o assistente refina os campos em segundo plano, sem travar o botão Salvar.
+  let liRodada = 0, liMexidos = new Set();
+  ['li-nome','li-valor','li-data','li-cat','li-loja','li-pag','li-status'].forEach(id=>{
+    const el = $(id); if(el){ el.addEventListener('input', ()=>liMexidos.add(id)); el.addEventListener('change', ()=>liMexidos.add(id)); }
+  });
+  function aplicarIA(v){
+    const set = (id, val) => { if(val===undefined||val===null||val==='') return; if(liMexidos.has(id)) return; $(id).value = val; };
+    set('li-nome', v.nome);
+    if(v.valor) set('li-valor', fmtBR(v.valor));
+    set('li-data', v.data);
+    if(!catEscolhida && v.cat && !liMexidos.has('li-cat')) $('li-cat').value = v.cat;
+    set('li-loja', v.loja);
+    if(!pagEscolhido && v.pag && !liMexidos.has('li-pag')) $('li-pag').value = v.pag;
+    set('li-status', v.status);
+  }
   window.liContinuar = async function(){
     const frase = $('li-frase').value.trim();
     if(!frase && !foto){ $('li-frase').focus(); $('li-frase').placeholder='Fale ou escreva o gasto primeiro 🙂'; return; }
     if(gravando){ try{ rec.stop(); }catch(e){} }
-    $('li-continuar').disabled = true; $('li-pensando').style.display='block';
-    $('li-pensando').textContent = foto ? '🤖 lendo o cupom...' : '🤖 entendendo...';
-    let v = await entenderIA(frase), aviso = '';
-    if(!v){ v = entenderLocal(frase); aviso = navigator.onLine ? 'O assistente não respondeu — preenchi o que entendi. Confira os campos.' : 'Sem internet — preenchi o que entendi. Confira os campos.'; }
-    else if(v.ehDespesa){ aviso = 'Isso parece uma conta da Casa/Empresa. Aqui ele entra como Gasto do Mês — se preferir, lance em Despesas.'; }
-    if(!v.valor) aviso = (aviso ? aviso+' ' : '') + 'Não achei o valor: preencha antes de salvar.';
-    $('li-continuar').disabled = false; $('li-pensando').style.display='none';
-    preencher(v, aviso); passo(2);
+    const rodada = ++liRodada; liMexidos = new Set();
+    const rapido = frase ? entenderLocal(frase) : { nome:'', valor:0, cat:'', loja:'', pag:'', data:hojeISO(), status:'PAGO' };
+    preencher(rapido, '');
+    passo(2);
+    if(!navigator.onLine){ $('li-aviso').textContent = 'Sem internet — preenchi o que entendi. Confira e salve.'; return; }
+    $('li-aviso').textContent = foto ? '🤖 Lendo o cupom… (pode salvar quando os campos estiverem certos)' : '🤖 Conferindo com o assistente… pode salvar se já estiver certo.';
+    const v = await entenderIA(frase);
+    if(rodada !== liRodada || $('li-p2').style.display==='none') return;   // já salvou ou voltou
+    if(!v){ $('li-aviso').textContent = rapido.valor ? 'Confira os campos e salve.' : 'Não achei o valor: preencha antes de salvar.'; return; }
+    aplicarIA(v);
+    let aviso = '✅ Conferido pelo assistente.';
+    if(v.ehDespesa) aviso = 'Isso parece uma conta da Casa/Empresa. Aqui ele entra como Gasto do Mês — se preferir, lance em Despesas.';
+    if(!numBR($('li-valor').value)) aviso += ' Não achei o valor: preencha antes de salvar.';
+    $('li-aviso').textContent = aviso;
   };
   window.liVoltar = function(){ passo(1); };
 
   window.liSalvar = async function(){
-    try{ if(typeof fcAtualizarMesDoBanco==='function') await fcAtualizarMesDoBanco(true); }catch(e){}
+    liRodada++;   // ignora resposta atrasada do assistente
+    try{ if(typeof fcAtualizarMesDoBanco==='function') await Promise.race([fcAtualizarMesDoBanco(true), new Promise(r=>setTimeout(r,2500))]); }catch(e){}
     return liSalvarAgora();
   };
   function liSalvarAgora(){
