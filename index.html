@@ -1557,6 +1557,7 @@ html { scroll-behavior: smooth; }
     <button class="tab-btn" onclick="showTab('recorrentes',this);closeSidebar()">🔄 Recorrentes</button>
     <button class="tab-btn" onclick="showTab('ganhos',this);closeSidebar()">💰 Ganhos</button>
     <button class="tab-btn" onclick="showTab('gastos',this);renderGastos();closeSidebar()">🛒 Gastos do Mês</button>
+    <button class="tab-btn" onclick="liAbrir()" style="color:#FBAD09;font-weight:800;">⚡ Lançar inteligente</button>
     <button class="tab-btn" onclick="showTab('debitos',this);closeSidebar()">🚨 Débitos p/ Quitar</button>
     <button class="tab-btn" onclick="showTab('calendario',this);closeSidebar()">📅 Calendário</button>
     <button class="tab-btn" onclick="showTab('config',this);closeSidebar()">⚙️ Config</button>
@@ -1825,6 +1826,7 @@ html { scroll-behavior: smooth; }
 <section class="pnl" id="pnl-gastos">
   <div class="sec-ttl" style="color:#ea580c">🛒 Gastos do Mês — <span id="gastos-mes-lbl" style="font-size:.85rem;font-weight:600;"></span></div>
   <div class="sec-sub">Gastos pessoais do dia a dia · cada mês é independente</div>
+  <button onclick="liAbrir()" style="margin:4px 0 16px;width:100%;max-width:420px;min-height:52px;border:0;border-radius:14px;background:#383772;color:#fff;font-family:'Montserrat',sans-serif;font-weight:800;font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;">⚡ Lançar inteligente <span style="font-weight:400;font-size:.8rem;color:#FBAD09;">fale ou digite o gasto</span></button>
 
   <!-- Totalizador por categoria -->
   <div id="gastos-resumo" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:18px;"></div>
@@ -10525,7 +10527,7 @@ function cancelarUnificacao() {
       modalidades: g('listaModalidades'), bancos: g('listaBancos'),
       tipos_op: g('listaTiposOp'), promotoras: g('listaPromotoras'),
       categorias_despesa: (typeof DB!=='undefined'?DB.cats():[]),
-      categorias_gasto: (typeof CATS_GASTOS!=='undefined'?CATS_GASTOS:[])
+      categorias_gasto: (typeof _getCatsGastos==='function'?_getCatsGastos():(typeof CATS_GASTOS!=='undefined'?CATS_GASTOS:[]))
     };
   }
 
@@ -12242,6 +12244,344 @@ function cancelarUnificacao() {
     const ok=data().expenses.length>antes;
     if(ok){ registrarLog('gasto',v.nome+' R$'+v.valor); msg('✅ Gasto "'+v.nome.toUpperCase()+'" de R$ '+fmtBR(numBR(v.valor))+' lançado.'); }
     return ok;
+  }
+})();
+</script>
+
+
+<!-- ══════════ LANÇAR INTELIGENTE (tela rápida de gastos) ══════════ -->
+<style>
+#li-tela{position:fixed;inset:0;z-index:9000;background:#F4F5FB;display:none;flex-direction:column;font-family:Arial,Helvetica,sans-serif;color:#1F1E3D;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#li-tela.on{display:flex}
+#li-tela *{box-sizing:border-box}
+.li-top{background:#383772;color:#fff;padding:18px 18px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:2}
+.li-tit{font-family:'Montserrat',Arial,sans-serif;font-size:1.3rem;font-weight:900}
+.li-tit span{color:#FBAD09}
+.li-subt{font-size:.78rem;color:#D6E1F2}
+.li-x{width:44px;height:44px;border:0;border-radius:12px;background:rgba(255,255,255,.14);color:#fff;font-size:1.2rem;cursor:pointer}
+.li-corpo{flex:1;width:100%;max-width:520px;margin:0 auto;padding:16px 18px 24px;display:flex;flex-direction:column;gap:14px}
+.li-lbl{font-size:.82rem;font-weight:700;color:#5F5B4D;margin-bottom:6px;display:block}
+.li-frase{width:100%;border:2px solid #D9DCEB;border-radius:16px;padding:14px 16px;font-size:1.05rem;font-family:Arial,Helvetica,sans-serif;resize:none;outline:none;background:#fff;color:#1F1E3D}
+.li-frase:focus{border-color:#383772}
+.li-mic-box{display:flex;flex-direction:column;align-items:center;gap:8px}
+.li-mic{width:80px;height:80px;border-radius:999px;border:0;cursor:pointer;background:#FBAD09;color:#383772;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(251,173,9,.35)}
+.li-mic.on{background:#383772;color:#FBAD09;box-shadow:0 0 0 10px rgba(56,55,114,.15)}
+.li-mic-txt{font-size:.85rem;font-weight:700;color:#383772}
+.li-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.li-grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.li-chip{min-height:46px;padding:6px 8px;line-height:1.2;border-radius:14px;border:2px solid #D9DCEB;background:#fff;color:#383772;font-size:.85rem;font-weight:700;cursor:pointer}
+.li-chip.on{border-color:#383772;background:#383772;color:#fff}
+.li-acoes{display:flex;gap:10px;margin-top:6px}
+.li-btn{height:56px;border-radius:16px;font-family:'Montserrat',Arial,sans-serif;font-size:1rem;font-weight:800;cursor:pointer}
+.li-btn-azul{flex:1;border:0;background:#383772;color:#fff}
+.li-btn-amarelo{flex:1.4;border:0;background:#FBAD09;color:#1F1E3D;font-weight:900}
+.li-btn-branco{flex:1;border:2px solid #D9DCEB;background:#fff;color:#383772}
+.li-btn-foto{width:56px;flex-shrink:0;border:2px solid #D9DCEB;background:#fff;color:#383772;display:flex;align-items:center;justify-content:center}
+.li-btn:disabled{opacity:.6;cursor:wait}
+.li-card{background:#fff;border-radius:20px;padding:18px;box-shadow:0 2px 10px rgba(56,55,114,.08);display:flex;flex-direction:column;gap:12px}
+.li-card-top{display:flex;align-items:center;gap:10px;font-family:'Montserrat',Arial,sans-serif;font-weight:800;color:#383772}
+.li-campo label{display:block;font-size:.75rem;font-weight:700;color:#5F5B4D;margin-bottom:4px}
+.li-campo input,.li-campo select{width:100%;height:46px;border:1.5px solid #D9DCEB;border-radius:12px;padding:0 12px;font-size:1rem;background:#fff;color:#1F1E3D;outline:none}
+.li-campo input:focus,.li-campo select:focus{border-color:#383772}
+.li-linha{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.li-aviso{font-size:.8rem;color:#7A5200;background:#FFF3D6;border-radius:10px;padding:8px 12px}
+.li-aviso:empty{display:none}
+.li-ok{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:20px 0}
+.li-ok-ico{width:96px;height:96px;border-radius:999px;background:#383772;color:#FBAD09;display:flex;align-items:center;justify-content:center}
+.li-ok h2{margin:0;font-family:'Montserrat',Arial,sans-serif;font-size:1.7rem;font-weight:900;color:#383772}
+.li-tot{background:#fff;border-radius:16px;padding:14px 18px;width:100%;display:flex;justify-content:space-between;gap:10px;font-size:.95rem}
+.li-link{background:none;border:0;color:#383772;font-weight:700;font-size:.95rem;text-decoration:underline;cursor:pointer}
+.li-pensando{text-align:center;font-size:.9rem;color:#383772;font-weight:700;padding:6px}
+</style>
+
+<div id="li-tela" role="dialog" aria-label="Lançar inteligente">
+  <div class="li-top">
+    <div>
+      <div class="li-tit">Lançar <span>inteligente</span></div>
+      <div class="li-subt" id="li-subt">FinanceControl · Gastos do Mês</div>
+    </div>
+    <button class="li-x" onclick="liFechar()" aria-label="Fechar">✕</button>
+  </div>
+
+  <!-- PASSO 1: falar / digitar -->
+  <div class="li-corpo" id="li-p1">
+    <div>
+      <label class="li-lbl" for="li-frase">O que você gastou?</label>
+      <textarea id="li-frase" class="li-frase" rows="2" placeholder="Ex.: água 5 reais mercado Bom Preço no pix"></textarea>
+    </div>
+    <div class="li-mic-box">
+      <button class="li-mic" id="li-mic" onclick="liFalar()" aria-label="Falar o lançamento">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 10v1a7 7 0 0 0 14 0v-1"></path><path d="M12 18v4"></path><path d="M8 22h8"></path></svg>
+      </button>
+      <span class="li-mic-txt" id="li-mic-txt">Toque e fale</span>
+    </div>
+    <div>
+      <span class="li-lbl">Categoria (opcional — o assistente escolhe se você não tocar)</span>
+      <div class="li-grid2" id="li-cats"></div>
+    </div>
+    <div>
+      <span class="li-lbl">Como pagou?</span>
+      <div class="li-grid4" id="li-pags"></div>
+    </div>
+    <div class="li-pensando" id="li-pensando" style="display:none;">🤖 entendendo...</div>
+    <div class="li-acoes">
+      <button class="li-btn li-btn-foto" onclick="document.getElementById('li-foto').click()" aria-label="Foto do cupom">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+      </button>
+      <input type="file" id="li-foto" accept="image/*" capture="environment" style="display:none" onchange="liFoto(this)">
+      <button class="li-btn li-btn-azul" id="li-continuar" onclick="liContinuar()">Continuar</button>
+    </div>
+  </div>
+
+  <!-- PASSO 2: conferir (editável) -->
+  <div class="li-corpo" id="li-p2" style="display:none;">
+    <div style="font-size:.9rem;color:#5F5B4D;">Confira e corrija se precisar:</div>
+    <div class="li-card">
+      <div class="li-card-top">🛒 Gasto do mês</div>
+      <div class="li-campo"><label for="li-nome">Descrição</label><input id="li-nome" type="text"></div>
+      <div class="li-linha">
+        <div class="li-campo"><label for="li-valor">Valor (R$)</label><input id="li-valor" type="text" inputmode="decimal"></div>
+        <div class="li-campo"><label for="li-data">Data</label><input id="li-data" type="date"></div>
+      </div>
+      <div class="li-campo"><label for="li-cat">Categoria</label><select id="li-cat"></select></div>
+      <div class="li-linha">
+        <div class="li-campo"><label for="li-loja">Loja</label><input id="li-loja" type="text" placeholder="opcional"></div>
+        <div class="li-campo"><label for="li-pag">Pagamento</label><select id="li-pag"></select></div>
+      </div>
+      <div class="li-campo"><label for="li-status">Situação</label>
+        <select id="li-status"><option value="PAGO">✅ Pago</option><option value="ABERTO">⏳ Em aberto</option></select></div>
+      <div class="li-aviso" id="li-aviso"></div>
+    </div>
+    <div class="li-acoes">
+      <button class="li-btn li-btn-branco" onclick="liVoltar()">Voltar</button>
+      <button class="li-btn li-btn-amarelo" id="li-salvar" onclick="liSalvar()">Salvar</button>
+    </div>
+  </div>
+
+  <!-- PASSO 3: pronto -->
+  <div class="li-corpo" id="li-p3" style="display:none;">
+    <div class="li-ok">
+      <div class="li-ok-ico"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg></div>
+      <h2>Lançado!</h2>
+      <div id="li-ok-txt" style="font-size:1rem;color:#5F5B4D;"></div>
+      <div class="li-tot"><span id="li-tot-lbl" style="color:#5F5B4D;"></span><b id="li-tot-val" style="color:#383772;"></b></div>
+      <div class="li-tot"><span style="color:#5F5B4D;">Gastos do mês (total)</span><b id="li-tot-mes" style="color:#383772;"></b></div>
+      <button class="li-btn li-btn-azul" style="width:100%;flex:none;margin-top:8px;" onclick="liNovo()">Lançar outro</button>
+      <button class="li-link" onclick="liAbrirGastos()">Ver no Gastos do Mês</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const PAGS = ['Pix','Débito','Crédito','Dinheiro'];
+  let catEscolhida = '', pagEscolhido = '', foto = null, rec = null, gravando = false;
+
+  const hojeISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+  const fmtBR = n => (+n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const numBR = v => { if(v===null||v===undefined||v==='') return 0; if(typeof v==='number') return v;
+    const s=String(v).replace(/[^\d,.-]/g,''); return parseFloat(s.includes(',')?s.replace(/\./g,'').replace(',','.'):s)||0; };
+  const semAcento = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+  const cats = () => { try { return (typeof _getCatsGastos==='function') ? _getCatsGastos() : [...CATS_GASTOS]; } catch(e){ return []; } };
+
+  // Acha a categoria da lista do sistema que mais combina com o texto
+  function casarCat(txt){
+    const L = cats(); if(!txt) return '';
+    const a = semAcento(txt);
+    return L.find(c=>semAcento(c)===a) || L.find(c=>semAcento(c).includes(a)) || L.find(c=>a.includes(semAcento(c)))
+        || L.find(c=>semAcento(c).split(/[\s\/]+/).some(p=>p.length>3 && a.includes(p))) || '';
+  }
+  function casarPag(txt){
+    const a = semAcento(txt);
+    if(/\bpix\b/.test(a)) return 'Pix';
+    if(/debito/.test(a)) return 'Débito';
+    if(/credito|cartao/.test(a)) return 'Crédito';
+    if(/dinheiro|especie/.test(a)) return 'Dinheiro';
+    return '';
+  }
+
+  // Entendimento simples (sem internet / se o assistente falhar)
+  const PALAVRAS = [
+    [/gasolina|combustivel|posto|etanol|alcool|diesel/, 'combust'],
+    [/ifood|delivery|entrega|rappi|ze delivery/, 'ifood'],
+    [/almoco|almocei|jantar|lanche|restaurante|marmita|cafe|padaria/, 'almo'],
+    [/mercado|supermercado|atacad|feira|acougue|hortifruti|agua|leite|pao/, 'mercado'],
+    [/cinema|lazer|passeio|parque|bar|show|viagem/, 'lazer']
+  ];
+  function entenderLocal(frase){
+    const a = semAcento(frase);
+    const mv = a.match(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})|\d+(?:[.,]\d{1,2})?)\s*(?:reais|real|conto|r\$)?/);
+    const valor = mv ? numBR(mv[1]) : 0;
+    let cat = '';
+    for(const [re, chave] of PALAVRAS){ if(re.test(a)){ cat = cats().find(c=>semAcento(c).includes(chave)) || ''; if(cat) break; } }
+    if(!cat) cat = cats().find(c=>/outro/.test(semAcento(c))) || cats()[0] || '';
+    let nome = String(frase).replace(/(?:r\$\s*)?\d[\d.,]*\s*(reais|real|conto|r\$)?/i,'').replace(/\b(no|na|em|de|do|da|pago|paguei|pix|debito|débito|credito|crédito|cartao|cartão|dinheiro|lance|lança|lancar|lançar|comprei|gastei)\b/gi,' ').replace(/\s+/g,' ').trim();
+    nome = nome.split(' ').slice(0,4).join(' ');
+    return { nome: nome || 'Gasto', valor, cat, loja:'', pag: casarPag(frase), data: hojeISO(), status:'PAGO' };
+  }
+
+  // Pergunta ao assistente (Gemini) usando a mesma função do site
+  async function entenderIA(frase){
+    if(typeof SUPA_URL==='undefined' || !navigator.onLine) return null;
+    const instr = 'LANÇAR INTELIGENTE: isto é um GASTO DO MÊS — use lancar_gasto. '
+      + 'Escolha a categoria exatamente da lista de categorias de gastos do mês. '
+      + 'No campo obs escreva só "Loja: <nome da loja>; Pagamento: <Pix|Débito|Crédito|Dinheiro>" quando forem ditos. '
+      + (catEscolhida ? 'A Carol escolheu a categoria "'+catEscolhida+'". ' : '')
+      + (pagEscolhido ? 'Pagamento: '+pagEscolhido+'. ' : '')
+      + 'Mensagem: ' + (frase || '(veja a foto do cupom)');
+    const contexto = { hoje: hojeISO(), mes_sistema:(typeof state!=='undefined'?state.month:''), categorias_gasto: cats(),
+      categorias_despesa:(typeof DB!=='undefined'?DB.cats():[]), modalidades:[], bancos:[], tipos_op:[], promotoras:[] };
+    const corpo = { mensagem: instr, historico: [], contexto, anexos: foto ? [foto] : [], rodadas: [] };
+    const ctrl = new AbortController(); const t = setTimeout(()=>ctrl.abort(), 25000);
+    try{
+      const r = await fetch(SUPA_URL+'/functions/v1/assistente-ia', { method:'POST', signal: ctrl.signal,
+        headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY}, body: JSON.stringify(corpo) });
+      const j = await r.json();
+      const a = (j.acoes||[]).find(x=>x.acao==='lancar_gasto') || (j.acoes||[]).find(x=>x.acao==='lancar_despesa');
+      if(!a) return null;
+      const d = a.dados || {};
+      const obs = String(d.obs||'');
+      const mLoja = obs.match(/loja\s*:\s*([^;|\n]+)/i), mPag = obs.match(/pagamento\s*:\s*([^;|\n]+)/i);
+      return { nome: d.descricao || d.nome || '', valor: numBR(d.valor), cat: casarCat(d.categoria) || '',
+        loja: mLoja ? mLoja[1].trim() : '', pag: casarPag(mPag ? mPag[1] : obs),
+        data: d.data || d.vencimento || hojeISO(), status: d.status==='ABERTO' ? 'ABERTO' : 'PAGO',
+        ehDespesa: a.acao==='lancar_despesa' };
+    } catch(e){ return null; } finally { clearTimeout(t); }
+  }
+
+  function montarChips(){
+    $('li-cats').innerHTML = cats().map((c,i)=>'<button type="button" class="li-chip'+(c===catEscolhida?' on':'')+'" data-i="'+i+'">'+String(c).replace(/</g,'&lt;')+'</button>').join('');
+    $('li-cats').querySelectorAll('button').forEach(b=>b.onclick=()=>{ const c=cats()[+b.dataset.i]; catEscolhida = (catEscolhida===c?'':c); montarChips(); });
+    $('li-pags').innerHTML = PAGS.map(p=>'<button type="button" class="li-chip'+(p===pagEscolhido?' on':'')+'">'+p+'</button>').join('');
+    $('li-pags').querySelectorAll('button').forEach((b,i)=>b.onclick=()=>{ pagEscolhido = (pagEscolhido===PAGS[i]?'':PAGS[i]); montarChips(); });
+  }
+  function passo(n){ ['li-p1','li-p2','li-p3'].forEach((id,i)=>{ $(id).style.display = (i===n-1)?'flex':'none'; }); $('li-tela').scrollTop=0; }
+
+  window.liAbrir = function(){
+    if(typeof closeSidebar==='function') try{ closeSidebar(); }catch(e){}
+    catEscolhida=''; pagEscolhido=''; foto=null; $('li-frase').value='';
+    montarChips(); passo(1); $('li-tela').classList.add('on');
+    try{ document.body.style.overflow='hidden'; }catch(e){}
+  };
+  window.liFechar = function(){
+    $('li-tela').classList.remove('on'); try{ document.body.style.overflow=''; }catch(e){}
+    if(gravando){ try{ rec&&rec.stop(); }catch(e){} }
+    if(location.hash==='#lancar') history.replaceState(null,'',location.pathname+location.search.replace(/[?&]lancar=1/,''));
+  };
+
+  window.liFalar = function(){
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SR){ alert('Seu navegador não tem o microfone do site. Use o 🎤 do teclado do celular para ditar na caixa de texto.'); $('li-frase').focus(); return; }
+    if(gravando){ try{ rec.stop(); }catch(e){} return; }
+    rec = new SR(); rec.lang='pt-BR'; rec.interimResults=true; rec.continuous=false;
+    const base = $('li-frase').value ? $('li-frase').value.trim()+' ' : '';
+    rec.onresult = e => { let t=''; for(const r of e.results) t += r[0].transcript; $('li-frase').value = base + t; };
+    rec.onend = () => { gravando=false; $('li-mic').classList.remove('on'); $('li-mic-txt').textContent='Toque e fale'; };
+    rec.onerror = () => { gravando=false; $('li-mic').classList.remove('on'); $('li-mic-txt').textContent='Não ouvi — toque de novo'; };
+    gravando=true; $('li-mic').classList.add('on'); $('li-mic-txt').textContent='Ouvindo… pode falar'; rec.start();
+  };
+
+  window.liFoto = function(inp){
+    const f = inp.files && inp.files[0]; inp.value=''; if(!f) return;
+    const img = new Image(), url = URL.createObjectURL(f);
+    img.onload = () => { const max=1600; let w=img.naturalWidth,h=img.naturalHeight; const s=Math.min(1,max/Math.max(w,h)); w=Math.round(w*s); h=Math.round(h*s);
+      const cv=document.createElement('canvas'); cv.width=w; cv.height=h; cv.getContext('2d').drawImage(img,0,0,w,h); URL.revokeObjectURL(url);
+      foto = { mime:'image/jpeg', base64: cv.toDataURL('image/jpeg',0.85).split(',')[1], nome: f.name||'cupom' };
+      liContinuar(); };
+    img.onerror = () => { URL.revokeObjectURL(url); alert('Não consegui abrir a foto.'); };
+    img.src = url;
+  };
+
+  function preencher(v, aviso){
+    $('li-nome').value = v.nome || '';
+    $('li-valor').value = v.valor ? fmtBR(v.valor) : '';
+    $('li-data').value = v.data || hojeISO();
+    const L = cats(); const cat = catEscolhida || v.cat || '';
+    $('li-cat').innerHTML = L.map(c=>'<option'+(c===cat?' selected':'')+'>'+String(c).replace(/</g,'&lt;')+'</option>').join('');
+    $('li-loja').value = v.loja || '';
+    const pag = pagEscolhido || v.pag || '';
+    $('li-pag').innerHTML = '<option value="">—</option>' + PAGS.map(p=>'<option'+(p===pag?' selected':'')+'>'+p+'</option>').join('');
+    $('li-status').value = v.status || 'PAGO';
+    $('li-aviso').textContent = aviso || '';
+  }
+
+  window.liContinuar = async function(){
+    const frase = $('li-frase').value.trim();
+    if(!frase && !foto){ $('li-frase').focus(); $('li-frase').placeholder='Fale ou escreva o gasto primeiro 🙂'; return; }
+    if(gravando){ try{ rec.stop(); }catch(e){} }
+    $('li-continuar').disabled = true; $('li-pensando').style.display='block';
+    $('li-pensando').textContent = foto ? '🤖 lendo o cupom...' : '🤖 entendendo...';
+    let v = await entenderIA(frase), aviso = '';
+    if(!v){ v = entenderLocal(frase); aviso = navigator.onLine ? 'O assistente não respondeu — preenchi o que entendi. Confira os campos.' : 'Sem internet — preenchi o que entendi. Confira os campos.'; }
+    else if(v.ehDespesa){ aviso = 'Isso parece uma conta da Casa/Empresa. Aqui ele entra como Gasto do Mês — se preferir, lance em Despesas.'; }
+    if(!v.valor) aviso = (aviso ? aviso+' ' : '') + 'Não achei o valor: preencha antes de salvar.';
+    $('li-continuar').disabled = false; $('li-pensando').style.display='none';
+    preencher(v, aviso); passo(2);
+  };
+  window.liVoltar = function(){ passo(1); };
+
+  window.liSalvar = function(){
+    const nome = $('li-nome').value.trim(), valor = numBR($('li-valor').value), cat = $('li-cat').value;
+    const dataG = $('li-data').value || hojeISO(), status = $('li-status').value || 'PAGO';
+    const loja = $('li-loja').value.trim(), pag = $('li-pag').value;
+    if(!nome){ $('li-aviso').textContent='Escreva a descrição.'; $('li-nome').focus(); return; }
+    if(!valor){ $('li-aviso').textContent='Escreva o valor.'; $('li-valor').focus(); return; }
+    if(typeof data!=='function' || typeof save!=='function'){ alert('O FinanceControl ainda está carregando. Tente de novo em instantes.'); return; }
+    $('li-salvar').disabled = true;
+    try{
+      // vai para o mês da data do gasto
+      const alvo = dataG.slice(0,7);
+      if(typeof state!=='undefined' && typeof changeMonth==='function' && alvo!==state.month){
+        const [ay,am]=alvo.split('-').map(Number), [sy,sm]=state.month.split('-').map(Number); changeMonth((ay-sy)*12+(am-sm));
+      }
+      const d = data();
+      const obs = [loja ? 'Loja: '+loja : '', pag ? 'Pagamento: '+pag : '', 'via Lançar inteligente'].filter(Boolean).join(' · ');
+      d.expenses.push({
+        id: Math.random().toString(36).slice(2,10), name: nome.toUpperCase(), category: cat, type: 'Variável',
+        value: valor, dueDate: dataG, payDate: status==='PAGO' ? dataG : '', status,
+        obs, loja, pagamento: pag, card: 'GASTOS', _src: 'GastosMes'
+      });
+      save(d);
+      try{ if(typeof renderGastos==='function') renderGastos(); }catch(e){}
+      try{ if(typeof renderDashboard==='function') renderDashboard(); }catch(e){}
+      const gastos = d.expenses.filter(x=>x.card==='GASTOS');
+      const totCat = gastos.filter(x=>x.category===cat).reduce((s,x)=>s+(+x.value||0),0);
+      const totMes = gastos.reduce((s,x)=>s+(+x.value||0),0);
+      $('li-ok-txt').textContent = nome.toUpperCase()+' · R$ '+fmtBR(valor)+(pag?' · '+pag:'');
+      $('li-tot-lbl').textContent = cat+' no mês'; $('li-tot-val').textContent = 'R$ '+fmtBR(totCat);
+      $('li-tot-mes').textContent = 'R$ '+fmtBR(totMes);
+      passo(3);
+    } catch(e){
+      console.warn('[Lançar inteligente]', e); $('li-aviso').textContent='Não consegui salvar: '+(e.message||e);
+    } finally { $('li-salvar').disabled = false; }
+  };
+  window.liNovo = function(){ catEscolhida=''; pagEscolhido=''; foto=null; $('li-frase').value=''; montarChips(); passo(1); };
+  window.liAbrirGastos = function(){
+    liFechar();
+    try{ const b=document.querySelector('.tab-btn[onclick*="showTab(\'gastos\'"]'); if(b) b.click(); else { showTab('gastos'); renderGastos(); } }catch(e){}
+  };
+
+  // Abre sozinho pelo atalho da tela inicial (…/?lancar=1 ou …/#lancar), depois do login
+  const pedido = location.hash==='#lancar' || /[?&]lancar=1/.test(location.search);
+  if(pedido){
+    // ícone próprio "Lançar" para adicionar à tela inicial
+    try{
+      const m = document.querySelector('link[rel="manifest"]');
+      const icone = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23383772'/><path d='M56 14 28 56h20l-6 30 30-44H52z' fill='%23FBAD09'/></svg>";
+      const man = {name:'Lançar · Bom Sucesso', short_name:'Lançar', start_url:'/?lancar=1', display:'standalone', background_color:'#383772', theme_color:'#383772', orientation:'portrait',
+        icons:[{src:icone, sizes:'any', type:'image/svg+xml', purpose:'any maskable'}]};
+      if(m) m.href = 'data:application/json,'+encodeURIComponent(JSON.stringify(man));
+      document.title = 'Lançar · Bom Sucesso';
+    }catch(e){}
+    let tent = 0;
+    const iv = setInterval(()=>{
+      tent++;
+      const l = document.getElementById('tela-login');
+      const logado = !l || l.style.display==='none' || getComputedStyle(l).display==='none';
+      if(logado && typeof data==='function'){ clearInterval(iv); liAbrir(); }
+      if(tent>600) clearInterval(iv);
+    }, 500);
   }
 })();
 </script>
