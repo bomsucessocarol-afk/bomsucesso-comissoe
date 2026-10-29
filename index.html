@@ -2062,88 +2062,132 @@ html { scroll-behavior: smooth; }
 
 <!-- ══════════ ABA RESUMO ══════════ -->
 <div class="tab-content active" id="aba-resumo">
+<style>
+#aba-resumo .rs-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px}
+#aba-resumo .rs-titulo{font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.4rem;color:var(--azul)}
+#aba-resumo .rs-sub{font-size:0.8rem;color:#5F5B4D;margin-top:2px}
+#aba-resumo .rs-acoes{display:flex;gap:8px;align-items:center}
+#aba-resumo .rs-acoes select{height:42px;border:1.5px solid var(--borda);border-radius:12px;padding:0 14px;font-size:0.85rem;font-weight:700;color:var(--azul);background:#fff;outline:none}
+#aba-resumo .rs-ico{width:42px;height:42px;border:1.5px solid var(--borda);border-radius:12px;background:#fff;color:var(--azul);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem;list-style:none}
+#aba-resumo .rs-ico::-webkit-details-marker{display:none}
+#aba-resumo .rs-menu{position:relative}
+#aba-resumo .rs-menu-painel{position:absolute;right:0;top:48px;z-index:50;background:#fff;border:1px solid var(--borda);border-radius:14px;box-shadow:0 10px 30px rgba(56,55,114,.18);padding:8px;display:flex;flex-direction:column;gap:2px;min-width:220px}
+#aba-resumo .rs-menu-painel button,#aba-resumo .rs-menu-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:transparent;border:0;border-radius:10px;padding:11px 12px;font-size:0.85rem;color:#1F1E3D;cursor:pointer;position:relative;overflow:hidden;box-sizing:border-box}
+#aba-resumo .rs-menu-painel button:hover,#aba-resumo .rs-menu-item:hover{background:#F0F2FA}
+#aba-resumo .rs-hero{background:#383772;color:#fff;border-radius:20px;padding:26px 28px;margin-bottom:16px;display:flex;flex-direction:column;gap:16px}
+#aba-resumo .rs-hero-linha{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px}
+#aba-resumo .rs-rotulo{font-size:0.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#A6C0E4}
+#aba-resumo .rs-hero-valor{font-family:'Montserrat',sans-serif;font-weight:900;font-size:2.4rem;line-height:1;color:#fff}
+#aba-resumo .rs-hero-de{font-size:1rem;color:#D6E1F2}
+#aba-resumo .rs-hero-perc{font-family:'Montserrat',sans-serif;font-weight:900;font-size:2.2rem;line-height:1;color:#FBAD09;text-align:right}
+#aba-resumo .rs-meta-input{display:flex;align-items:center;gap:6px;justify-content:flex-end;margin-top:8px;font-size:0.72rem;color:#D6E1F2}
+#aba-resumo .rs-meta-input input{width:110px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:6px 10px;font-size:0.8rem;outline:none}
+#aba-resumo .rs-barra{position:relative;height:16px;border-radius:999px;background:rgba(255,255,255,.14);overflow:hidden}
+#aba-resumo .rs-barra > div{position:absolute;left:0;top:0;bottom:0;border-radius:999px;transition:width 1s cubic-bezier(0.4,0,0.2,1)}
+#aba-resumo .rs-barra-proj{background:repeating-linear-gradient(45deg,#FBAD09 0 6px,rgba(251,173,9,.45) 6px 12px)}
+#aba-resumo .rs-barra-pago{background:#FBAD09}
+#aba-resumo .rs-legenda{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-size:0.8rem;color:#D6E1F2}
+#aba-resumo .rs-legenda > div{display:flex;flex-wrap:wrap;gap:16px}
+#aba-resumo .rs-dot{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+#aba-resumo .rs-alerta{background:rgba(251,173,9,.16);color:#FFD27A;padding:7px 14px;border-radius:999px;font-weight:700}
+#aba-resumo .rs-alerta:empty{display:none}
+#aba-resumo .rs-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:16px}
+#aba-resumo .rs-card{background:#fff;border-radius:16px;padding:20px 22px;display:flex;flex-direction:column;gap:6px;box-shadow:0 1px 3px rgba(56,55,114,.06)}
+#aba-resumo .rs-card .rs-lbl{font-size:0.78rem;font-weight:700;color:#5F5B4D}
+#aba-resumo .rs-card .rs-val{font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.6rem;color:#383772;line-height:1.1}
+#aba-resumo .rs-card .rs-txt{font-size:0.8rem;color:#5F5B4D}
+#aba-resumo .rs-card.rs-total{background:#FBAD09}
+#aba-resumo .rs-card.rs-total .rs-lbl{color:#383772}
+#aba-resumo .rs-card.rs-total .rs-val{color:#1F1E3D}
+#aba-resumo .rs-card.rs-total .rs-txt{color:#2B2A55}
+#aba-resumo .rs-card.rs-total #var-comissao-total span{color:#2B2A55!important}
+#aba-resumo .rs-duo{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:16px}
+#aba-resumo .rs-box{background:#fff;border-radius:16px;padding:20px 22px;box-shadow:0 1px 3px rgba(56,55,114,.06);min-width:0;display:flex;flex-direction:column;gap:14px}
+#aba-resumo .rs-box-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+#aba-resumo .rs-box h3{margin:0;font-family:'Montserrat',sans-serif;font-weight:700;font-size:1rem;color:#383772}
+#aba-resumo .rs-abas{display:flex;flex-wrap:wrap;gap:4px;background:#EEF0F8;padding:4px;border-radius:12px}
+#aba-resumo .rs-abas .aba-ranking-btn{min-height:34px;padding:0 12px;border:0;border-radius:9px;font-size:0.78rem;font-weight:700;cursor:pointer;background:transparent;color:#383772;box-shadow:none}
+#aba-resumo .rs-abas .aba-ranking-btn.active{background:#383772;color:#fff}
+#aba-resumo .rs-rank-linha{display:grid;grid-template-columns:minmax(90px,150px) minmax(0,1fr) auto;align-items:center;gap:12px;padding:5px 0}
+#aba-resumo .rs-rank-nome{font-size:0.82rem;font-weight:700;color:#1F1E3D;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#aba-resumo .rs-rank-qtd{display:block;font-size:0.7rem;font-weight:400;color:#5F5B4D}
+#aba-resumo .rs-rank-trilho{height:10px;border-radius:999px;background:#EEF0F8;overflow:hidden}
+#aba-resumo .rs-rank-trilho > div{height:100%;border-radius:999px;background:#383772}
+#aba-resumo .rs-rank-val{font-size:0.82rem;font-weight:700;color:#383772;text-align:right;white-space:nowrap}
+#aba-resumo .rs-rank-perc{display:block;font-size:0.7rem;font-weight:400;color:#5F5B4D}
+#aba-resumo .rs-rec{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #EEF0F8;cursor:pointer}
+#aba-resumo .rs-rec:last-child{border-bottom:0}
+#aba-resumo .rs-rec:hover{background:#FAFBFE}
+#aba-resumo .rs-rec-banco{font-size:0.85rem;font-weight:700;color:#1F1E3D}
+#aba-resumo .rs-rec-info{font-size:0.75rem;color:#5F5B4D}
+#aba-resumo .rs-rec-dir{display:flex;align-items:center;gap:8px;white-space:nowrap}
+#aba-resumo .rs-rec-val{font-size:0.85rem;font-weight:700;color:#383772}
+#aba-resumo .rs-st{font-size:0.7rem;font-weight:700;padding:3px 10px;border-radius:999px}
+#aba-resumo .rs-st-aberto{background:#FFF3D6;color:#7A5200}
+#aba-resumo .rs-st-pago{background:#E3F4EA;color:#1F6B43}
+#aba-resumo .rs-link{font-size:0.8rem;font-weight:700;color:#383772;background:none;border:0;cursor:pointer;text-decoration:underline}
+#aba-resumo .rs-vazio{text-align:center;color:#5F5B4D;padding:16px;font-size:0.85rem}
+</style>
 
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+  <!-- TOPO -->
+  <div class="rs-top">
     <div>
-      <div style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.3rem;color:var(--azul);">Visão Geral</div>
-      <div style="font-size:0.78rem;color:var(--cinza);margin-top:2px;" id="resumo-periodo">Carregando...</div>
+      <div class="rs-titulo">Comissões</div>
+      <div class="rs-sub" id="resumo-periodo">Carregando...</div>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <select id="filtro-mes-resumo" onchange="renderResumoManual(this.value)" style="border:1.5px solid var(--borda);border-radius:8px;padding:8px 14px;font-size:0.8rem;font-family:'DM Sans',sans-serif;outline:none;">
+    <div class="rs-acoes">
+      <select id="filtro-mes-resumo" onchange="renderResumoManual(this.value)" aria-label="Mês">
         <option value="todos">Todos os meses</option>
       </select>
-      <button class="btn btn-outline btn-sm" onclick="atualizarDados()">🔄 Atualizar</button>
-      <button class="btn btn-sm" style="background:#383772;color:#fff;" onclick="migrarLocalParaSupabase()" title="Envia todos os lançamentos do localStorage para o Supabase">⬆️ Enviar ao banco</button>
-      <button class="btn btn-outline btn-sm" onclick="backupDados()" title="Baixar backup JSON de todos os lançamentos">💾 Backup</button>
-      <div style="position:relative;overflow:hidden;display:inline-block;">
-        <button class="btn btn-outline btn-sm" style="pointer-events:none;">📥 Restaurar Backup</button>
-        <input type="file" accept=".json" onchange="restaurarBackup(this)"
-          style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:100px;">
-      </div>
+      <button class="rs-ico" onclick="atualizarDados()" title="Atualizar" aria-label="Atualizar">🔄</button>
+      <details class="rs-menu">
+        <summary class="rs-ico" title="Mais opções" aria-label="Mais opções">⋯</summary>
+        <div class="rs-menu-painel">
+          <button onclick="migrarLocalParaSupabase()" title="Envia todos os lançamentos do localStorage para o Supabase">⬆️ Enviar ao banco</button>
+          <button onclick="backupDados()" title="Baixar backup JSON de todos os lançamentos">💾 Baixar backup</button>
+          <label class="rs-menu-item">📥 Restaurar backup
+            <input type="file" accept=".json" onchange="restaurarBackup(this)" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;">
+          </label>
+        </div>
+      </details>
     </div>
   </div>
 
-  <!-- META -->
-  <div class="card" style="margin-bottom:16px; border-left:4px solid var(--amarelo);">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+  <!-- META (bloco principal) -->
+  <div class="rs-hero">
+    <div class="rs-hero-linha">
       <div>
-        <div class="card-label">🎯 Meta Mensal</div>
-        <div style="display:flex;align-items:baseline;gap:8px;">
-          <div class="card-valor" id="meta-progresso-txt">R$ 0</div>
-          <div style="font-size:0.78rem;color:var(--cinza);">de <span id="meta-valor-txt">R$ 0</span></div>
+        <div class="rs-rotulo">🎯 Meta do mês</div>
+        <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:6px;">
+          <div class="rs-hero-valor" id="meta-progresso-txt">R$ 0</div>
+          <div class="rs-hero-de">de <span id="meta-valor-txt">R$ 0</span></div>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div style="font-family:'Montserrat',sans-serif;font-weight:800;font-size:1.6rem;color:var(--amarelo);" id="meta-perc-txt">0%</div>
-        <div>
-          <input type="number" id="meta-input" placeholder="Definir meta" style="border:1.5px solid var(--borda);border-radius:8px;padding:8px 12px;font-size:0.82rem;width:140px;outline:none;" onchange="salvarMeta()">
-        </div>
+      <div>
+        <div class="rs-hero-perc" id="meta-perc-txt">0%</div>
+        <label class="rs-meta-input">Meta
+          <input type="number" id="meta-input" placeholder="Definir" onchange="salvarMeta()">
+        </label>
       </div>
     </div>
-    <!-- Barra Recebido -->
-    <div style="margin-top:12px;">
-      <div style="display:flex;justify-content:space-between;font-size:0.68rem;color:var(--cinza);margin-bottom:3px;">
-        <span>✅ Recebido (Pago)</span><span id="meta-perc-recebido">0%</span>
-      </div>
-      <div class="meta-bar-track">
-        <div class="meta-bar-fill" id="meta-bar" style="width:0%;background:#383772;"></div>
-      </div>
+    <div class="rs-barra">
+      <div class="rs-barra-proj" id="meta-bar-proj" style="width:0%"></div>
+      <div class="rs-barra-pago" id="meta-bar" style="width:0%"></div>
     </div>
-    <!-- Barra Projeção -->
-    <div style="margin-top:8px;">
-      <div style="display:flex;justify-content:space-between;font-size:0.68rem;color:var(--cinza);margin-bottom:3px;">
-        <span>📊 Projeção (Pago + Em aberto)</span><span><span id="meta-perc-projecao">0%</span><span id="meta-valor-projecao" style="color:var(--cinza);margin-left:6px;font-size:0.68rem;"></span></span>
+    <div class="rs-legenda">
+      <div>
+        <span><span class="rs-dot" style="background:#FBAD09"></span>Pago <b id="meta-perc-recebido">0%</b></span>
+        <span><span class="rs-dot" style="background:rgba(251,173,9,.45)"></span>Com o em aberto: <b id="meta-perc-projecao">0%</b> <span id="meta-valor-projecao"></span></span>
       </div>
-      <div class="meta-bar-track">
-        <div style="height:100%;border-radius:6px;transition:width 1s cubic-bezier(0.4,0,0.2,1);background:#f5b301;" id="meta-bar-proj" style="width:0%"></div>
-      </div>
+      <span class="rs-alerta"><span id="meta-sub">Defina uma meta no campo acima</span><span id="meta-dias-uteis" style="margin-left:6px;font-weight:400;"></span></span>
     </div>
-    <div style="font-size:0.68rem;color:var(--cinza);margin-top:6px;" id="meta-sub">Defina uma meta no campo acima</div>
-    <div style="font-size:0.68rem;color:var(--azul);font-weight:600;margin-top:3px;" id="meta-dias-uteis"></div>
   </div>
 
-  <!-- PROJEÇÃO DIÁRIA [ITEM 1] -->
-  <div id="bloco-projecao" style="display:none;background:linear-gradient(135deg,#1a1930,#383772);border-radius:14px;padding:16px 20px;margin-bottom:16px;color:#fff;">
-    <div style="font-size:0.68rem;letter-spacing:.8px;text-transform:uppercase;color:var(--azul-claro);margin-bottom:10px;">📈 Ritmo do Mês · Meta Diária</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;">
-      <div>
-        <div style="font-size:0.65rem;color:rgba(255,255,255,.55);margin-bottom:2px;">Dias úteis passados</div>
-        <div style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.3rem;color:#fff;" id="proj-dias-passados">—</div>
-      </div>
-      <div>
-        <div style="font-size:0.65rem;color:rgba(255,255,255,.55);margin-bottom:2px;">Ritmo atual / dia</div>
-        <div style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.3rem;color:var(--amarelo);" id="proj-ritmo-dia">R$ 0</div>
-      </div>
-      <div>
-        <div style="font-size:0.65rem;color:rgba(255,255,255,.55);margin-bottom:2px;">Precisa ganhar / dia</div>
-        <div style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.3rem;color:#fff;" id="proj-precisa-dia">R$ 0</div>
-      </div>
-      <div>
-        <div style="font-size:0.65rem;color:rgba(255,255,255,.55);margin-bottom:2px;">Projeção de fechamento</div>
-        <div style="font-family:'Montserrat',sans-serif;font-weight:900;font-size:1.3rem;" id="proj-fechamento" style="color:#fff;">R$ 0</div>
-      </div>
-    </div>
-    <div style="margin-top:10px;font-size:0.78rem;font-weight:700;padding:6px 12px;border-radius:8px;display:inline-block;" id="proj-status-badge">—</div>
+  <!-- Ritmo do mês: mantido oculto (dados já aparecem no bloco da meta) -->
+  <div style="display:none !important;" aria-hidden="true">
+  <div id="bloco-projecao" style="display:none;">
+    <div id="proj-dias-passados"></div><div id="proj-ritmo-dia"></div><div id="proj-precisa-dia"></div><div id="proj-fechamento"></div><div id="proj-status-badge"></div>
+  </div>
   </div>
 
   <!-- ALERTA CONTRATOS SEM RETORNO [ITEM 9] -->
@@ -2156,94 +2200,70 @@ html { scroll-behavior: smooth; }
     <div id="lista-sem-retorno" style="display:flex;flex-direction:column;gap:6px;"></div>
   </div>
 
-  <!-- CARDS PRINCIPAIS -->
-  <div class="cards-grid">
-    <div class="card destaque">
-      <div class="card-label">Comissão Recebida</div>
-      <div class="card-valor" id="c-comissao-recebida">R$ 0</div>
-      <div class="card-sub" id="c-contratos-pagos">0 contratos pagos</div>
-      <div id="c-var-recebida" style="font-size:0.65rem;margin-top:4px;"></div>
+  <!-- 4 CARDS -->
+  <div class="rs-cards">
+    <div class="rs-card rs-total">
+      <div class="rs-lbl">Comissão total do mês</div>
+      <div class="rs-val" id="kpi-comissao-total">R$ 0,00</div>
+      <div class="rs-txt" id="kpi-comissao-total-sub">0 contratos</div>
+      <div id="var-comissao-total" style="font-size:0.72rem;"></div>
     </div>
-    <div class="card amarelo-card">
-      <div class="card-label">Bruto em Contratos</div>
-      <div class="card-valor" id="c-bruto">R$ 0</div>
-      <div class="card-sub" id="c-total-contratos">0 contratos</div>
-      <div id="c-var-bruto" style="font-size:0.65rem;margin-top:4px;"></div>
+    <div class="rs-card">
+      <div class="rs-lbl">✅ Recebido</div>
+      <div class="rs-val" id="c-comissao-recebida">R$ 0</div>
+      <div class="rs-txt" id="c-contratos-pagos">0 contratos pagos</div>
+      <div id="c-var-recebida" style="font-size:0.72rem;"></div>
     </div>
-    <div class="card verde-card">
-      <div class="card-label">% Médio de Comissão</div>
-      <div class="card-valor" id="c-perc-medio">0%</div>
-      <div class="card-sub">sobre valor dos contratos</div>
-      <div id="c-var-perc" style="font-size:0.65rem;margin-top:4px;"></div>
+    <div class="rs-card">
+      <div class="rs-lbl">⏳ Em aberto</div>
+      <div class="rs-val" id="c-aberto">R$ 0</div>
+      <div class="rs-txt" id="c-contratos-abertos">0 em aberto</div>
+      <div id="c-var-aberto" style="font-size:0.72rem;"></div>
     </div>
-    <div class="card vermelho-card">
-      <div class="card-label">A Receber (Em Aberto)</div>
-      <div class="card-valor" id="c-aberto">R$ 0</div>
-      <div class="card-sub" id="c-contratos-abertos">0 em aberto</div>
-      <div id="c-var-aberto" style="font-size:0.65rem;margin-top:4px;"></div>
-    </div>
-    <div class="card" style="border-left:4px solid var(--azul); grid-column: span 2;">
-      <div class="card-label">Comissão Total do Mês</div>
-      <div class="card-valor" id="kpi-comissao-total" style="color:var(--azul);">R$ 0,00</div>
-      <div class="card-sub" id="kpi-comissao-total-sub">Pago + Em aberto · 0 contratos</div>
-      <div id="var-comissao-total" style="font-size:0.65rem;margin-top:4px;"></div>
+    <div class="rs-card">
+      <div class="rs-lbl">📄 Produção bruta</div>
+      <div class="rs-val" id="c-bruto">R$ 0</div>
+      <div class="rs-txt"><span id="c-total-contratos">0 contratos</span> · média <span id="c-perc-medio">0%</span></div>
+      <div id="c-var-bruto" style="font-size:0.72rem;"></div>
+      <div id="c-var-perc" style="display:none;"></div>
     </div>
   </div>
 
-  <div class="grid-2">
-    <div class="grafico-container">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
-        <div class="grafico-titulo" style="margin-bottom:0;">Comissão por Produto</div>
-        <div style="display:flex;gap:4px;">
-          <button class="btn-graf-filtro active" id="btn-prod-todos" onclick="setFiltroGraf('produto','todos',this)">Todos</button>
-          <button class="btn-graf-filtro" id="btn-prod-pago" onclick="setFiltroGraf('produto','PAGO',this)">Pago</button>
-          <button class="btn-graf-filtro" id="btn-prod-aberto" onclick="setFiltroGraf('produto','ABERTO',this)">Em aberto</button>
+  <!-- Gráficos antigos (Produto / Top Bancos): ocultos — agora ficam como abas do Ranking -->
+  <div style="display:none !important;" aria-hidden="true">
+    <div id="legenda-grafico-produto"></div><div class="barra-grupo" id="grafico-produto"></div>
+    <div id="legenda-grafico-banco"></div><div class="barra-grupo" id="grafico-banco"></div>
+    <button id="btn-prod-todos"></button><button id="btn-prod-pago"></button><button id="btn-prod-aberto"></button>
+    <button id="btn-banco-todos"></button><button id="btn-banco-pago"></button><button id="btn-banco-aberto"></button>
+  </div>
+
+  <!-- RANKING + ÚLTIMOS LANÇAMENTOS -->
+  <div class="rs-duo">
+    <div class="rs-box" style="flex:1 1 460px;">
+      <div class="rs-box-top">
+        <h3>🏆 Ranking</h3>
+        <div class="rs-abas" role="tablist">
+          <button class="aba-ranking-btn active" onclick="setAbaRanking('banco')">Banco</button>
+          <button class="aba-ranking-btn" onclick="setAbaRanking('produto')">Produto</button>
+          <button class="aba-ranking-btn" onclick="setAbaRanking('promotora')">Promotora</button>
+          <button class="aba-ranking-btn" onclick="setAbaRanking('tipo-operacao')">Operação</button>
         </div>
       </div>
-      <div style="font-size:0.62rem;color:var(--cinza);margin-bottom:6px;" id="legenda-grafico-produto">Exibindo: todos os contratos</div>
-      <div class="barra-grupo" id="grafico-produto"></div>
-    </div>
-    <div class="grafico-container">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
-        <div class="grafico-titulo" style="margin-bottom:0;">Top Bancos</div>
-        <div style="display:flex;gap:4px;">
-          <button class="btn-graf-filtro active" id="btn-banco-todos" onclick="setFiltroGraf('banco','todos',this)">Todos</button>
-          <button class="btn-graf-filtro" id="btn-banco-pago" onclick="setFiltroGraf('banco','PAGO',this)">Pago</button>
-          <button class="btn-graf-filtro" id="btn-banco-aberto" onclick="setFiltroGraf('banco','ABERTO',this)">Em aberto</button>
-        </div>
-      </div>
-      <div style="font-size:0.62rem;color:var(--cinza);margin-bottom:6px;" id="legenda-grafico-banco">Exibindo: todos os contratos</div>
-      <div class="barra-grupo" id="grafico-banco"></div>
-    </div>
-  </div>
-
-  <div class="secao-titulo">Últimos Lançamentos</div>
-  <div class="tabela-wrapper">
-    <table>
-      <thead><tr><th>Data</th><th>Produto</th><th>Banco</th><th>Valor</th><th>Comissão</th><th>Status</th></tr></thead>
-      <tbody id="tbody-recentes"></tbody>
-    </table>
-  </div>
-
-  <!-- RANKING 3 ABAS [ITEM 12] -->
-  <div style="margin-top:24px;">
-    <div class="secao-titulo">🏆 Ranking</div>
-    <div style="display:flex;gap:6px;margin:10px 0 0;flex-wrap:wrap;">
-      <button class="aba-ranking-btn active" onclick="setAbaRanking('banco-produto')">Banco × Produto</button>
-      <button class="aba-ranking-btn" onclick="setAbaRanking('promotora')">Promotora</button>
-      <button class="aba-ranking-btn" onclick="setAbaRanking('tipo-operacao')">Tipo de Operação</button>
-    </div>
-    <div class="tabela-wrapper" style="margin-top:10px;">
       <div id="ranking-content"></div>
+    </div>
+    <div class="rs-box" style="flex:1 1 340px;">
+      <div class="rs-box-top">
+        <h3>Últimos lançamentos</h3>
+        <button class="rs-link" onclick="var b=document.querySelector('.bs-sub-btn[onclick*=&quot;clientes&quot;]'); if(b) b.click();">Ver todos</button>
+      </div>
+      <div id="lista-recentes"></div>
     </div>
   </div>
 
   <!-- EVOLUÇÃO 6 MESES [ITEM 12] -->
-  <div style="margin-top:24px;margin-bottom:8px;">
-    <div class="secao-titulo">📊 Evolução — Últimos 6 Meses</div>
-    <div style="background:#fff;border-radius:12px;border:1px solid #e0e0ee;padding:16px;margin-top:10px;">
-      <canvas id="grafico-6meses" style="max-height:240px;"></canvas>
-    </div>
+  <div class="rs-box" style="margin-bottom:8px;">
+    <h3>📊 Evolução — últimos 6 meses</h3>
+    <canvas id="grafico-6meses" style="max-height:240px;"></canvas>
   </div>
 </div>
 
@@ -6369,7 +6389,7 @@ function renderResumo() {
   const elComTotal = document.getElementById('kpi-comissao-total');
   if(elComTotal) elComTotal.textContent = fmt(totComTotal);
   const elComTotalSub = document.getElementById('kpi-comissao-total-sub');
-  if(elComTotalSub) elComTotalSub.textContent = 'Pago ' + fmt(totCom) + ' + Em aberto ' + fmt(totAberto) + ' · ' + dados.length + ' contrato' + (dados.length!==1?'s':'');
+  if(elComTotalSub) elComTotalSub.textContent = dados.length + ' contrato' + (dados.length!==1?'s':'') + ' · pago + em aberto';
   // FIX: usava variável 'mes' indefinida — deve ser 'mesFinal'
   const labelPeriodo = mesFinal === 'todos' || !mesFinal ? 'Todos os meses' : (MESES[mesFinal] || mesFinal);
   const agora = new Date();
@@ -6467,22 +6487,18 @@ function renderBarras(dados,elId,porProduto) {
 }
 
 function renderRecentes(dados) {
-  const tb = document.getElementById('tbody-recentes');
-  if(!tb) return;
-  // Ordena por data desc: data_operacao > created_at > data > ''
-  const sorted = [...dados].sort((a,b) => {
+  const box = document.getElementById('lista-recentes');
+  if(!box) return;
+  const sorted = [...(dados||[])].sort((a,b) => {
     const da = a.data_operacao || a.created_at || a.data || '';
     const db = b.data_operacao || b.created_at || b.data || '';
     return da < db ? 1 : da > db ? -1 : 0;
-  }).slice(0,10);
-  if(!sorted.length){
-    tb.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--cinza);padding:16px;">Nenhum lançamento neste período</td></tr>`;
-    return;
-  }
-  tb.innerHTML = sorted.map(r => {
+  }).slice(0,5);
+  if(!sorted.length){ box.innerHTML = '<div class="rs-vazio">Nenhum lançamento neste período</div>'; return; }
+  const esc = t => String(t==null?'':t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  box.innerHTML = sorted.map(r => {
     const mod = normModal(r.modalidade);
     const st = (r.status||r.status_comissao||'').toUpperCase();
-    // Formata data como DD/MM
     const rawData = r.data_operacao || r.created_at || r.data || '';
     let dataFmt = '—';
     if(rawData) {
@@ -6491,21 +6507,23 @@ function renderRecentes(dados) {
         if(!isNaN(d.getTime())) {
           dataFmt = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0');
         } else {
-          // tenta formato DD/MM/YYYY
           const partes = rawData.split(/[\/\-]/);
           if(partes.length >= 2) dataFmt = partes[0].padStart(2,'0') + '/' + partes[1].padStart(2,'0');
         }
       } catch(e) { dataFmt = '—'; }
     }
-    const idVal = r.id != null ? r.id : '';
-    return `<tr class="linha-lancamento" style="cursor:pointer;" onclick="abrirModal('${idVal}')">
-      <td style="font-size:0.75rem;color:var(--cinza);font-weight:600;">${dataFmt}</td>
-      <td><span class="pill ${pillClass(mod)}">${mod}</span></td>
-      <td style="color:var(--cinza);font-size:0.75rem;">${r.banco||r.banco_digitado||'—'}</td>
-      <td style="font-weight:600;">${fmt(r.valor_cliente)}</td>
-      <td style="font-weight:700;color:var(--azul);">${fmt(r.comissao)}</td>
-      <td><span class="badge ${st==='PAGO'?'badge-pago':'badge-aberto'}">${st||'—'}</span></td>
-    </tr>`;
+    const idVal = r.id != null ? String(r.id).replace(/'/g,'') : '';
+    const pago = st === 'PAGO';
+    return `<div class="rs-rec" onclick="abrirModal('${idVal}')">
+      <div style="min-width:0;">
+        <div class="rs-rec-banco">${esc(r.banco||r.banco_digitado||'—')}</div>
+        <div class="rs-rec-info">${dataFmt} · ${esc(mod)}</div>
+      </div>
+      <div class="rs-rec-dir">
+        <span class="rs-rec-val">${fmt(r.comissao)}</span>
+        <span class="rs-st ${pago?'rs-st-pago':'rs-st-aberto'}">${pago?'Pago':(st?st.charAt(0)+st.slice(1).toLowerCase():'—')}</span>
+      </div>
+    </div>`;
   }).join('');
 }
 
@@ -9042,7 +9060,7 @@ function atualizarSininho() {
 // ── [20] GRÁFICO DE GASTOS POR CATEGORIA ─────────────────────────────────────
 let _gastosChartInstance = null;
 let _chart6meses = null; // Chart.js instance do gráfico Evolução 6 meses (Resumo)
-let _abaRankingAtiva = 'banco-produto'; // estado persistente da aba de ranking
+let _abaRankingAtiva = 'banco'; // estado persistente da aba de ranking
 
 function toggleGastosGrafico() {
   const box = document.getElementById('gastos-grafico-box');
@@ -9416,6 +9434,7 @@ function renderAgenda() {
 let _rankingDadosCache = []; // cache dos dados para re-render sem redesenhar tudo
 
 function setAbaRanking(aba) {
+  if(aba==='banco-produto') aba='banco';
   _abaRankingAtiva = aba;
   // Atualiza botões
   document.querySelectorAll('.aba-ranking-btn').forEach(btn => {
@@ -9428,72 +9447,34 @@ function setAbaRanking(aba) {
 function _renderRankingContent(dados, aba) {
   const container = document.getElementById('ranking-content');
   if(!container) return;
+  dados = dados || [];
   const totalCom = dados.reduce((s,r)=>s+parseFloat(r.comissao||0),0);
-  const medalhas = ['🥇','🥈','🥉'];
-  const bgMed = ['#FFD700','#C0C0C0','#CD7F32'];
-
-  if(aba === 'banco-produto') {
-    const por = {};
-    dados.forEach(r => {
-      const banco = (r.banco||r.banco_digitado||'—').toUpperCase();
-      const prod = normalizarProduto(r.modalidade);
-      const k = banco + '||' + prod;
-      if(!por[k]) por[k] = { nome: banco + ' · ' + prod, qtd:0, com:0 };
-      por[k].qtd++;
-      por[k].com += parseFloat(r.comissao||0);
-    });
-    const rows = Object.values(por).sort((a,b)=>b.com-a.com).slice(0,8);
-    container.innerHTML = `<table class="ranking-table"><thead><tr><th>#</th><th>Nome</th><th>Contratos</th><th>Comissão</th><th>% Total</th></tr></thead><tbody>` +
-      (rows.length ? rows.map((row,i)=>`<tr>
-        <td><span class="rank-badge" style="background:${i<3?bgMed[i]:'#e8e8f0'};color:${i<3?'#333':'#666'}">${medalhas[i]||i+1}</span></td>
-        <td style="font-weight:700;">${row.nome}</td>
-        <td style="text-align:center;">${row.qtd}</td>
-        <td style="font-weight:700;color:#383772;">${fmt(row.com)}</td>
-        <td>${totalCom>0?fmtP(row.com/totalCom*100):'—'}</td>
-      </tr>`).join('') :
-      '<tr><td colspan="4" style="text-align:center;color:var(--cinza);padding:12px;">Nenhum dado neste período</td></tr>')
-    + '</tbody></table>';
-
-  } else if(aba === 'promotora') {
-    const por = {};
-    dados.forEach(r => {
-      const k = (r.promotora||'').trim() || '—';
-      if(!por[k]) por[k] = { nome: k, qtd:0, com:0 };
-      por[k].qtd++;
-      por[k].com += parseFloat(r.comissao||0);
-    });
-    const rows = Object.values(por).sort((a,b)=>b.com-a.com).slice(0,8);
-    container.innerHTML = `<table class="ranking-table"><thead><tr><th>#</th><th>Nome</th><th>Contratos</th><th>Comissão</th><th>% Total</th></tr></thead><tbody>` +
-      (rows.length ? rows.map((row,i)=>`<tr>
-        <td><span class="rank-badge" style="background:${i<3?bgMed[i]:'#e8e8f0'};color:${i<3?'#333':'#666'}">${medalhas[i]||i+1}</span></td>
-        <td style="font-weight:700;">${row.nome}</td>
-        <td style="text-align:center;">${row.qtd}</td>
-        <td style="font-weight:700;color:#383772;">${fmt(row.com)}</td>
-        <td>${totalCom>0?fmtP(row.com/totalCom*100):'—'}</td>
-      </tr>`).join('') :
-      '<tr><td colspan="4" style="text-align:center;color:var(--cinza);padding:12px;">Nenhum dado neste período</td></tr>')
-    + '</tbody></table>';
-
-  } else if(aba === 'tipo-operacao') {
-    const por = {};
-    dados.forEach(r => {
-      const k = normalizarProduto(r.modalidade) || '—';
-      if(!por[k]) por[k] = { nome: k, qtd:0, com:0 };
-      por[k].qtd++;
-      por[k].com += parseFloat(r.comissao||0);
-    });
-    const rows = Object.values(por).sort((a,b)=>b.com-a.com).slice(0,8);
-    container.innerHTML = `<table class="ranking-table"><thead><tr><th>#</th><th>Nome</th><th>Contratos</th><th>Comissão</th><th>% Total</th></tr></thead><tbody>` +
-      (rows.length ? rows.map((row,i)=>`<tr>
-        <td><span class="rank-badge" style="background:${i<3?bgMed[i]:'#e8e8f0'};color:${i<3?'#333':'#666'}">${medalhas[i]||i+1}</span></td>
-        <td style="font-weight:700;">${row.nome}</td>
-        <td style="text-align:center;">${row.qtd}</td>
-        <td style="font-weight:700;color:#383772;">${fmt(row.com)}</td>
-        <td>${totalCom>0?fmtP(row.com/totalCom*100):'—'}</td>
-      </tr>`).join('') :
-      '<tr><td colspan="4" style="text-align:center;color:var(--cinza);padding:12px;">Nenhum dado neste período</td></tr>')
-    + '</tbody></table>';
-  }
+  const chave = {
+    'banco':         r => (r.banco||r.banco_digitado||'').trim().toUpperCase() || 'Sem banco',
+    'produto':       r => normalizarProduto(r.modalidade) || 'Sem produto',
+    'promotora':     r => (r.promotora||'').trim().toUpperCase() || 'Sem promotora',
+    'tipo-operacao': r => (r.tipo_op||r.operacao||'').trim().toUpperCase() || 'Sem tipo'
+  };
+  const fn = chave[aba] || chave['banco'];
+  const por = {};
+  dados.forEach(r => {
+    const k = fn(r);
+    if(!por[k]) por[k] = { nome:k, qtd:0, com:0 };
+    por[k].qtd++;
+    por[k].com += parseFloat(r.comissao||0);
+  });
+  const rows = Object.values(por).sort((a,b)=>b.com-a.com).slice(0,8);
+  if(!rows.length){ container.innerHTML = '<div class="rs-vazio">Nenhum dado neste período</div>'; return; }
+  const max = rows[0].com > 0 ? rows[0].com : 1;
+  const esc = t => String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  container.innerHTML = rows.map(row => {
+    const w = Math.max(2, Math.round(Math.max(row.com,0)/max*100));
+    return `<div class="rs-rank-linha">
+      <div class="rs-rank-nome" title="${esc(row.nome)}">${esc(row.nome)}<span class="rs-rank-qtd">${row.qtd} contrato${row.qtd!==1?'s':''}</span></div>
+      <div class="rs-rank-trilho"><div style="width:${w}%"></div></div>
+      <div class="rs-rank-val">${fmt(row.com)}<span class="rs-rank-perc">${totalCom>0?fmtP(row.com/totalCom*100):'—'}</span></div>
+    </div>`;
+  }).join('');
 }
 
 function renderRanking(dados) {
