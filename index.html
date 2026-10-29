@@ -5103,8 +5103,7 @@ function _fcSyncMes() {
   if(!sbClient) initSupabase();
   if(!sbClient) return;
   try {
-    const d = DB.get(state.month);
-    fcSupaSalvar(state.month, d).catch(e => console.warn('[FC sync mes]', e));
+    _fcSalvarMesclando(state.month).catch(e => console.warn('[FC sync mes]', e));
   } catch(e) {}
 }
 
@@ -5286,6 +5285,7 @@ function ativarRealtimeSync() {
           return;
         }
         localStorage.setItem('fc_'+mes, JSON.stringify(dados));
+        _fcGuardarBase(mes, dados);
         if(mes === state.month) {
           try { renderAll(); } catch(e) {}
           const pnlGastos = document.getElementById('pnl-gastos');
@@ -6065,6 +6065,83 @@ async function fcSupaReceberTudo() {
   }
 }
 
+// ── Proteção entre aparelhos (celular × computador) ─────────────────────────
+// Guarda quais itens o banco tinha na última vez que este aparelho conversou com ele.
+// Assim, ao salvar, um aparelho desatualizado NÃO apaga o que outro aparelho lançou,
+// e ao voltar para a tela o aparelho puxa o que foi lançado no outro.
+function _fcIdsDe(d){ const o={expenses:[],income:[]}; ['expenses','income'].forEach(k=>{ (d&&Array.isArray(d[k])?d[k]:[]).forEach(x=>{ if(x&&x.id!=null) o[k].push(String(x.id)); }); }); return o; }
+function _fcGuardarBase(mes, dados){ try{ if(!mes||String(mes).startsWith('__')) return; localStorage.setItem('fc_base_'+mes, JSON.stringify(_fcIdsDe(dados))); }catch(e){} }
+function _fcLerBase(mes){ try{ return JSON.parse(localStorage.getItem('fc_base_'+mes)||'null'); }catch(e){ return null; } }
+function _fcMesclar(local, remoto, base, prefere){
+  const out = Object.assign({}, prefere==='remoto' ? (local||{}) : (remoto||{}), prefere==='remoto' ? (remoto||{}) : (local||{}));
+  let mudou = false;
+  ['expenses','income'].forEach(k=>{
+    const L = Array.isArray(local&&local[k]) ? local[k] : [], R = Array.isArray(remoto&&remoto[k]) ? remoto[k] : [];
+    const B = new Set(base && base[k] ? base[k] : []);
+    const mapR = new Map(R.filter(x=>x&&x.id!=null).map(x=>[String(x.id),x]));
+    const idsL = new Set(L.filter(x=>x&&x.id!=null).map(x=>String(x.id)));
+    const res = [];
+    L.forEach(x=>{
+      if(!x || x.id==null){ res.push(x); return; }
+      const id = String(x.id);
+      if(mapR.has(id)) res.push(prefere==='remoto' ? mapR.get(id) : x);
+      else if(B.has(id)) { mudou = true; }            // apagado no outro aparelho
+      else res.push(x);                               // novo deste aparelho, ainda não enviado
+    });
+    R.forEach(x=>{
+      if(!x || x.id==null) return; const id = String(x.id);
+      if(idsL.has(id)) return;
+      if(B.has(id)) return;                           // apagado neste aparelho
+      res.push(x); mudou = true;                      // novo do outro aparelho
+    });
+    out[k] = res;
+  });
+  return { dados: out, mudou };
+}
+async function _fcSalvarMesclando(mes){
+  if(!sbClient) return;
+  const local = DB.get(mes);
+  let final = local;
+  try {
+    const { data: row } = await sbClient.from('fc_meses').select('dados').eq('mes', mes).maybeSingle();
+    if(row && row.dados){
+      const m = _fcMesclar(local, row.dados, _fcLerBase(mes), 'local');
+      final = m.dados;
+      if(m.mudou){
+        DB.set(mes, final);
+        if(mes === state.month){ try{ renderAll(); }catch(e){} try{ if(document.getElementById('pnl-gastos')?.classList.contains('on')) renderGastos(); }catch(e){} }
+      }
+    }
+  } catch(e) { console.warn('[FC mesclar]', e); }
+  const { error } = await sbClient.from('fc_meses').upsert({ mes, dados: final }, { onConflict: 'mes' });
+  if(!error) _fcGuardarBase(mes, final); else console.warn('[FC salvar]', error.message);
+}
+let _fcUltimaAtualizacao = 0;
+async function fcAtualizarMesDoBanco(forcar){
+  if(!sbClient || typeof state==='undefined' || !state.month) return;
+  if(!forcar && Date.now() - _fcUltimaAtualizacao < 15000) return;
+  _fcUltimaAtualizacao = Date.now();
+  const mes = state.month;
+  try {
+    const { data: row } = await sbClient.from('fc_meses').select('dados').eq('mes', mes).maybeSingle();
+    if(!row || !row.dados) return;
+    const local = DB.get(mes);
+    const m = _fcMesclar(local, row.dados, _fcLerBase(mes), 'remoto');
+    const antes = JSON.stringify(local.expenses||[]) + JSON.stringify(local.income||[]);
+    const depois = JSON.stringify(m.dados.expenses||[]) + JSON.stringify(m.dados.income||[]);
+    _fcGuardarBase(mes, row.dados);
+    if(antes !== depois){
+      DB.set(mes, m.dados);
+      try{ renderAll(); }catch(e){}
+      try{ if(document.getElementById('pnl-gastos')?.classList.contains('on')) renderGastos(); }catch(e){}
+      try{ showSyncIndicator('🔄 Atualizado com o outro aparelho', 2500); }catch(e){}
+    }
+  } catch(e) { console.warn('[FC atualizar]', e); }
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') fcAtualizarMesDoBanco(); });
+window.addEventListener('focus', ()=>fcAtualizarMesDoBanco());
+setInterval(()=>{ if(document.visibilityState==='visible') fcAtualizarMesDoBanco(); }, 60000);
+
 async function fcSupaSalvar(mes, dados) {
   if(!sbClient) return;
   try {
@@ -6084,6 +6161,7 @@ async function fcSupaCarregar(mes) {
       .eq('mes', mes)
       .single();
     if(error || !data) return null;
+    _fcGuardarBase(mes, data.dados);
     return data.dados;
   } catch(e) { console.warn('FC Supa load:', e); return null; }
 }
@@ -6096,6 +6174,7 @@ async function fcSupaCarregarTodos() {
       .select('mes, dados')
       .order('mes', { ascending: true });
     if(error || !data) return null;
+    try { data.forEach(r => _fcGuardarBase(r.mes, r.dados)); } catch(e) {}
     return data; // [{mes, dados}, ...]
   } catch(e) { console.warn('FC Supa loadAll:', e); return null; }
 }
@@ -12521,7 +12600,11 @@ function cancelarUnificacao() {
   };
   window.liVoltar = function(){ passo(1); };
 
-  window.liSalvar = function(){
+  window.liSalvar = async function(){
+    try{ if(typeof fcAtualizarMesDoBanco==='function') await fcAtualizarMesDoBanco(true); }catch(e){}
+    return liSalvarAgora();
+  };
+  function liSalvarAgora(){
     const nome = $('li-nome').value.trim(), valor = numBR($('li-valor').value), cat = $('li-cat').value;
     const dataG = $('li-data').value || hojeISO(), status = $('li-status').value || 'PAGO';
     const loja = $('li-loja').value.trim(), pag = $('li-pag').value;
