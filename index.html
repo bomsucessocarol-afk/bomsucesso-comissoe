@@ -386,6 +386,15 @@ tr.rw-vencido:hover td{background:#fca5a5!important}
 #toast.erro-toast{background:var(--vermelho)}
 
 /* ── CARRY NOTICE ── */
+.rec-box{margin-top:26px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
+.rec-box>summary{cursor:pointer;font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;color:var(--azul);list-style:none}
+.rec-box>summary::-webkit-details-marker{display:none}
+.rec-box>summary::before{content:'▸ ';}
+.rec-box[open]>summary::before{content:'▾ ';}
+.rec-box-sub{font-family:inherit;font-weight:500;font-size:11px;color:var(--text3)}
+.imp-item{display:flex;align-items:flex-start;gap:10px;padding:10px 4px;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer}
+.imp-item input{margin-top:3px;width:18px;height:18px;flex-shrink:0}
+.imp-grp{font-weight:800;font-size:12px;margin:14px 0 4px;color:var(--azul)}
 .carry-notice{background:#fffbeb;border:1px solid var(--aberto-border);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--aberto);margin-bottom:14px;display:flex;align-items:center;gap:8px}
 
 /* ── BULK BAR ── */
@@ -1554,7 +1563,6 @@ html { scroll-behavior: smooth; }
     <div class="sep-lbl">Finanças Pessoais</div>
     <button class="tab-btn on" onclick="showTab('dashboard',this);closeSidebar()">📊 Dashboard</button>
     <button class="tab-btn" onclick="showTab('despesas',this);closeSidebar()">💸 Despesas</button>
-    <button class="tab-btn" onclick="showTab('recorrentes',this);closeSidebar()">🔄 Recorrentes</button>
     <button class="tab-btn" onclick="showTab('ganhos',this);closeSidebar()">💰 Ganhos</button>
     <button class="tab-btn" onclick="showTab('gastos',this);renderGastos();closeSidebar()">🛒 Gastos do Mês</button>
     <button class="tab-btn" onclick="liAbrir()" style="color:#FBAD09;font-weight:800;">⚡ Lançar inteligente</button>
@@ -1659,26 +1667,26 @@ html { scroll-behavior: smooth; }
     <button class="btn btn-out" onclick="clearSelection()" style="font-size:12px;padding:6px 14px;color:#fff;border-color:rgba(255,255,255,.3)">✕ Cancelar</button>
   </div>
   <div id="exp-sections"></div>
+
+  <!-- CONTAS FIXAS (RECORRENTES) — agora dentro de Despesas -->
+  <details class="rec-box" id="rec-box">
+    <summary>🔄 Contas fixas (mês a mês) <span class="rec-box-sub">— cadastre uma vez, repete todo mês · toque para abrir</span></summary>
+    <div class="tbar" style="margin-top:12px">
+      <div class="tbar-l">
+        <button class="btn" onclick="openRecModal()">＋ Nova Conta Fixa</button>
+      </div>
+      <div class="tbar-r">
+        <select id="flt-rec-status" onchange="renderRecorrentes()">
+          <option value="ativas">Ativas</option>
+          <option value="arquivadas">Encerradas / Arquivadas</option>
+          <option value="todas">Todas</option>
+        </select>
+      </div>
+    </div>
+    <div class="three-col" id="rec-sections"></div>
+  </details>
 </section>
 
-<!-- RECORRENTES -->
-<section class="pnl" id="pnl-recorrentes">
-  <div class="sec-ttl">Despesas Recorrentes</div>
-  <div class="sec-sub">Cadastre uma vez — gerado automaticamente todo mês</div>
-  <div class="tbar">
-    <div class="tbar-l">
-      <button class="btn" onclick="openRecModal()">＋ Nova Recorrente</button>
-    </div>
-    <div class="tbar-r">
-      <select id="flt-rec-status" onchange="renderRecorrentes()">
-        <option value="ativas">Ativas</option>
-        <option value="arquivadas">Arquivadas</option>
-        <option value="todas">Todas</option>
-      </select>
-    </div>
-  </div>
-  <div class="three-col" id="rec-sections"></div>
-</section>
 
 <!-- GANHOS -->
 <section class="pnl" id="pnl-ganhos">
@@ -3443,10 +3451,11 @@ function switchUser(i){
 }
 
 function showTab(name,btn){
+  if(name==='recorrentes'){ name='despesas'; setTimeout(()=>{const b=document.getElementById('rec-box'); if(b){b.open=true; b.scrollIntoView({behavior:'smooth'});}},50); }
   document.querySelectorAll('.pnl').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
   document.getElementById('pnl-'+name).classList.add('on');
-  btn.classList.add('on');
+  if(btn) btn.classList.add('on');
   if(name==='dashboard') renderDashboard();
   if(name==='calendario') renderCalendar();
   if(name==='recorrentes') renderRecorrentes();
@@ -3626,9 +3635,10 @@ function renderExpenses(){
   const[y,m]=state.month.split('-').map(Number);
   const prevDate=new Date(y,m-2,1);
   const prevMonth=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}`;
-  const carried=DB.get(prevMonth).expenses.filter(e=>e.status==='PROXIMO');
+  const carried=_carryCandidatos();
+  const _nProx=carried.filter(e=>e.status==='PROXIMO').length, _nVenc=carried.length-_nProx;
   document.getElementById('carry-msg').innerHTML=carried.length>0
-    ?`<div class="carry-notice">⚠️ <span>${carried.length} despesa(s) do mês anterior. <button class="btn btn-sm" style="margin-left:10px" onclick="importCarried()">📥 Importar</button></span></div>`:'';
+    ?`<div class="carry-notice">⚠️ <span>Mês anterior: ${_nProx?_nProx+' marcada(s) 🟠 Próx.':''}${_nProx&&_nVenc?' e ':''}${_nVenc?_nVenc+' 🔴 vencida(s) sem pagar':''}. <button class="btn btn-sm" style="margin-left:10px" onclick="importCarried()">📥 Importar</button></span></div>`:'';
 
   const catFlt=document.getElementById('flt-cat');
   const selCat=catFlt.value;
@@ -3818,19 +3828,78 @@ function importJSONConfig(input){
   reader.readAsText(file);
 }
 
-function importCarried(){
-  const prevDate=new Date(y,m-2,1);
-  const prevMonth=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}`;
-  const prevData=DB.get(prevMonth);
-  const carried=prevData.expenses.filter(e=>e.status==='PROXIMO');
-  const d=data();
-  carried.forEach(e=>{
-    const newE={...e,id:uid(),status:'ABERTO',payDate:'',obs:(e.obs?e.obs+' | ':'')+'Importado do mês anterior'};
-    d.expenses.push(newE);
+// ── IMPORTAR DO MÊS ANTERIOR (manual: você escolhe o que trazer) ──
+function _prevMonthKey(){
+  const[y,m]=state.month.split('-').map(Number);
+  const pd=new Date(y,m-2,1);
+  return `${pd.getFullYear()}-${String(pd.getMonth()+1).padStart(2,'0')}`;
+}
+function _carryCandidatos(){
+  const prev=DB.get(_prevMonthKey());
+  const atual=data();
+  const jaTrazidos=new Set(atual.expenses.map(e=>e._origemId).filter(Boolean));
+  return (prev.expenses||[]).filter(e=>{
+    if(e._importadoPara) return false;            // já importada antes
+    if(jaTrazidos.has(e.id)) return false;        // já está neste mês
+    const st=effectiveStatus(e);
+    return e.status==='PROXIMO' || st==='VENCIDO';
   });
+}
+function importCarried(){
+  const lista=_carryCandidatos();
+  if(!lista.length){ showToast('Nada para importar do mês anterior 👍'); renderExpenses(); return; }
+  let ov=document.getElementById('imp-modal');
+  if(!ov){
+    ov=document.createElement('div'); ov.className='ov'; ov.id='imp-modal';
+    ov.addEventListener('click',function(ev){ if(ev.target===this) this.classList.remove('on'); });
+    document.body.appendChild(ov);
+  }
+  const item=(e,chk)=>`<label class="imp-item"><input type="checkbox" class="imp-chk" value="${e.id}" ${chk?'checked':''}>
+    <span><strong>${e.name}</strong> — ${BRL(e.value)}<br><span style="font-size:11px;color:var(--text3)">${e.card==='EMPRESA'?'🏢 Empresa':e.card==='CASA'?'🏠 Casa':'🛒 '+(e.card||'Sem card')} · venc. ${fmtDate(e.dueDate)}</span></span></label>`;
+  const prox=lista.filter(e=>e.status==='PROXIMO'), venc=lista.filter(e=>e.status!=='PROXIMO');
+  ov.innerHTML=`<div class="modal">
+    <div class="modal-ttl">📥 Importar do mês anterior</div>
+    <div style="font-size:12px;color:var(--text3)">Marque só o que você quer trazer para <strong>${monthLabel(state.month)}</strong>. O que não marcar fica onde está.</div>
+    ${prox.length?`<div class="imp-grp">🟠 Ficou pro próximo mês (${prox.length})</div>`+prox.map(e=>item(e,true)).join(''):''}
+    ${venc.length?`<div class="imp-grp">🔴 Vencidas sem pagar (${venc.length})</div>`+venc.map(e=>item(e,false)).join(''):''}
+    <div class="mftr" style="margin-top:16px">
+      <button class="btn btn-out" onclick="document.getElementById('imp-modal').classList.remove('on')">Cancelar</button>
+      <button class="btn" onclick="confirmarImportCarried()">📥 Importar marcadas</button>
+    </div></div>`;
+  ov.classList.add('on');
+}
+function confirmarImportCarried(){
+  const ids=[...document.querySelectorAll('#imp-modal .imp-chk:checked')].map(c=>c.value);
+  if(!ids.length){ showToast('⚠️ Marque pelo menos uma despesa'); return; }
+  const prevKey=_prevMonthKey();
+  const prevData=DB.get(prevKey);
+  const d=data();
+  const[y,m]=state.month.split('-').map(Number);
+  const ultimoDia=new Date(y,m,0).getDate();
+  let n=0;
+  prevData.expenses.forEach(e=>{
+    if(!ids.includes(e.id)) return;
+    let venc=e.dueDate||'';
+    // "Próx." vai para o mesmo dia no mês atual; vencida mantém a data original (continua aparecendo como atrasada)
+    if(e.status==='PROXIMO' && venc){
+      const dia=Math.min(parseInt(venc.split('-')[2])||1,ultimoDia);
+      venc=`${state.month}-${String(dia).padStart(2,'0')}`;
+    }
+    const novo={...e,id:uid(),status:'ABERTO',payDate:'',dueDate:venc,_origemId:e.id,
+      obs:(e.obs?e.obs+' | ':'')+'Importado de '+monthLabel(prevKey)+(e.dueDate?' (venc. original '+fmtDate(e.dueDate)+')':'')};
+    delete novo._recId;            // não bloquear a conta fixa deste mês
+    delete novo._importadoPara;
+    d.expenses.push(novo);
+    e._importadoPara=state.month;  // marca no mês anterior para não aparecer de novo
+    n++;
+  });
+  DB.set(prevKey,prevData);
+  try{ if(typeof _fcSalvarMesclando==='function' && sbClient) _fcSalvarMesclando(prevKey).catch(()=>{}); }catch(_){}
+  try{ syncMonthToSheets(prevKey,prevData); }catch(_){}
   save(d);
-  renderExpenses();
-  showToast(`${carried.length} despesa(s) importada(s)! 📥`);
+  document.getElementById('imp-modal').classList.remove('on');
+  renderAll();
+  showToast(`${n} despesa(s) importada(s)! 📥`);
 }
 
 function toggleRecFields(){
@@ -3930,22 +3999,42 @@ function saveExpense(){
     };
     if(existingRec){
       const idx=recs.findIndex(r=>r.id===recId);
-      recs[idx]={...recs[idx],...recObj};
+      // Ao editar, mantém mês de início, parcelas e situação originais
+      const {startMonth,isInstallment,currentInstallment,totalInstallments,...edit}=recObj;
+      recs[idx]={...recs[idx],...edit};
     } else {
       recs.push(recObj);
     }
     saveRecs(recs);
     obj._recId=newRecId;
-  } else {
-    // If unchecking recorrente, keep obj without _recId (don't delete the template)
-    if(!isRec && recId) obj._recId=recId; // keep link but don't force
+  } else if(recId){
+    // Desmarcou "Recorrente": encerra a conta fixa a partir do próximo mês
+    if(!confirm('Parar de repetir esta despesa nos próximos meses?\n\nA despesa deste mês fica. As cópias EM ABERTO dos meses seguintes serão removidas (as já pagas ficam).')){
+      return;
+    }
+    const recs=getRecs();
+    const rec=recs.find(r=>r.id===recId);
+    if(rec){ rec.active=false; rec.archived=true; rec.endMonth=state.month; saveRecs(recs); }
+    const[yy,mm]=state.month.split('-').map(Number);
+    const nx=new Date(yy,mm,1);
+    _limparRecFuturos(recId, `${nx.getFullYear()}-${String(nx.getMonth()+1).padStart(2,'0')}`);
+    obj._recEncerrado=recId;     // guarda histórico, sem gerar de novo
+    var _recEncerrou=true;
   }
 
-  if(state.editExpId){ d.expenses=d.expenses.map(e=>e.id===state.editExpId?obj:e); }
+  if(state.editExpId){
+    d.expenses=d.expenses.map(e=>{
+      if(e.id!==state.editExpId) return e;
+      const merged={...e,...obj};
+      if(!obj._recId) delete merged._recId;
+      return merged;
+    });
+  }
   else { d.expenses.push(obj); }
   save(d);
   closeExpModal();
   renderAll();
+  if(typeof _recEncerrou!=='undefined' && _recEncerrou){ showToast('🔄 Recorrência encerrada — não vai mais repetir nos próximos meses'); return; }
   showToast(state.editExpId?'Despesa atualizada! ✅':isRec?'Despesa adicionada e marcada como recorrente! 🔄':'Despesa adicionada! ✅');
 }
 
@@ -4525,6 +4614,8 @@ function _limparRecFuturos(recId, mesAPartirDe) {
     );
     if (mdata.expenses.length !== antes) {
       DB.set(month, mdata);
+      try{ if(typeof _fcSalvarMesclando==='function' && sbClient) _fcSalvarMesclando(month).catch(()=>{}); }catch(_){}
+      try{ syncMonthToSheets(month, mdata); }catch(_){}
       // Limpa o cache de "já gerado" para esse mês+rec
       const genKey = 'fc_gen_' + month;
       const already = JSON.parse(localStorage.getItem(genKey) || '[]');
