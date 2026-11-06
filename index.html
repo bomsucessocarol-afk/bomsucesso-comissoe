@@ -4040,7 +4040,7 @@ function saveExpense(){
 
 function deleteExpense(id){
   if(!confirm('Excluir esta despesa?')) return;
-  const d=data(); d.expenses=d.expenses.filter(e=>e.id!==id); save(d);
+  const d=data(); const _exDel=d.expenses.find(e=>e.id===id); if(_exDel&&_exDel._recId){ d._recSkip=[...new Set([...(d._recSkip||[]).map(String),String(_exDel._recId)])]; } d.expenses=d.expenses.filter(e=>e.id!==id); save(d);
   renderAll(); showToast('Despesa excluída 🗑️');
 }
 
@@ -4371,38 +4371,50 @@ function getDueDateForMonth(rec, month){
 }
 
 function generateRecurrentes(month){
-  const genKey='fc_gen_'+month;
-  const already=JSON.parse(localStorage.getItem(genKey)||'[]');
+  // v2 (nov/2026) — CORREÇÃO: o controle de "já gerado/excluído" agora fica DENTRO do mês (d._recSkip),
+  // que sincroniza com o Supabase. Antes ficava só no aparelho (fc_gen_), e quando o banco sobrescrevia
+  // o mês as recorrentes sumiam e nunca mais eram geradas.
   const recs=getRecs();
   const d=DB.get(month);
+  if(!Array.isArray(d.expenses)) d.expenses=[];
+  const skip=new Set((d._recSkip||[]).map(String));
+  let legacy=[]; try{ legacy=JSON.parse(localStorage.getItem('fc_gen_'+month)||'[]'); }catch(_){}
+  const mesAtual=today().slice(0,7);
+  const norm=s=>String(s||'').trim().toUpperCase();
   let changed=false;
 
-  recs.forEach(rec=>{
-    if(!rec.active||rec.archived) return;
-    // FIX BUG 1: nunca gerar em mês anterior ao startMonth da recorrente
-    if(rec.startMonth && month < rec.startMonth) return;
-    if(already.includes(rec.id)) return;
-    // Check if already exists in this month
-    if(d.expenses.some(e=>e._recId===rec.id)) return;
+  // recorrentes duplicadas (mesmo nome): a mais nova (valor mais atual) tem prioridade
+  const ordem=[...recs].sort((a,b)=>String((b&&b.startMonth)||'').localeCompare(String((a&&a.startMonth)||'')));
+  ordem.forEach(rec=>{
+    if(!rec||!rec.active||rec.archived) return;
+    if(rec.startMonth && month < rec.startMonth) return;   // nunca antes do início
+    if(rec.endMonth && month > rec.endMonth) return;       // nunca depois do fim
+    if(skip.has(String(rec.id))) return;                   // excluída neste mês pela usuária
+    if(month < mesAtual && legacy.includes(rec.id)) return; // meses passados: não mexe no histórico
+    if(d.expenses.some(e=>e&&e._recId===rec.id)) return;   // já existe neste mês
     let name=rec.name;
     if(rec.isInstallment){
       const installNum=getInstallmentForMonth(rec,month);
       if(installNum<1||installNum>rec.totalInstallments) return;
       name=rec.name+' ('+installNum+'/'+rec.totalInstallments+')';
     }
+    // Já existe lançamento com o mesmo nome (ex.: importado do mês anterior ou recorrente duplicada) → não duplica
+    const igual=d.expenses.find(e=>e&&norm(e.name)===norm(name));
+    if(igual){ if(!igual._recId){ igual._recId=rec.id; changed=true; } return; }
     d.expenses.push({
-      id:uid(), name, category:rec.category, type:rec.type,
+      id:'rec_'+rec.id+'_'+month, name, category:rec.category, type:rec.type,
       value:rec.value, dueDate:getDueDateForMonth(rec,month),
       payDate:'', status:'ABERTO', obs:rec.obs||'Recorrente automático',
       _recId:rec.id, card:rec.card||''
     });
-    already.push(rec.id);
     changed=true;
   });
 
   if(changed){
     DB.set(month,d);
-    localStorage.setItem(genKey,JSON.stringify(already));
+    // CORREÇÃO: envia ao banco/planilha na hora (antes ficava só no aparelho e era apagado na sincronização)
+    try{ syncMonthToSheets(month,d); }catch(_){}
+    try{ if(typeof _fcSalvarMesclando==='function' && sbClient) _fcSalvarMesclando(month).catch(()=>{}); }catch(_){}
   }
 }
 
@@ -6166,6 +6178,8 @@ function _fcLerBase(mes){ try{ return JSON.parse(localStorage.getItem('fc_base_'
 function _fcMesclar(local, remoto, base, prefere){
   const out = Object.assign({}, prefere==='remoto' ? (local||{}) : (remoto||{}), prefere==='remoto' ? (remoto||{}) : (local||{}));
   let mudou = false;
+  // CORREÇÃO recorrentes: une a lista de recorrentes excluídas dos dois aparelhos
+  { const _skL=((local&&local._recSkip)||[]).map(String), _skR=((remoto&&remoto._recSkip)||[]).map(String); const _sk=[...new Set([..._skL,..._skR])]; if(_sk.length){ out._recSkip=_sk; if(_sk.length!==new Set(_skL).size) mudou=true; } }
   ['expenses','income'].forEach(k=>{
     const L = Array.isArray(local&&local[k]) ? local[k] : [], R = Array.isArray(remoto&&remoto[k]) ? remoto[k] : [];
     const B = new Set(base && base[k] ? base[k] : []);
