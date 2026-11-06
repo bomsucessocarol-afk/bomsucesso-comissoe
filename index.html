@@ -4038,10 +4038,31 @@ function saveExpense(){
   showToast(state.editExpId?'Despesa atualizada! ✅':isRec?'Despesa adicionada e marcada como recorrente! 🔄':'Despesa adicionada! ✅');
 }
 
+function _fcMarcarExcluido(d,id){
+  // "lápide": guarda o id excluído no próprio mês para a sincronização não trazer de volta
+  if(!d||id==null) return;
+  d._delIds=[...new Set([...(d._delIds||[]).map(String),String(id)])].slice(-800);
+}
+function _mesMais(m,n){ const[y,mo]=m.split('-').map(Number); const x=new Date(y,mo-1+n,1); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0'); }
 function deleteExpense(id){
-  if(!confirm('Excluir esta despesa?')) return;
-  const d=data(); const _exDel=d.expenses.find(e=>e.id===id); if(_exDel&&_exDel._recId){ d._recSkip=[...new Set([...(d._recSkip||[]).map(String),String(_exDel._recId)])]; } d.expenses=d.expenses.filter(e=>e.id!==id); save(d);
-  renderAll(); showToast('Despesa excluída 🗑️');
+  const d=data();
+  const ex=d.expenses.find(e=>e.id===id);
+  const recId=ex&&ex._recId;
+  const msg=recId
+    ? 'Excluir esta despesa RECORRENTE?\n\nEla some deste mês e dos próximos meses e para de repetir.\n(Meses anteriores ficam como histórico.)'
+    : 'Excluir esta despesa?';
+  if(!confirm(msg)) return;
+  _fcMarcarExcluido(d,id);
+  if(recId){
+    d._recSkip=[...new Set([...(d._recSkip||[]).map(String),String(recId)])];
+    const recs=getRecs(); const rec=recs.find(r=>r.id===recId);
+    if(rec){ rec.active=false; rec.archived=true; rec.endMonth=_mesMais(state.month,-1); saveRecs(recs); }
+  }
+  d.expenses=d.expenses.filter(e=>e.id!==id);
+  save(d);
+  if(recId){ try{ _limparRecFuturos(recId, _mesMais(state.month,1)); }catch(_){} }
+  renderAll();
+  showToast(recId?'🗑️ Recorrente excluída — não vai mais repetir':'Despesa excluída 🗑️');
 }
 
 // ============================================================
@@ -4383,9 +4404,9 @@ function generateRecurrentes(month){
   const norm=s=>String(s||'').trim().toUpperCase();
   let changed=false;
 
-  // recorrentes duplicadas (mesmo nome): a mais nova (valor mais atual) tem prioridade
-  const ordem=[...recs].sort((a,b)=>String((b&&b.startMonth)||'').localeCompare(String((a&&a.startMonth)||'')));
-  ordem.forEach(rec=>{
+  // Repete EXATAMENTE o que a usuária marcou como recorrente (sem escolher sozinho entre duplicadas)
+  const _del=new Set((d._delIds||[]).map(String));
+  recs.forEach(rec=>{
     if(!rec||!rec.active||rec.archived) return;
     if(rec.startMonth && month < rec.startMonth) return;   // nunca antes do início
     if(rec.endMonth && month > rec.endMonth) return;       // nunca depois do fim
@@ -4398,9 +4419,10 @@ function generateRecurrentes(month){
       if(installNum<1||installNum>rec.totalInstallments) return;
       name=rec.name+' ('+installNum+'/'+rec.totalInstallments+')';
     }
-    // Já existe lançamento com o mesmo nome (ex.: importado do mês anterior ou recorrente duplicada) → não duplica
-    const igual=d.expenses.find(e=>e&&norm(e.name)===norm(name));
-    if(igual){ if(!igual._recId){ igual._recId=rec.id; changed=true; } return; }
+    if(_del.has('rec_'+rec.id+'_'+month)) return;           // foi excluída neste mês
+    // Cópia importada do mês anterior (sem vínculo) com o mesmo nome → só vincula, não duplica
+    const igual=d.expenses.find(e=>e&&!e._recId&&norm(e.name)===norm(name));
+    if(igual){ igual._recId=rec.id; changed=true; return; }
     d.expenses.push({
       id:'rec_'+rec.id+'_'+month, name, category:rec.category, type:rec.type,
       value:rec.value, dueDate:getDueDateForMonth(rec,month),
@@ -4621,9 +4643,10 @@ function _limparRecFuturos(recId, mesAPartirDe) {
     const mdata = DB.get(month);
     const antes = mdata.expenses.length;
     // Remove somente entradas ABERTO — preserva as já PAGAS (histórico)
-    mdata.expenses = mdata.expenses.filter(e =>
-      !(e._recId === recId && (e.status === 'ABERTO' || e.status === '' || !e.status))
-    );
+    const _rem = mdata.expenses.filter(e => e._recId === recId && (e.status === 'ABERTO' || e.status === '' || !e.status));
+    mdata.expenses = mdata.expenses.filter(e => !_rem.includes(e));
+    _rem.forEach(e => _fcMarcarExcluido(mdata, e.id));
+    if (_rem.length) mdata._recSkip = [...new Set([...(mdata._recSkip||[]).map(String), String(recId)])];
     if (mdata.expenses.length !== antes) {
       DB.set(month, mdata);
       try{ if(typeof _fcSalvarMesclando==='function' && sbClient) _fcSalvarMesclando(month).catch(()=>{}); }catch(_){}
@@ -6180,6 +6203,7 @@ function _fcMesclar(local, remoto, base, prefere){
   let mudou = false;
   // CORREÇÃO recorrentes: une a lista de recorrentes excluídas dos dois aparelhos
   { const _skL=((local&&local._recSkip)||[]).map(String), _skR=((remoto&&remoto._recSkip)||[]).map(String); const _sk=[...new Set([..._skL,..._skR])]; if(_sk.length){ out._recSkip=_sk; if(_sk.length!==new Set(_skL).size) mudou=true; } }
+  const _dL=((local&&local._delIds)||[]).map(String), _dR=((remoto&&remoto._delIds)||[]).map(String); const _del=new Set([..._dL,..._dR]); if(_del.size){ out._delIds=[..._del].slice(-800); }
   ['expenses','income'].forEach(k=>{
     const L = Array.isArray(local&&local[k]) ? local[k] : [], R = Array.isArray(remoto&&remoto[k]) ? remoto[k] : [];
     const B = new Set(base && base[k] ? base[k] : []);
@@ -6199,7 +6223,9 @@ function _fcMesclar(local, remoto, base, prefere){
       if(B.has(id)) return;                           // apagado neste aparelho
       res.push(x); mudou = true;                      // novo do outro aparelho
     });
-    out[k] = res;
+    const _fin = _del.size ? res.filter(x=>!(x&&x.id!=null&&_del.has(String(x.id)))) : res;
+    if(_fin.length!==res.length) mudou = true;
+    out[k] = _fin;
   });
   return { dados: out, mudou };
 }
@@ -8502,6 +8528,7 @@ function salvarGasto() {
 function excluirGasto(id) {
   if(!confirm('Excluir este gasto?')) return;
   const d = data();
+  _fcMarcarExcluido(d, id);
   d.expenses = d.expenses.filter(x=>x.id!==id);
   save(d);
   renderGastos();
