@@ -1,0 +1,22 @@
+name: Publicar assistente no Supabase
+
+# Sempre que a função do assistente mudar no GitHub, publica no Supabase sozinho.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/**'
+  workflow_dispatch:   # permite rodar à mão pela aba Actions
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Publicar função assistente-ia
+        run: supabase functions deploy assistente-ia --project-ref okoxgwkevxzxegqcsgwc
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
