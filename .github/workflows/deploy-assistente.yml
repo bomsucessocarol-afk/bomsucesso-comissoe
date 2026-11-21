@@ -17,6 +17,6 @@ jobs:
         with:
           version: latest
       - name: Publicar função assistente-ia
-        run: supabase functions deploy assistente-ia --project-ref okoxgwkevxzxegqcsgwc
+        run: supabase functions deploy assistente-ia --remote=okoxgwkevxzxegqcsgwc --yes
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
