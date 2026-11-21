@@ -5542,10 +5542,12 @@ async function supabaseCarregar() {
 
 // Deleta lançamento do Supabase
 async function supabaseDeletar(id) {
-  if(!sbClient) return;
+  if(!sbClient) return true;
   try {
-    await sbClient.from('lancamentos').delete().eq('id', id);
-  } catch(e) { console.warn('Supabase delete error:', e); }
+    const { error } = await sbClient.from('lancamentos').delete().eq('id', id);
+    if(error){ console.warn('Supabase delete error:', error); return false; }
+    return true;
+  } catch(e) { console.warn('Supabase delete error:', e); return false; }
 }
 
 // Salva em lote (para importação)
@@ -7626,8 +7628,9 @@ function fecharModal(){
 /* Excluir lançamento a partir do modal de edição */
 async function deletarDoModal() {
   if(editandoIdx < 0) return;
+  const idx = editandoIdx;   // guarda ANTES: fecharModal() zera editandoIdx
   fecharModal();
-  await deletar(editandoIdx);
+  await deletar(idx);
 }
 
 function salvarEdicao() {
@@ -7679,18 +7682,20 @@ function salvarEdicao() {
   } catch(e){ bs_mostrarToast('Erro ao salvar.','erro-toast'); }
 }
 async function deletar(idx) {
-  if(!confirm('Excluir este lançamento?')) return;
   const r=dadosFiltrados[idx];
+  if(!r){ bs_mostrarToast('Não achei esse registro na lista. Atualize a página e tente de novo.','erro-toast'); return; }
+  if(!confirm('Excluir este lançamento?')) return;
   try {
     const gi=todosLancamentos.findIndex(x=>x.id===r.id);
     if(gi>-1) todosLancamentos.splice(gi,1);
     dadosFiltrados.splice(idx,1);
+    try{ salvarCacheCompleto(); }catch(_){}
     bs_mostrarToast('🗑️ Registro excluído!');
     renderTabela(); renderResumo();
     // Deleta do Supabase e do Sheets
-    supabaseDeletar(r.id);
+    supabaseDeletar(r.id).then(ok=>{ if(ok===false) bs_mostrarToast('⚠️ Saiu da tela, mas o banco não confirmou. Se voltar ao atualizar, exclua de novo.','erro-toast'); });
     bsJsonpGet(APPS_URL, {action:'deletarLancamento', id:r.id, t:Date.now()});
-  } catch(e){ bs_mostrarToast('Erro ao excluir.','erro-toast'); }
+  } catch(e){ console.error('[deletar]',e); bs_mostrarToast('Erro ao excluir: '+(e&&e.message||e),'erro-toast'); }
 }
 
 // ══════ SIMULADOR 15 LINHAS ══════
@@ -11742,9 +11747,12 @@ function cancelarUnificacao() {
 
   // ════════ ENVIO (com consultas em 2 rodadas) ════════
   async function chamarFuncao(corpo){
-    const r=await fetch(SUPA_URL+'/functions/v1/'+IA_FUNCAO,{method:'POST',
-      headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY},body:JSON.stringify(corpo)});
-    const j=await r.json().catch(()=>({erro:'Resposta inválida ('+r.status+')'}));
+    let r;
+    try{
+      r=await fetch(SUPA_URL+'/functions/v1/'+IA_FUNCAO,{method:'POST', signal:AbortSignal.timeout(130000),
+        headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY},body:JSON.stringify(corpo)});
+    }catch(e){ return {erro:'⏱️ O assistente demorou demais para ler o arquivo. Tente de novo, ou envie menos páginas / uma foto só da parte dos contratos.'}; }
+    const j=await r.json().catch(()=>({erro:'⏱️ O assistente demorou demais ou caiu ('+r.status+'). Tente de novo com menos páginas.'}));
     if(!r.ok && !j.erro) j.erro='Erro '+r.status;
     return j;
   }

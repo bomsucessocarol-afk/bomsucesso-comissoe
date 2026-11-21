@@ -576,11 +576,28 @@ async function chamarGemini(chave: string, corpo: Record<string, unknown>, prefe
       ? { ...corpo, contents: semAssinatura(corpo.contents as { role: string; parts: Parte[] }[]) }
       : corpo;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`;
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": chave },
-      body: JSON.stringify(corpoModelo),
+    // pensamento curto = leitura de PDF/foto muito mais rápida; se o modelo não aceitar, tenta sem
+    const comPensamento = (c: Record<string, unknown>) => ({
+      ...c,
+      generationConfig: { ...(c.generationConfig as object), thinkingConfig: { thinkingBudget: 512 } },
     });
+    const chamar = (c: Record<string, unknown>) =>
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": chave },
+        body: JSON.stringify(c),
+        signal: AbortSignal.timeout(55000), // não deixa um modelo travado gastar o tempo todo
+      });
+    let r: Response;
+    try {
+      r = await chamar(comPensamento(corpoModelo));
+      if (r.status === 400) r = await chamar(corpoModelo);
+    } catch (e) {
+      ultimoErro = `Gemini (${modelo}) demorou demais: ${(e as Error).message}`;
+      console.warn(ultimoErro);
+      sobrecarga = true;
+      continue;
+    }
     const txt = await r.text();
     if (r.ok) return { ...JSON.parse(txt), _modelo: modelo };
     ultimoErro = `Gemini (${modelo}) respondeu ${r.status}: ${txt.slice(0, 300)}`;
